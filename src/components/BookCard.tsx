@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { formatPrice } from "@/lib/cart";
 import type { Tables } from "@/integrations/supabase/types";
+import {useLocale} from "@/lib/locale";
 
 export type Book = Tables<"books">;
 
@@ -26,6 +27,7 @@ export function BookCover({ book, className = "" }: { book: Pick<Book, "cover_ur
 }
 
 export function BookCard({ book, index = 0 }: { book: Book; index?: number }) {
+  const {t,price:money}=useLocale();
   const price = Math.min(
     ...[book.price_digital, book.price_physical].filter((p): p is number => p != null).map(Number),
   );
@@ -40,13 +42,13 @@ export function BookCard({ book, index = 0 }: { book: Book; index?: number }) {
         <BookCover book={book} />
       </div>
       <div className="mt-4 space-y-1">
-        <span className="text-xs text-primary">{formatLabel[book.format]}</span>
+        <span className="text-xs text-primary">{t(formatLabel[book.format],book.format==="both"?"Digital & print":book.format==="digital"?"Digital":"Print")}</span>
         <h3 className="line-clamp-1 font-display text-lg font-semibold group-hover:text-primary">
           {book.title}
         </h3>
         <p className="text-sm text-muted-foreground">{book.author}</p>
         <p className="font-semibold">
-          {Number.isFinite(price) ? `يبدأ من ${formatPrice(price)}` : ""}
+          {Number.isFinite(price) ? `${t("يبدأ من","From")} ${money(price)}` : ""}
         </p>
       </div>
     </Link>

@@ -119,9 +119,9 @@ function Index() {
       <section className="mx-auto max-w-7xl px-4">
         <div className="grid gap-6 md:grid-cols-3">
           {[
-            { icon: Download, t: "تحميل فوري", d: "النسخ الرقمية تظهر في مكتبتك مباشرة بعد الطلب." },
-            { icon: Truck, t: "شحن الكتب الورقية", d: "اطلب النسخة المطبوعة وتابع طلبك من حسابك." },
-            { icon: ShieldCheck, t: "محتوى موثوق", d: "كل كتاب يُراجع من فريقنا قبل عرضه في المتجر." },
+            { icon: Download, t: t("كتب رقمية", "Digital books"), d: t("مكتبتك الرقمية في حساب القارئ.", "Your digital library in your reader account.") },
+            { icon: Truck, t: t("كتب ورقية", "Printed books"), d: t("تابع طلبات الكتب الورقية من حسابك.", "Track printed-book orders in your account.") },
+            { icon: ShieldCheck, t: t("مراجعة قبل النشر", "Reviewed before publishing"), d: t("كل كتاب يُراجع من فريقنا قبل عرضه في المتجر.", "Every book is reviewed by our team before publication.") },
           ].map((f, i) => (
             <div
               key={f.t}
@@ -143,13 +143,13 @@ function Index() {
           <div className="relative grid items-center gap-8 md:grid-cols-[1fr_auto]">
             <div>
               <PenLine className="h-10 w-10 text-gold" />
-              <h2 className="mt-4 text-4xl font-bold">لديك كتاب؟ اجعله على رفوفنا</h2>
+              <h2 className="mt-4 text-4xl font-bold">{t("لديك كتاب؟ اجعله على رفوفنا","Your book belongs on our shelves")}</h2>
               <p className="mt-3 max-w-xl opacity-75">
-                أنشئ حساب ناشر، ارفع كتابك الرقمي أو أضف نسختك الورقية، وتابع مبيعاتك من لوحة واحدة.
+                {t("أرسل مخطوط Word، وتابع المراجعة والإنتاج والمبيعات في حساب المؤلف.","Submit a Word manuscript and follow review, production and sales in your author account.")}
               </p>
             </div>
             <Button asChild size="lg" className="rounded-full bg-gold px-8 text-ink hover:bg-gold/90">
-              <Link to="/publisher">ابدأ النشر الآن</Link>
+              <Link to="/publisher">{t("ابدأ النشر الآن","Start your publishing journey")}</Link>
             </Button>
           </div>
         </div>

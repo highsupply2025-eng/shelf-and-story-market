@@ -43,12 +43,12 @@ function BookPage() {
   });
   const [fmt, setFmt] = useState<"digital" | "physical" | null>(null);
 
-  if (isLoading) return <div className="py-32 text-center text-muted-foreground">جارٍ التحميل…</div>;
+  if (isLoading) return <div className="py-32 text-center text-muted-foreground">{t("جارٍ التحميل…","Loading…")}</div>;
   if (!book)
     return (
       <div className="py-32 text-center">
-        <p>الكتاب غير موجود.</p>
-        <Link to="/books" className="text-primary">العودة للمتجر</Link>
+        <p>{t("الكتاب غير موجود.","Book not found.")}</p>
+        <Link to="/books" className="text-primary">{t("العودة للمتجر","Back to bookshop")}</Link>
       </div>
     );
 
@@ -58,7 +58,7 @@ function BookPage() {
     },
     book.format !== "digital" && book.price_physical != null && {
       key: "physical" as const, label: t("نسخة ورقية","Print edition"), icon: Package, price: Number(book.price_physical),
-      note: book.stock > 0 ? `متوفر: ${book.stock}` : t("نفدت الكمية","Out of stock"),
+      note: book.stock > 0 ? `${t("متوفر:","Available:")} ${book.stock}` : t("نفدت الكمية","Out of stock"),
     },
   ].filter(Boolean) as { key: "digital" | "physical"; label: string; icon: typeof FileText; price: number; note: string }[];
   const selected = fmt ?? options[0]?.key;
@@ -73,10 +73,10 @@ function BookPage() {
       <div className="animate-rise" style={{ animationDelay: "120ms" }}>
         <span className="text-sm text-primary">{book.category} · {formatLabel[book.format]}</span>
         <h1 className="mt-2 text-5xl font-bold">{book.title}</h1>
-        <p className="mt-2 text-lg text-muted-foreground">تأليف {book.author}</p>
+        <p className="mt-2 text-lg text-muted-foreground">{t("تأليف","By")} {book.author}</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          الناشر: {book.publishers?.store_name ?? "رفوف"}
-          {book.pages ? ` · ${book.pages} صفحة` : ""}
+          {t("الناشر:","Publisher:")} {book.publishers?.store_name ?? "رفوف"}
+          {book.pages ? ` · ${book.pages} ${t("صفحة","pages")}` : ""}
         </p>
         <p className="mt-8 leading-loose">{book.description}</p>
 

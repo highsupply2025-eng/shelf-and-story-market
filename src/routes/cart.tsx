@@ -59,7 +59,7 @@ function CartPage() {
     return (
       <div className="py-32 text-center">
         <h1 className="text-4xl font-bold">{l.t("سلتك فارغة","Your cart is empty")}</h1>
-        <Button asChild className="mt-6 rounded-full"><Link to="/books">تصفّح الكتب</Link></Button>
+        <Button asChild className="mt-6 rounded-full"><Link to="/books">{l.t("تصفّح الكتب","Browse books")}</Link></Button>
       </div>
     );
 
@@ -73,7 +73,7 @@ function CartPage() {
               {i.cover_url && <img src={i.cover_url} alt="" className="h-24 w-16 rounded object-cover shadow-book" />}
               <div className="flex-1">
                 <div className="font-display text-lg font-semibold">{i.title}</div>
-                <div className="text-sm text-muted-foreground">{i.format === "digital" ? "نسخة رقمية" : "نسخة ورقية"}</div>
+                <div className="text-sm text-muted-foreground">{i.format === "digital" ? l.t("نسخة رقمية","Digital edition") : l.t("نسخة ورقية","Print edition")}</div>
                 <div className="font-semibold">{formatPrice(i.price)}</div>
               </div>
               {i.format === "physical" && (
@@ -94,9 +94,9 @@ function CartPage() {
         {hasPhysical && (
           <div className="space-y-3">
             <h2 className="text-xl font-semibold">{l.t("بيانات الشحن","Shipping details")}</h2>
-            <div><Label>الاسم</Label><Input value={ship.name} onChange={(e) => setShip({ ...ship, name: e.target.value })} /></div>
-            <div><Label>الجوال</Label><Input value={ship.phone} onChange={(e) => setShip({ ...ship, phone: e.target.value })} /></div>
-            <div><Label>العنوان</Label><Textarea value={ship.address} onChange={(e) => setShip({ ...ship, address: e.target.value })} /></div>
+            <div><Label>{l.t("الاسم","Name")}</Label><Input value={ship.name} onChange={(e) => setShip({ ...ship, name: e.target.value })} /></div>
+            <div><Label>{l.t("الجوال","Phone")}</Label><Input value={ship.phone} onChange={(e) => setShip({ ...ship, phone: e.target.value })} /></div>
+            <div><Label>{l.t("العنوان","Address")}</Label><Textarea value={ship.address} onChange={(e) => setShip({ ...ship, address: e.target.value })} /></div>
           </div>
         )}
         <div className="flex justify-between border-t pt-4 text-lg font-bold">

@@ -95,14 +95,14 @@ export function SiteFooter() {
           </p>
         </div>
         <div className="text-sm opacity-80">
-          <div className="mb-3 font-semibold text-gold">تصفّح</div>
+          <div className="mb-3 font-semibold text-gold">{t("تصفّح","Explore")}</div>
           <ul className="space-y-2">
-            <li><Link to="/books">كل الكتب</Link></li>
-            <li><Link to="/publisher">انشر معنا</Link></li>
-            <li><Link to="/account">مكتبتي</Link></li>
+            <li><Link to="/books">{t("كل الكتب","All books")}</Link></li>
+            <li><Link to="/publisher">{t("انشر معنا","Publish with us")}</Link></li>
+            <li><Link to="/account">{t("مكتبتي","My library")}</Link></li>
           </ul>
         </div>
-        <div className="text-sm opacity-70">© {new Date().getFullYear()} رفوف. جميع الحقوق محفوظة.</div>
+        <div className="text-sm opacity-70">© {new Date().getFullYear()} {t("رفوف. جميع الحقوق محفوظة.","Rufoof. All rights reserved.")}</div>
       </div>
     </footer>
   );

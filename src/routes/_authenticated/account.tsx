@@ -99,13 +99,13 @@ function AccountPage() {
           {orders.map((o) => (
             <div key={o.id} className="rounded-2xl border border-border bg-card p-5">
               <div className="flex flex-wrap justify-between gap-2 text-sm">
-                <span>طلب #{o.id.slice(0, 8)} · {new Date(o.created_at).toLocaleDateString("ar")}</span>
+                <span>{l.t("طلب","Order")} #{o.id.slice(0, 8)} · {new Date(o.created_at).toLocaleDateString(l.language)}</span>
                 <span className="rounded-full bg-accent px-3 py-0.5">{o.status}</span>
               </div>
               <ul className="mt-3 space-y-1 text-sm">
                 {o.order_items.map((i) => (
                   <li key={i.id} className="flex justify-between">
-                    <span>{i.books?.title} — {i.format === "digital" ? "رقمي" : `ورقي × ${i.quantity}`}</span>
+                    <span>{i.books?.title} — {i.format === "digital" ? l.t("رقمي","Digital") : `${l.t("ورقي","Print")} × ${i.quantity}`}</span>
                     <span>{formatPrice(i.unit_price * i.quantity)}</span>
                   </li>
                 ))}

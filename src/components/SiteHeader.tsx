@@ -5,8 +5,11 @@ import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/lib/locale";
+import { GlobalPreferences } from "@/components/GlobalPreferences";
 
 export function SiteHeader() {
+  const {t}=useLocale();
   const { session, isAdmin } = useAuth();
   const { count } = useCart();
   const navigate = useNavigate();
@@ -33,13 +36,13 @@ export function SiteHeader() {
         </Link>
         <nav className="hidden items-center gap-5 md:flex">
           <Link to="/" className={linkCls} activeOptions={{ exact: true }}>
-            الرئيسية
+            {t("الرئيسية","Home")}
           </Link>
           <Link to="/books" className={linkCls}>
-            المتجر
+            {t("المتجر","Bookshop")}
           </Link>
           <Link to="/publisher" className={linkCls}>
-            انشر كتابك
+            {t("مساحة المؤلف","Author studio")}
           </Link>
         </nav>
         <div className="ms-auto flex items-center gap-2">
@@ -70,34 +73,36 @@ export function SiteHeader() {
             </>
           ) : (
             <Button asChild size="sm">
-              <Link to="/auth">دخول / تسجيل</Link>
+              <Link to="/auth">{t("دخول / تسجيل","Sign in")}</Link>
             </Button>
           )}
         </div>
       </div>
+      <GlobalPreferences />
     </header>
   );
 }
 
 export function SiteFooter() {
+  const {t}=useLocale();
   return (
     <footer className="mt-24 bg-ink text-ink-foreground">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 md:grid-cols-3">
         <div>
           <div className="font-display text-3xl font-bold text-gold">رفوف</div>
           <p className="mt-3 max-w-xs text-sm opacity-70">
-            متجر كتب عربي يجمع القرّاء والناشرين في مكان واحد — نسخ رقمية فورية وكتب ورقية تصل إلى بابك.
+            {t("دار عبيد للنشر والتوزيع والطباعة · مصر","Dar Obaid Publishing, Distribution & Printing · Egypt")}
           </p>
         </div>
         <div className="text-sm opacity-80">
-          <div className="mb-3 font-semibold text-gold">تصفّح</div>
+          <div className="mb-3 font-semibold text-gold">{t("تصفّح","Explore")}</div>
           <ul className="space-y-2">
-            <li><Link to="/books">كل الكتب</Link></li>
-            <li><Link to="/publisher">انشر معنا</Link></li>
-            <li><Link to="/account">مكتبتي</Link></li>
+            <li><Link to="/books">{t("كل الكتب","All books")}</Link></li>
+            <li><Link to="/publisher">{t("انشر معنا","Publish with us")}</Link></li>
+            <li><Link to="/account">{t("مكتبتي","My library")}</Link></li>
           </ul>
         </div>
-        <div className="text-sm opacity-70">© {new Date().getFullYear()} رفوف. جميع الحقوق محفوظة.</div>
+        <div className="text-sm opacity-70">© {new Date().getFullYear()} {t("رفوف. جميع الحقوق محفوظة.","Rufoof. All rights reserved.")}</div>
       </div>
     </footer>
   );

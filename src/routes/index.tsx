@@ -1,3 +1,4 @@
+import {useLocale} from "@/lib/locale";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Download, Truck, PenLine, ShieldCheck } from "lucide-react";
@@ -29,6 +30,7 @@ const heroBooks = [
 const categories = ["روايات", "تطوير الذات", "علوم", "شعر", "تاريخ", "أعمال"];
 
 function Index() {
+ const {t}=useLocale();
   const { data: books = [] } = useQuery({
     queryKey: ["books", "featured"],
     queryFn: async () => {
@@ -51,24 +53,23 @@ function Index() {
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 md:grid-cols-2 md:py-24">
           <div className="animate-rise">
             <span className="inline-block rounded-full border border-primary/30 bg-card px-4 py-1 text-xs text-primary">
-              رقمي فوري · ورقي حتى بابك
+              {t("دار عبيد للنشر والتوزيع والطباعة","Dar Obaid Publishing, Distribution & Printing")}
             </span>
             <h1 className="mt-6 text-5xl font-bold leading-[1.15] md:text-7xl">
-              كل كتاب<br />
-              <span className="text-primary">يستحق رفّاً</span> يليق به
+              {t("رفوف","Rufoof")}<br />
+              <span className="text-primary">{t("عالم من الكتب","A world of books")}</span>
             </h1>
             <p className="mt-6 max-w-md text-lg text-muted-foreground">
-              متجر يجمع القرّاء بالكتّاب ودور النشر. اشترِ نسختك الرقمية واقرأها الآن، أو اطلب
-              النسخة الورقية لتصلك أينما كنت.
+              {t("كتب رقمية وورقية، ورحلة نشر تبدأ بمخطوطك وتصل إلى القرّاء.","Digital and printed books. A publishing journey from your manuscript to your readers.")}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" className="rounded-full px-8">
                 <Link to="/books">
-                  تصفّح المتجر <ArrowLeft className="ms-1 h-4 w-4" />
+                  {t("تصفّح المتجر","Browse books")} <ArrowLeft className="ms-1 h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="rounded-full px-8">
-                <Link to="/publisher">انشر كتابك</Link>
+                <Link to="/publisher">{t("مساحة المؤلف","Author studio")}</Link>
               </Button>
             </div>
           </div>
@@ -100,11 +101,11 @@ function Index() {
       <section className="mx-auto max-w-7xl px-4 py-20">
         <div className="mb-10 flex items-end justify-between">
           <div>
-            <p className="text-sm text-primary">مختارات رفوف</p>
-            <h2 className="text-4xl font-bold">كتب تستحق القراءة</h2>
+            <p className="text-sm text-primary">{t("مختارات رفوف","Rufoof selections")}</p>
+            <h2 className="text-4xl font-bold">{t("كتب تستحق القراءة","Worth turning the page")}</h2>
           </div>
           <Link to="/books" className="text-sm text-primary hover:underline">
-            عرض الكل ←
+            {t("عرض الكل ←","View all →")}
           </Link>
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 lg:grid-cols-4">
@@ -118,9 +119,9 @@ function Index() {
       <section className="mx-auto max-w-7xl px-4">
         <div className="grid gap-6 md:grid-cols-3">
           {[
-            { icon: Download, t: "تحميل فوري", d: "النسخ الرقمية تظهر في مكتبتك مباشرة بعد الطلب." },
-            { icon: Truck, t: "شحن الكتب الورقية", d: "اطلب النسخة المطبوعة وتابع طلبك من حسابك." },
-            { icon: ShieldCheck, t: "محتوى موثوق", d: "كل كتاب يُراجع من فريقنا قبل عرضه في المتجر." },
+            { icon: Download, t: t("كتب رقمية", "Digital books"), d: t("مكتبتك الرقمية في حساب القارئ.", "Your digital library in your reader account.") },
+            { icon: Truck, t: t("كتب ورقية", "Printed books"), d: t("تابع طلبات الكتب الورقية من حسابك.", "Track printed-book orders in your account.") },
+            { icon: ShieldCheck, t: t("مراجعة قبل النشر", "Reviewed before publishing"), d: t("كل كتاب يُراجع من فريقنا قبل عرضه في المتجر.", "Every book is reviewed by our team before publication.") },
           ].map((f, i) => (
             <div
               key={f.t}
@@ -142,13 +143,13 @@ function Index() {
           <div className="relative grid items-center gap-8 md:grid-cols-[1fr_auto]">
             <div>
               <PenLine className="h-10 w-10 text-gold" />
-              <h2 className="mt-4 text-4xl font-bold">لديك كتاب؟ اجعله على رفوفنا</h2>
+              <h2 className="mt-4 text-4xl font-bold">{t("لديك كتاب؟ اجعله على رفوفنا","Your book belongs on our shelves")}</h2>
               <p className="mt-3 max-w-xl opacity-75">
-                أنشئ حساب ناشر، ارفع كتابك الرقمي أو أضف نسختك الورقية، وتابع مبيعاتك من لوحة واحدة.
+                {t("أرسل مخطوط Word، وتابع المراجعة والإنتاج والمبيعات في حساب المؤلف.","Submit a Word manuscript and follow review, production and sales in your author account.")}
               </p>
             </div>
             <Button asChild size="lg" className="rounded-full bg-gold px-8 text-ink hover:bg-gold/90">
-              <Link to="/publisher">ابدأ النشر الآن</Link>
+              <Link to="/publisher">{t("ابدأ النشر الآن","Start your publishing journey")}</Link>
             </Button>
           </div>
         </div>

@@ -17,6 +17,7 @@ import { AuthProvider } from "@/lib/auth";
 import { CartProvider } from "@/lib/cart";
 import { SiteHeader, SiteFooter } from "@/components/SiteHeader";
 import { Toaster } from "@/components/ui/sonner";
+import { LocaleProvider } from "@/lib/locale";
 
 function NotFoundComponent() {
   return (
@@ -134,6 +135,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <LocaleProvider>
         <CartProvider>
           <div className="flex min-h-screen flex-col">
             <SiteHeader />
@@ -144,6 +146,7 @@ function RootComponent() {
           </div>
           <Toaster position="top-center" richColors />
         </CartProvider>
+        </LocaleProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

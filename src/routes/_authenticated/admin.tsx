@@ -8,10 +8,14 @@ import { formatPrice } from "@/lib/cart";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatLabel, type Book } from "@/components/BookCard";
+import {ProductionAdmin} from "@/components/ProductionAdmin";
+import {useLocale} from "@/lib/locale";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "الإدارة — رفوف" },
       { name: "description", content: "مراجعة الكتب والطلبات." },
       { property: "og:title", content: "الإدارة — رفوف" },
@@ -22,6 +26,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 function AdminPage() {
+  const {t}=useLocale();
   const { isAdmin, loading } = useAuth();
   const qc = useQueryClient();
   const { data: pending = [] } = useQuery({
@@ -56,14 +61,16 @@ function AdminPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
-      <h1 className="text-4xl font-bold">لوحة الإدارة</h1>
-      <Tabs defaultValue="pending" className="mt-8">
+      <h1 className="text-4xl font-bold">{t("لوحة الإدارة","Management desk")}</h1>
+      <Tabs defaultValue="production" className="mt-8">
         <TabsList>
-          <TabsTrigger value="pending">بانتظار المراجعة ({pending.length})</TabsTrigger>
-          <TabsTrigger value="orders">الطلبات</TabsTrigger>
+          <TabsTrigger value="production">{t("المخطوطات والإنتاج والأرباح","Production & royalties")}</TabsTrigger>
+          <TabsTrigger value="pending">{t("بانتظار المراجعة","Pending review")} ({pending.length})</TabsTrigger>
+          <TabsTrigger value="orders">{t("الطلبات","Orders")}</TabsTrigger>
         </TabsList>
+        <TabsContent value="production" className="mt-6"><ProductionAdmin/></TabsContent>
         <TabsContent value="pending" className="mt-6 space-y-3">
-          {pending.length === 0 && <p className="text-muted-foreground">لا توجد كتب بانتظار المراجعة.</p>}
+          {pending.length === 0 && <p className="text-muted-foreground">{t("لا توجد كتب بانتظار المراجعة.","No books awaiting review.")}</p>}
           {pending.map((b) => (
             <div key={b.id} className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card p-4">
               {b.cover_url && <img src={b.cover_url} alt="" className="h-24 w-16 rounded object-cover" />}
@@ -73,8 +80,8 @@ function AdminPage() {
                 <p className="mt-1 line-clamp-2 text-sm">{b.description}</p>
                 <div className="text-sm">رقمي: {formatPrice(b.price_digital)} · ورقي: {formatPrice(b.price_physical)}</div>
               </div>
-              <Button size="sm" onClick={() => decide(b.id, true)}><Check className="me-1 h-4 w-4" /> نشر</Button>
-              <Button size="sm" variant="outline" onClick={() => decide(b.id, false)}><X className="me-1 h-4 w-4" /> رفض</Button>
+              <Button size="sm" onClick={() => decide(b.id, true)}><Check className="me-1 h-4 w-4" /> {t("نشر","Publish")}</Button>
+              <Button size="sm" variant="outline" onClick={() => decide(b.id, false)}><X className="me-1 h-4 w-4" /> {t("رفض","Reject")}</Button>
             </div>
           ))}
         </TabsContent>
@@ -88,7 +95,7 @@ function AdminPage() {
                 <span className="font-semibold md:text-end">{formatPrice(o.total)}</span>
               </li>
             ))}
-            {orders.length === 0 && <li className="p-4 text-muted-foreground">لا توجد طلبات.</li>}
+            {orders.length === 0 && <li className="p-4 text-muted-foreground">{t("لا توجد طلبات.","No orders.")}</li>}
           </ul>
         </TabsContent>
       </Tabs>

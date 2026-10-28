@@ -14,6 +14,107 @@ export type Database = {
   }
   public: {
     Tables: {
+      author_earnings: {
+        Row: {
+          amount: number
+          author_id: string
+          book_title: string
+          created_at: string
+          currency: string
+          format: string
+          gross: number
+          id: string
+          order_item_id: string
+          quantity: number
+          reversed: boolean
+          share: number
+        }
+        Insert: {
+          amount: number
+          author_id: string
+          book_title: string
+          created_at?: string
+          currency: string
+          format: string
+          gross: number
+          id?: string
+          order_item_id: string
+          quantity: number
+          reversed?: boolean
+          share: number
+        }
+        Update: {
+          amount?: number
+          author_id?: string
+          book_title?: string
+          created_at?: string
+          currency?: string
+          format?: string
+          gross?: number
+          id?: string
+          order_item_id?: string
+          quantity?: number
+          reversed?: boolean
+          share?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "author_earnings_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "publishers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "author_earnings_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: true
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      author_payouts: {
+        Row: {
+          amount: number
+          author_id: string
+          created_at: string
+          currency: string
+          id: string
+          reference: string | null
+          status: string
+          transfer_details: string
+        }
+        Insert: {
+          amount: number
+          author_id: string
+          created_at?: string
+          currency: string
+          id?: string
+          reference?: string | null
+          status?: string
+          transfer_details: string
+        }
+        Update: {
+          amount?: number
+          author_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          reference?: string | null
+          status?: string
+          transfer_details?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "author_payouts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "publishers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       books: {
         Row: {
           author: string
@@ -82,6 +183,98 @@ export type Database = {
           },
         ]
       }
+      manuscript_versions: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          id: string
+          manuscript_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          id?: string
+          manuscript_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          manuscript_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manuscript_versions_manuscript_id_fkey"
+            columns: ["manuscript_id"]
+            isOneToOne: false
+            referencedRelation: "manuscripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manuscripts: {
+        Row: {
+          author_id: string
+          author_name: string
+          book_id: string | null
+          created_at: string
+          final_path: string | null
+          format: Database["public"]["Enums"]["book_format"]
+          id: string
+          review_note: string
+          stage: string
+          synopsis: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          author_name: string
+          book_id?: string | null
+          created_at?: string
+          final_path?: string | null
+          format?: Database["public"]["Enums"]["book_format"]
+          id?: string
+          review_note?: string
+          stage?: string
+          synopsis?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          author_name?: string
+          book_id?: string | null
+          created_at?: string
+          final_path?: string | null
+          format?: Database["public"]["Enums"]["book_format"]
+          id?: string
+          review_note?: string
+          stage?: string
+          synopsis?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manuscripts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "publishers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manuscripts_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           book_id: string
@@ -132,6 +325,9 @@ export type Database = {
           buyer_id: string
           created_at: string
           id: string
+          payment_reference: string | null
+          payment_state: string
+          settlement_currency: string
           shipping_address: string | null
           shipping_name: string | null
           shipping_phone: string | null
@@ -142,6 +338,9 @@ export type Database = {
           buyer_id: string
           created_at?: string
           id?: string
+          payment_reference?: string | null
+          payment_state?: string
+          settlement_currency?: string
           shipping_address?: string | null
           shipping_name?: string | null
           shipping_phone?: string | null
@@ -152,6 +351,9 @@ export type Database = {
           buyer_id?: string
           created_at?: string
           id?: string
+          payment_reference?: string | null
+          payment_state?: string
+          settlement_currency?: string
           shipping_address?: string | null
           shipping_name?: string | null
           shipping_phone?: string | null
@@ -160,44 +362,170 @@ export type Database = {
         }
         Relationships: []
       }
-      profiles: {
+      production_events: {
         Row: {
+          actor_id: string
           created_at: string
-          display_name: string | null
           id: string
+          manuscript_id: string
+          note: string
+          stage: string
         }
         Insert: {
+          actor_id: string
           created_at?: string
-          display_name?: string | null
-          id: string
+          id?: string
+          manuscript_id: string
+          note?: string
+          stage: string
         }
         Update: {
+          actor_id?: string
           created_at?: string
+          id?: string
+          manuscript_id?: string
+          note?: string
+          stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_events_manuscript_id_fkey"
+            columns: ["manuscript_id"]
+            isOneToOne: false
+            referencedRelation: "manuscripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          invoice_number: string
+          items: Json
+          manuscript_id: string
+          payment_reference: string | null
+          status: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_number?: string
+          items?: Json
+          manuscript_id: string
+          payment_reference?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_number?: string
+          items?: Json
+          manuscript_id?: string
+          payment_reference?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_invoices_manuscript_id_fkey"
+            columns: ["manuscript_id"]
+            isOneToOne: true
+            referencedRelation: "manuscripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          country: string
+          created_at: string
+          currency: string
+          display_name: string | null
+          id: string
+          language: string
+          shipping_address: string
+          shipping_name: string
+          shipping_phone: string
+        }
+        Insert: {
+          country?: string
+          created_at?: string
+          currency?: string
+          display_name?: string | null
+          id: string
+          language?: string
+          shipping_address?: string
+          shipping_name?: string
+          shipping_phone?: string
+        }
+        Update: {
+          country?: string
+          created_at?: string
+          currency?: string
           display_name?: string | null
           id?: string
+          language?: string
+          shipping_address?: string
+          shipping_name?: string
+          shipping_phone?: string
         }
         Relationships: []
       }
       publishers: {
         Row: {
+          author_code: string
           bio: string | null
           created_at: string
           id: string
           store_name: string
         }
         Insert: {
+          author_code?: string
           bio?: string | null
           created_at?: string
           id: string
           store_name: string
         }
         Update: {
+          author_code?: string
           bio?: string | null
           created_at?: string
           id?: string
           store_name?: string
         }
         Relationships: []
+      }
+      reader_favorites: {
+        Row: {
+          book_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reader_favorites_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -230,8 +558,33 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_payout_day: { Args: { _date: string }; Returns: boolean }
+      manage_manuscript: {
+        Args: { _action: string; _data?: Json; _id: string }
+        Returns: undefined
+      }
       place_order: {
         Args: { _address: string; _items: Json; _name: string; _phone: string }
+        Returns: string
+      }
+      request_author_payout: {
+        Args: { _currency: string; _details: string }
+        Returns: string
+      }
+      review_author_payout: {
+        Args: { _id: string; _reference: string; _status: string }
+        Returns: undefined
+      }
+      submit_manuscript: {
+        Args: {
+          _author_name: string
+          _filename: string
+          _format: Database["public"]["Enums"]["book_format"]
+          _id?: string
+          _path: string
+          _synopsis: string
+          _title: string
+        }
         Returns: string
       }
     }

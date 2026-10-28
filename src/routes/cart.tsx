@@ -1,3 +1,5 @@
+import {useLocale} from "@/lib/locale";
+import {useEffect} from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -13,6 +15,8 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/cart")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "سلة المشتريات — رفوف" },
       { name: "description", content: "راجع الكتب في سلتك وأكمل طلبك." },
       { property: "og:title", content: "سلة المشتريات — رفوف" },
@@ -24,10 +28,12 @@ export const Route = createFileRoute("/cart")({
 
 function CartPage() {
   const cart = useCart();
+ const l=useLocale();const formatPrice=l.price;
   const { session } = useAuth();
   const navigate = useNavigate();
   const [ship, setShip] = useState({ name: "", phone: "", address: "" });
   const [busy, setBusy] = useState(false);
+  useEffect(()=>{if(!session)return;supabase.from("profiles").select("shipping_name,shipping_phone,shipping_address").eq("id",session.user.id).maybeSingle().then(({data})=>{if(data)setShip({name:data.shipping_name,phone:data.shipping_phone,address:data.shipping_address});});},[session?.user.id]);
   const hasPhysical = cart.items.some((i) => i.format === "physical");
 
   async function checkout() {
@@ -52,22 +58,22 @@ function CartPage() {
   if (cart.items.length === 0)
     return (
       <div className="py-32 text-center">
-        <h1 className="text-4xl font-bold">سلتك فارغة</h1>
-        <Button asChild className="mt-6 rounded-full"><Link to="/books">تصفّح الكتب</Link></Button>
+        <h1 className="text-4xl font-bold">{l.t("سلتك فارغة","Your cart is empty")}</h1>
+        <Button asChild className="mt-6 rounded-full"><Link to="/books">{l.t("تصفّح الكتب","Browse books")}</Link></Button>
       </div>
     );
 
   return (
     <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 lg:grid-cols-[1fr_380px]">
       <div>
-        <h1 className="text-4xl font-bold">السلة</h1>
+        <h1 className="text-4xl font-bold">{l.t("السلة","Your cart")}</h1>
         <ul className="mt-8 divide-y divide-border">
           {cart.items.map((i) => (
             <li key={i.book_id + i.format} className="flex items-center gap-4 py-5">
               {i.cover_url && <img src={i.cover_url} alt="" className="h-24 w-16 rounded object-cover shadow-book" />}
               <div className="flex-1">
                 <div className="font-display text-lg font-semibold">{i.title}</div>
-                <div className="text-sm text-muted-foreground">{i.format === "digital" ? "نسخة رقمية" : "نسخة ورقية"}</div>
+                <div className="text-sm text-muted-foreground">{i.format === "digital" ? l.t("نسخة رقمية","Digital edition") : l.t("نسخة ورقية","Print edition")}</div>
                 <div className="font-semibold">{formatPrice(i.price)}</div>
               </div>
               {i.format === "physical" && (
@@ -87,18 +93,18 @@ function CartPage() {
       <aside className="h-fit space-y-4 rounded-2xl border border-border bg-card p-6">
         {hasPhysical && (
           <div className="space-y-3">
-            <h2 className="text-xl font-semibold">بيانات الشحن</h2>
-            <div><Label>الاسم</Label><Input value={ship.name} onChange={(e) => setShip({ ...ship, name: e.target.value })} /></div>
-            <div><Label>الجوال</Label><Input value={ship.phone} onChange={(e) => setShip({ ...ship, phone: e.target.value })} /></div>
-            <div><Label>العنوان</Label><Textarea value={ship.address} onChange={(e) => setShip({ ...ship, address: e.target.value })} /></div>
+            <h2 className="text-xl font-semibold">{l.t("بيانات الشحن","Shipping details")}</h2>
+            <div><Label>{l.t("الاسم","Name")}</Label><Input value={ship.name} onChange={(e) => setShip({ ...ship, name: e.target.value })} /></div>
+            <div><Label>{l.t("الجوال","Phone")}</Label><Input value={ship.phone} onChange={(e) => setShip({ ...ship, phone: e.target.value })} /></div>
+            <div><Label>{l.t("العنوان","Address")}</Label><Textarea value={ship.address} onChange={(e) => setShip({ ...ship, address: e.target.value })} /></div>
           </div>
         )}
         <div className="flex justify-between border-t pt-4 text-lg font-bold">
-          <span>الإجمالي</span><span>{formatPrice(cart.total)}</span>
+          <span>{l.t("الإجمالي","Estimated total")}</span><span>{formatPrice(cart.total)}</span>
         </div>
-        <p className="text-xs text-muted-foreground">الدفع الإلكتروني سيُضاف قريباً — يُسجَّل طلبك الآن ويُتابع من حسابك.</p>
+        <p className="text-xs text-muted-foreground">{l.t("الدفع غير مفعّل لبلدك حالياً. هذا طلب غير مدفوع بعملة SAR؛ التحويل المعروض تقديري. الشحن على العميل وتُحدد تكلفته قبل الدفع.","Payments are not connected for your country. This is an unpaid SAR order; converted prices are estimates. Shipping is charged to the customer and must be quoted before payment.")}</p>
         <Button className="w-full rounded-full" size="lg" disabled={busy} onClick={checkout}>
-          {session ? "تأكيد الطلب" : "سجّل الدخول لإتمام الطلب"}
+          {session ? l.t("تسجيل طلب غير مدفوع","Record unpaid order") : l.t("سجّل الدخول لإتمام الطلب","Sign in to order")}
         </Button>
       </aside>
     </div>

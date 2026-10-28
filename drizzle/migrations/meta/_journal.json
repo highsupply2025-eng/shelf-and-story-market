@@ -15,6 +15,20 @@
       "when": 1793152214506,
       "tag": "0001_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793153793819,
+      "tag": "0002_author_production_and_global_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793154216615,
+      "tag": "0003_account_preferences_grants_and_admin_publication",
+      "breakpoints": true
     }
   ]
 }

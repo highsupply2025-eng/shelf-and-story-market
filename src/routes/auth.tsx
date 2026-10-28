@@ -1,0 +1,84 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+export const Route = createFileRoute("/auth")({
+  head: () => ({
+    meta: [
+      { title: "الدخول والتسجيل — رفوف" },
+      { name: "description", content: "سجّل دخولك أو أنشئ حساباً جديداً في رفوف." },
+      { property: "og:title", content: "الدخول والتسجيل — رفوف" },
+      { property: "og:description", content: "سجّل دخولك أو أنشئ حساباً جديداً في رفوف." },
+    ],
+  }),
+  component: AuthPage,
+});
+
+function AuthPage() {
+  const [mode, setMode] = useState<"in" | "up">("in");
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [busy, setBusy] = useState(false);
+  const { session } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (session) navigate({ to: "/account" });
+  }, [session, navigate]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    if (mode === "in") {
+      const { error } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password });
+      if (error) toast.error("البريد أو كلمة المرور غير صحيحة");
+    } else {
+      const { error } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: { emailRedirectTo: window.location.origin, data: { display_name: form.name } },
+      });
+      if (error) toast.error(error.message);
+      else toast.success("تم إنشاء الحساب! تحقق من بريدك لتأكيده.");
+    }
+    setBusy(false);
+  }
+
+  async function google() {
+    const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+    if (r.error) toast.error("تعذر الدخول عبر Google");
+  }
+
+  return (
+    <div className="grid min-h-[80vh] place-items-center bg-hero px-4 py-12">
+      <div className="w-full max-w-md animate-rise rounded-3xl border border-border bg-card p-8 shadow-book">
+        <h1 className="text-center text-4xl font-bold">{mode === "in" ? "أهلاً بعودتك" : "انضم إلى رفوف"}</h1>
+        <p className="mt-2 text-center text-sm text-muted-foreground">
+          حساب واحد للشراء والنشر — يمكنك تفعيل حساب الناشر لاحقاً.
+        </p>
+        <Button variant="outline" className="mt-6 w-full" onClick={google}>المتابعة عبر Google</Button>
+        <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="h-px flex-1 bg-border" /> أو <div className="h-px flex-1 bg-border" />
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          {mode === "up" && (
+            <div><Label>الاسم</Label><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+          )}
+          <div><Label>البريد الإلكتروني</Label><Input type="email" dir="ltr" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+          <div><Label>كلمة المرور</Label><Input type="password" dir="ltr" required minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
+          <Button className="w-full rounded-full" size="lg" disabled={busy}>
+            {mode === "in" ? "دخول" : "إنشاء حساب"}
+          </Button>
+        </form>
+        <button className="mt-5 w-full text-center text-sm text-primary" onClick={() => setMode(mode === "in" ? "up" : "in")}>
+          {mode === "in" ? "ليس لديك حساب؟ أنشئ حساباً" : "لديك حساب؟ سجّل الدخول"}
+        </button>
+      </div>
+    </div>
+  );
+}

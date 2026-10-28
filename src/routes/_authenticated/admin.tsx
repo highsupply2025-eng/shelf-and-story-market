@@ -49,7 +49,7 @@ function AdminPage() {
   async function decide(id: string, approve: boolean) {
     const reason = approve ? null : prompt("سبب الرفض؟") ?? "";
     const { error } = await supabase.from("books").update({ status: approve ? "approved" : "rejected", rejection_reason: reason }).eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) return void toast.error(error.message);
     toast.success(approve ? "تم نشر الكتاب" : "تم رفض الكتاب");
     qc.invalidateQueries();
   }

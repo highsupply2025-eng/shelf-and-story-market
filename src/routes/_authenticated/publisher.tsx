@@ -44,7 +44,7 @@ function BecomePublisher() {
   async function create(e: React.FormEvent) {
     e.preventDefault();
     const { error } = await supabase.from("publishers").insert({ id: session!.user.id, store_name: name, bio });
-    if (error) return toast.error(error.message);
+    if (error) return void toast.error(error.message);
     toast.success("تم تفعيل حساب الناشر");
     await refresh();
   }
@@ -92,7 +92,7 @@ function Dashboard() {
 
   async function del(id: string) {
     const { error } = await supabase.from("books").delete().eq("id", id);
-    if (error) return toast.error("لا يمكن حذف كتاب له مبيعات");
+    if (error) return void toast.error("لا يمكن حذف كتاب له مبيعات");
     qc.invalidateQueries({ queryKey: ["pub-books"] });
   }
 
@@ -129,7 +129,7 @@ function Dashboard() {
                   <div className="text-sm text-destructive">السبب: {b.rejection_reason}</div>
                 )}
               </div>
-              <span className={`rounded-full px-3 py-1 text-xs ${statusLabel[b.status].c}`}>{statusLabel[b.status].t}</span>
+              <span className={`rounded-full px-3 py-1 text-xs ${statusLabel[b.status]!.c}`}>{statusLabel[b.status]!.t}</span>
               <button onClick={() => del(b.id)} className="p-2 text-muted-foreground hover:text-destructive" aria-label="حذف"><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}

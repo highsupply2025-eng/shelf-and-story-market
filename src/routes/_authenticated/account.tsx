@@ -49,9 +49,9 @@ function AccountPage() {
   );
 
   async function download(path: string | null) {
-    if (!path) return toast.info("لم يرفع الناشر الملف بعد");
+    if (!path) return void toast.info("لم يرفع الناشر الملف بعد");
     const { data, error } = await supabase.storage.from("book-files").createSignedUrl(path, 60);
-    if (error || !data) return toast.error("تعذر تجهيز الملف");
+    if (error || !data) return void toast.error("تعذر تجهيز الملف");
     window.open(data.signedUrl, "_blank");
   }
 

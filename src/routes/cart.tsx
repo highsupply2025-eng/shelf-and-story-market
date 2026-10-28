@@ -43,7 +43,7 @@ function CartPage() {
       _address: ship.address,
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) return void toast.error(error.message);
     cart.clear();
     toast.success("تم استلام طلبك بنجاح");
     navigate({ to: "/account" });

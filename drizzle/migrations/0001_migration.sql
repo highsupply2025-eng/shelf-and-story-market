@@ -1,0 +1,1 @@
+alter table public.books add constraint books_publisher_id_fkey foreign key (publisher_id) references public.publishers(id) on delete set null;

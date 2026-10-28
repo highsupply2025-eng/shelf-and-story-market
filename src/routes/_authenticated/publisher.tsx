@@ -17,6 +17,8 @@ import type { Book } from "@/components/BookCard";
 export const Route = createFileRoute("/_authenticated/publisher")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "لوحة الناشر — رفوف" },
       { name: "description", content: "انشر كتبك الرقمية والورقية وتابع مبيعاتك." },
       { property: "og:title", content: "لوحة الناشر — رفوف" },

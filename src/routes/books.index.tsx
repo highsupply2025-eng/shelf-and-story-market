@@ -1,3 +1,4 @@
+import {useLocale} from "@/lib/locale";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -9,6 +10,8 @@ import { BookCard, type Book } from "@/components/BookCard";
 export const Route = createFileRoute("/books/")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "المتجر — رفوف" },
       { name: "description", content: "تصفّح الكتب الرقمية والورقية حسب التصنيف والصيغة." },
       { property: "og:title", content: "المتجر — رفوف" },
@@ -19,6 +22,7 @@ export const Route = createFileRoute("/books/")({
 });
 
 function BooksPage() {
+ const {t}=useLocale();
   const [q, setQ] = useState("");
   const [format, setFormat] = useState<"all" | "digital" | "physical">("all");
   const [cat, setCat] = useState("الكل");
@@ -52,18 +56,18 @@ function BooksPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12">
-      <h1 className="animate-rise text-5xl font-bold">المتجر</h1>
-      <p className="mt-2 text-muted-foreground">{books.length} كتاب بانتظارك</p>
+      <h1 className="animate-rise text-5xl font-bold">{t("المتجر","Bookshop")}</h1>
+      <p className="mt-2 text-muted-foreground">{books.length} {t("كتاب بانتظارك","books to discover")}</p>
 
       <div className="mt-8 flex flex-col gap-4 md:flex-row md:items-center">
         <div className="relative md:w-80">
           <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث بالعنوان أو المؤلف" className="ps-9" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("ابحث بالعنوان أو المؤلف","Search title or author")} className="ps-9" />
         </div>
         <div className="flex gap-2">
           {(["all", "digital", "physical"] as const).map((f) => (
             <button key={f} className={chip(format === f)} onClick={() => setFormat(f)}>
-              {f === "all" ? "كل الصيغ" : f === "digital" ? "رقمي" : "ورقي"}
+              {f === "all" ? t("كل الصيغ","All formats") : f === "digital" ? t("رقمي","Digital") : t("ورقي","Print")}
             </button>
           ))}
         </div>
@@ -71,7 +75,7 @@ function BooksPage() {
       <div className="mt-4 flex flex-wrap gap-2">
         {cats.map((c) => (
           <button key={c} className={chip(cat === c)} onClick={() => setCat(c)}>
-            {c}
+            {c==="الكل"?t("الكل","All"):c}
           </button>
         ))}
       </div>
@@ -82,7 +86,7 @@ function BooksPage() {
         ))}
       </div>
       {!isLoading && filtered.length === 0 && (
-        <p className="py-20 text-center text-muted-foreground">لا توجد كتب مطابقة.</p>
+        <p className="py-20 text-center text-muted-foreground">{t("لا توجد كتب مطابقة.","No matching books.")}</p>
       )}
     </div>
   );

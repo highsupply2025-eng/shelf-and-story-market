@@ -1,3 +1,6 @@
+import {useLocale} from "@/lib/locale";
+import {useAuth} from "@/lib/auth";
+import {Heart} from "lucide-react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -11,6 +14,8 @@ import { useCart, formatPrice } from "@/lib/cart";
 export const Route = createFileRoute("/books/$id")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "تفاصيل الكتاب — رفوف" },
       { name: "description", content: "تفاصيل الكتاب وأسعار النسخ الرقمية والورقية على رفوف." },
       { property: "og:title", content: "تفاصيل الكتاب — رفوف" },
@@ -23,6 +28,7 @@ export const Route = createFileRoute("/books/$id")({
 function BookPage() {
   const { id } = Route.useParams();
   const cart = useCart();
+  const {t,price:money}=useLocale();const {session}=useAuth();
   const { data: book, isLoading } = useQuery({
     queryKey: ["book", id],
     queryFn: async () => {
@@ -48,11 +54,11 @@ function BookPage() {
 
   const options = [
     book.format !== "physical" && book.price_digital != null && {
-      key: "digital" as const, label: "نسخة رقمية", icon: FileText, price: Number(book.price_digital), note: "تحميل فوري بعد الطلب",
+      key: "digital" as const, label: t("نسخة رقمية","Digital edition"), icon: FileText, price: Number(book.price_digital), note: t("ملف رقمي","Digital file"),
     },
     book.format !== "digital" && book.price_physical != null && {
-      key: "physical" as const, label: "نسخة ورقية", icon: Package, price: Number(book.price_physical),
-      note: book.stock > 0 ? `متوفر: ${book.stock}` : "نفدت الكمية",
+      key: "physical" as const, label: t("نسخة ورقية","Print edition"), icon: Package, price: Number(book.price_physical),
+      note: book.stock > 0 ? `متوفر: ${book.stock}` : t("نفدت الكمية","Out of stock"),
     },
   ].filter(Boolean) as { key: "digital" | "physical"; label: string; icon: typeof FileText; price: number; note: string }[];
   const selected = fmt ?? options[0]?.key;
@@ -85,7 +91,7 @@ function BookPage() {
             >
               <o.icon className="h-5 w-5 text-primary" />
               <div className="mt-2 font-semibold">{o.label}</div>
-              <div className="text-2xl font-bold">{formatPrice(o.price)}</div>
+              <div className="text-2xl font-bold">{money(o.price)}</div>
               <div className="text-xs text-muted-foreground">{o.note}</div>
             </button>
           ))}
@@ -100,8 +106,9 @@ function BookPage() {
             toast.success("أُضيف الكتاب إلى السلة");
           }}
         >
-          <BookOpen className="me-2 h-4 w-4" /> أضف إلى السلة
+          <BookOpen className="me-2 h-4 w-4" /> {t("أضف إلى السلة","Add to cart")}
         </Button>
+        <Button variant="outline" className="mt-4 ms-3" onClick={async()=>{if(!session){toast.info(t("سجّل الدخول لحفظ المفضلة","Sign in to save favorites"));return;}const {error}=await supabase.from("reader_favorites").upsert({user_id:session.user.id,book_id:book.id},{onConflict:"user_id,book_id",ignoreDuplicates:true});if(error)toast.error(t("تعذر الحفظ","Could not save"));else toast.success(t("أُضيف إلى المفضلة","Saved to favorites"));}}><Heart className="me-2 h-4 w-4"/>{t("المفضلة","Favorite")}</Button>
       </div>
     </div>
   );

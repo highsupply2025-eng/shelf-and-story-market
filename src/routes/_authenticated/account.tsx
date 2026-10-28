@@ -17,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export const Route = createFileRoute("/_authenticated/account")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "حسابي — رفوف" },
       { name: "description", content: "مكتبتك الرقمية وطلباتك في رفوف." },
       { property: "og:title", content: "حسابي — رفوف" },

@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Orders are created only through the `place_order` database function so prices/stock are computed server-side, never trusted from the client.
+- Storage buckets are private (workspace blocks public); covers use long-lived signed URLs, digital files use short signed URLs gated by `can_access_book_file`.

@@ -71,7 +71,7 @@ function AccountPage() {
       <p className="text-sm text-primary">{l.t("مساحة القارئ","Reader space")}</p><h1 className="mt-2 text-4xl font-bold">{l.t("أهلاً بك في مكتبتك","Welcome to your library")}</h1>
       <p className="mt-1 text-muted-foreground" dir="ltr">{session?.user.email}</p>
       <Tabs defaultValue="library" className="mt-8">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="library"><Library className="me-1 h-4 w-4" /> {l.t("مكتبتي الرقمية","Digital library")}</TabsTrigger>
           <TabsTrigger value="orders"><Package className="me-1 h-4 w-4" /> {l.t("طلباتي","My orders")}</TabsTrigger>
           <TabsTrigger value="favorites">{l.t("المفضلة","Favorites")}</TabsTrigger>

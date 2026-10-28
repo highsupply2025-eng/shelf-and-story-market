@@ -19,7 +19,7 @@ export function LocaleProvider({children}:{children:ReactNode}) {
   useEffect(()=> { try { const saved=JSON.parse(localStorage.getItem("rafoof-locale")||"null"); if(saved) setPrefs(saved); } catch {} },[]);
   useEffect(()=> { if(!session) return; supabase.from("profiles").select("language,country,currency").eq("id",session.user.id).maybeSingle().then(({data})=>{if(data) setPrefs(data);}); },[session?.user.id]);
   useEffect(()=>{document.documentElement.lang=prefs.language;document.documentElement.dir=prefs.language==="ar"?"rtl":"ltr";},[prefs.language]);
-  const set=(next:Partial<Preferences>)=>{const value={...prefs,...next};setPrefs(value);localStorage.setItem("rafoof-locale",JSON.stringify(value));if(session) void supabase.from("profiles").update(value).eq("id",session.user.id);};
+  const set=(next:Partial<Preferences>)=>{const value={...prefs,...next};setPrefs(value);localStorage.setItem("rafoof-locale",JSON.stringify(value));if(session) supabase.from("profiles").update(value).eq("id",session.user.id).then(({error})=>{if(error) console.error("Preference save failed");});};
   const price=(n:number|null|undefined,base="SAR")=>{
     if(n==null) return "—";
     const rate=data?.rates[prefs.currency];const baseRate=data?.rates[base];

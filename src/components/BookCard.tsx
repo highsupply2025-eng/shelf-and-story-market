@@ -42,7 +42,7 @@ export function BookCard({ book, index = 0 }: { book: Book; index?: number }) {
         <BookCover book={book} />
       </div>
       <div className="mt-4 space-y-1">
-        <span className="text-xs text-primary">{t(formatLabel[book.format],book.format==="both"?"Digital & print":book.format==="digital"?"Digital":"Print")}</span>
+        <span className="text-xs text-primary">{t(formatLabel[book.format] ?? book.format,book.format==="both"?"Digital & print":book.format==="digital"?"Digital":"Print")}</span>
         <h3 className="line-clamp-1 font-display text-lg font-semibold group-hover:text-primary">
           {book.title}
         </h3>

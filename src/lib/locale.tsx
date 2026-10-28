@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { getExchangeRates } from "@/lib/exchange.functions";
 
-export const countries = [
+export const countries: [string,string,string,string][] = [
   ["EG","مصر","Egypt","EGP"], ["SA","السعودية","Saudi Arabia","SAR"], ["AE","الإمارات","United Arab Emirates","AED"],
   ["US","الولايات المتحدة","United States","USD"], ["GB","المملكة المتحدة","United Kingdom","GBP"], ["FR","فرنسا","France","EUR"],
   ["DE","ألمانيا","Germany","EUR"], ["OTHER","بلد آخر","Other country","USD"],

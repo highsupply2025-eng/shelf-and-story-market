@@ -8,6 +8,8 @@ import { formatPrice } from "@/lib/cart";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatLabel, type Book } from "@/components/BookCard";
+import {ProductionAdmin} from "@/components/ProductionAdmin";
+import {useLocale} from "@/lib/locale";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -22,6 +24,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 function AdminPage() {
+  const {t}=useLocale();
   const { isAdmin, loading } = useAuth();
   const qc = useQueryClient();
   const { data: pending = [] } = useQuery({
@@ -56,12 +59,14 @@ function AdminPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
-      <h1 className="text-4xl font-bold">لوحة الإدارة</h1>
-      <Tabs defaultValue="pending" className="mt-8">
+      <h1 className="text-4xl font-bold">{t("لوحة الإدارة","Management desk")}</h1>
+      <Tabs defaultValue="production" className="mt-8">
         <TabsList>
+          <TabsTrigger value="production">{t("المخطوطات والإنتاج والأرباح","Production & royalties")}</TabsTrigger>
           <TabsTrigger value="pending">بانتظار المراجعة ({pending.length})</TabsTrigger>
           <TabsTrigger value="orders">الطلبات</TabsTrigger>
         </TabsList>
+        <TabsContent value="production" className="mt-6"><ProductionAdmin/></TabsContent>
         <TabsContent value="pending" className="mt-6 space-y-3">
           {pending.length === 0 && <p className="text-muted-foreground">لا توجد كتب بانتظار المراجعة.</p>}
           {pending.map((b) => (

@@ -37,7 +37,7 @@ export function BlurbGenerator() {
       if ("error" in r) toast.error(errors[r.error ?? "failed"]);
       else setResult(r);
     } catch {
-      toast.error(errors.failed);
+      toast.error(errors["failed"]);
     } finally {
       setBusy(false);
     }

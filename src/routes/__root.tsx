@@ -84,8 +84,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "رفوف — متجر الكتب الرقمية والورقية" },
-      { name: "description", content: "اشترِ الكتب الرقمية والورقية أو انشر كتابك على رفوف." },
+      { title: "obibook — متجر الكتب الرقمية والورقية" },
+      { name: "description", content: "اشترِ الكتب الرقمية والورقية أو انشر كتابك على obibook." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

@@ -32,7 +32,7 @@ export function SiteHeader() {
           <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground">
             <BookOpen className="h-5 w-5" />
           </span>
-          <span className="font-display text-2xl font-bold">رفوف</span>
+          <span className="font-display text-2xl font-bold">obibook</span>
         </Link>
         <nav className="hidden items-center gap-5 md:flex">
           <Link to="/" className={linkCls} activeOptions={{ exact: true }}>
@@ -89,7 +89,7 @@ export function SiteFooter() {
     <footer className="mt-24 bg-ink text-ink-foreground">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 md:grid-cols-3">
         <div>
-          <div className="font-display text-3xl font-bold text-gold">رفوف</div>
+          <div className="font-display text-3xl font-bold text-gold">obibook</div>
           <p className="mt-3 max-w-xs text-sm opacity-70">
             {t("دار عبيد للنشر والتوزيع والطباعة · مصر","Dar Obaid Publishing, Distribution & Printing · Egypt")}
           </p>
@@ -102,7 +102,7 @@ export function SiteFooter() {
             <li><Link to="/account">{t("مكتبتي","My library")}</Link></li>
           </ul>
         </div>
-        <div className="text-sm opacity-70">© {new Date().getFullYear()} {t("رفوف. جميع الحقوق محفوظة.","Rufoof. All rights reserved.")}</div>
+        <div className="text-sm opacity-70">© {new Date().getFullYear()} {t("obibook. جميع الحقوق محفوظة.","obibook. All rights reserved.")}</div>
       </div>
     </footer>
   );

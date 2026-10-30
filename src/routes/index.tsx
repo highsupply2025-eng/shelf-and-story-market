@@ -9,10 +9,10 @@ import { BookCard, type Book } from "@/components/BookCard";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "رفوف — متجر الكتب الرقمية والورقية" },
-      { name: "description", content: "اكتشف آلاف الكتب الرقمية والورقية، أو انشر كتابك ووصل إلى قرّاء جدد على رفوف." },
-      { property: "og:title", content: "رفوف — متجر الكتب الرقمية والورقية" },
-      { property: "og:description", content: "اشترِ الكتب الرقمية والورقية أو انشر كتابك على رفوف." },
+      { title: "obibook — متجر الكتب الرقمية والورقية" },
+      { name: "description", content: "اكتشف آلاف الكتب الرقمية والورقية، أو انشر كتابك ووصل إلى قرّاء جدد على obibook." },
+      { property: "og:title", content: "obibook — متجر الكتب الرقمية والورقية" },
+      { property: "og:description", content: "اشترِ الكتب الرقمية والورقية أو انشر كتابك على obibook." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -56,7 +56,7 @@ function Index() {
               {t("دار عبيد للنشر والتوزيع والطباعة","Dar Obaid Publishing, Distribution & Printing")}
             </span>
             <h1 className="mt-6 text-5xl font-bold leading-[1.15] md:text-7xl">
-              {t("رفوف","Rufoof")}<br />
+              {t("obibook","obibook")}<br />
               <span className="text-primary">{t("عالم من الكتب","A world of books")}</span>
             </h1>
             <p className="mt-6 max-w-md text-lg text-muted-foreground">
@@ -101,7 +101,7 @@ function Index() {
       <section className="mx-auto max-w-7xl px-4 py-20">
         <div className="mb-10 flex items-end justify-between">
           <div>
-            <p className="text-sm text-primary">{t("مختارات رفوف","Rufoof selections")}</p>
+            <p className="text-sm text-primary">{t("مختارات obibook","obibook selections")}</p>
             <h2 className="text-4xl font-bold">{t("كتب تستحق القراءة","Worth turning the page")}</h2>
           </div>
           <Link to="/books" className="text-sm text-primary hover:underline">
@@ -143,7 +143,7 @@ function Index() {
           <div className="relative grid items-center gap-8 md:grid-cols-[1fr_auto]">
             <div>
               <PenLine className="h-10 w-10 text-gold" />
-              <h2 className="mt-4 text-4xl font-bold">{t("لديك كتاب؟ اجعله على رفوفنا","Your book belongs on our shelves")}</h2>
+              <h2 className="mt-4 text-4xl font-bold">{t("لديك كتاب؟ انشره على obibook","Your book belongs on our shelves")}</h2>
               <p className="mt-3 max-w-xl opacity-75">
                 {t("أرسل مخطوط Word، وتابع المراجعة والإنتاج والمبيعات في حساب المؤلف.","Submit a Word manuscript and follow review, production and sales in your author account.")}
               </p>

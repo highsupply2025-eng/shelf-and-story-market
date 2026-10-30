@@ -17,9 +17,9 @@ export const Route = createFileRoute("/cart")({
     meta: [
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { title: "سلة المشتريات — obibook" },
+      { title: "سلة المشتريات — unibook" },
       { name: "description", content: "راجع الكتب في سلتك وأكمل طلبك." },
-      { property: "og:title", content: "سلة المشتريات — obibook" },
+      { property: "og:title", content: "سلة المشتريات — unibook" },
       { property: "og:description", content: "راجع الكتب في سلتك وأكمل طلبك." },
     ],
   }),

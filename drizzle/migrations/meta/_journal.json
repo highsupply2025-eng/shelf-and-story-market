@@ -29,6 +29,13 @@
       "when": 1793154216615,
       "tag": "0003_account_preferences_grants_and_admin_publication",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793399692378,
+      "tag": "0004_restrict_publishers_and_covers_read",
+      "breakpoints": true
     }
   ]
 }

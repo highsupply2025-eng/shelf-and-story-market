@@ -16,9 +16,9 @@ export const Route = createFileRoute("/books/$id")({
     meta: [
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { title: "تفاصيل الكتاب — رفوف" },
-      { name: "description", content: "تفاصيل الكتاب وأسعار النسخ الرقمية والورقية على رفوف." },
-      { property: "og:title", content: "تفاصيل الكتاب — رفوف" },
+      { title: "تفاصيل الكتاب — obibook" },
+      { name: "description", content: "تفاصيل الكتاب وأسعار النسخ الرقمية والورقية على obibook." },
+      { property: "og:title", content: "تفاصيل الكتاب — obibook" },
       { property: "og:description", content: "تفاصيل الكتاب وأسعار النسخ الرقمية والورقية." },
     ],
   }),
@@ -75,7 +75,7 @@ function BookPage() {
         <h1 className="mt-2 text-5xl font-bold">{book.title}</h1>
         <p className="mt-2 text-lg text-muted-foreground">{t("تأليف","By")} {book.author}</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("الناشر:","Publisher:")} {book.publishers?.store_name ?? "رفوف"}
+          {t("الناشر:","Publisher:")} {book.publishers?.store_name ?? "obibook"}
           {book.pages ? ` · ${book.pages} ${t("صفحة","pages")}` : ""}
         </p>
         <p className="mt-8 leading-loose">{book.description}</p>

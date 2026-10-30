@@ -12,9 +12,9 @@ export const Route = createFileRoute("/books/")({
     meta: [
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { title: "المتجر — رفوف" },
+      { title: "المتجر — obibook" },
       { name: "description", content: "تصفّح الكتب الرقمية والورقية حسب التصنيف والصيغة." },
-      { property: "og:title", content: "المتجر — رفوف" },
+      { property: "og:title", content: "المتجر — obibook" },
       { property: "og:description", content: "تصفّح الكتب الرقمية والورقية حسب التصنيف والصيغة." },
     ],
   }),

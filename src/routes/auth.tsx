@@ -14,10 +14,10 @@ export const Route = createFileRoute("/auth")({
     meta: [
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { title: "الدخول والتسجيل — رفوف" },
-      { name: "description", content: "سجّل دخولك أو أنشئ حساباً جديداً في رفوف." },
-      { property: "og:title", content: "الدخول والتسجيل — رفوف" },
-      { property: "og:description", content: "سجّل دخولك أو أنشئ حساباً جديداً في رفوف." },
+      { title: "الدخول والتسجيل — obibook" },
+      { name: "description", content: "سجّل دخولك أو أنشئ حساباً جديداً في obibook." },
+      { property: "og:title", content: "الدخول والتسجيل — obibook" },
+      { property: "og:description", content: "سجّل دخولك أو أنشئ حساباً جديداً في obibook." },
     ],
   }),
   component: AuthPage,
@@ -61,7 +61,7 @@ function AuthPage() {
   return (
     <div className="grid min-h-[80vh] place-items-center bg-hero px-4 py-12">
       <div className="w-full max-w-md animate-rise rounded-3xl border border-border bg-card p-8 shadow-book">
-        <h1 className="text-center text-4xl font-bold">{mode === "in" ? t("أهلاً بعودتك","Welcome back") : t("انضم إلى رفوف","Join Rufoof")}</h1>
+        <h1 className="text-center text-4xl font-bold">{mode === "in" ? t("أهلاً بعودتك","Welcome back") : t("انضم إلى obibook","Join obibook")}</h1>
         <p className="mt-2 text-center text-sm text-muted-foreground">
           {t("حسابك للقراءة والنشر","Your account for reading and publishing")}
         </p>

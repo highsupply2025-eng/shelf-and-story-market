@@ -19,9 +19,9 @@ export const Route = createFileRoute("/_authenticated/publisher")({
     meta: [
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { title: "لوحة الناشر — obibook" },
+      { title: "لوحة الناشر — unibook" },
       { name: "description", content: "انشر كتبك الرقمية والورقية وتابع مبيعاتك." },
-      { property: "og:title", content: "لوحة الناشر — obibook" },
+      { property: "og:title", content: "لوحة الناشر — unibook" },
       { property: "og:description", content: "انشر كتبك الرقمية والورقية وتابع مبيعاتك." },
     ],
   }),

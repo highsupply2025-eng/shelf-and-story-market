@@ -16,9 +16,9 @@ export const Route = createFileRoute("/_authenticated/admin")({
     meta: [
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { title: "الإدارة — obibook" },
+      { title: "الإدارة — unibook" },
       { name: "description", content: "مراجعة الكتب والطلبات." },
-      { property: "og:title", content: "الإدارة — obibook" },
+      { property: "og:title", content: "الإدارة — unibook" },
       { property: "og:description", content: "مراجعة الكتب والطلبات." },
     ],
   }),

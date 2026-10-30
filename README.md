@@ -1,14 +1,21 @@
-# Welcome to your Lovable project
+# Shelf And Story Market
+
+موقع عبارة متجر كتب حقيقي لبيع الكتب الرقمية والورقية 
+بسيط واحترافى فى تصميمه 
+عبارة عن حساب للمشترى 
+وحساب لمن يريد نشر الكتب سواء الرقمية او الورقية 
+مع واجهه احترافية متحركه جذابة 
+ارنى قوتك
 
 This project was built with [Lovable](https://lovable.dev).
 
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/675fd9e9-8eb6-4a52-9866-eecb29b575ed).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +27,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS

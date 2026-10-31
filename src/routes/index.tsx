@@ -145,7 +145,7 @@ function Index() {
               <PenLine className="h-10 w-10 text-gold" />
               <h2 className="mt-4 text-4xl font-bold">{t("لديك كتاب؟ انشره على unibook","Your book belongs on our shelves")}</h2>
               <p className="mt-3 max-w-xl opacity-75">
-                {t("أرسل مخطوط Word، وتابع المراجعة والإنتاج والمبيعات في حساب المؤلف.","Submit a Word manuscript and follow review, production and sales in your author account.")}
+                {t("ارسل ملف Word، وتابع المراجعة والإنتاج والمبيعات في حساب المؤلف.","Submit a Word file and follow review, production and sales in your author account.")}
               </p>
             </div>
             <Button asChild size="lg" className="rounded-full bg-gold px-8 text-ink hover:bg-gold/90">

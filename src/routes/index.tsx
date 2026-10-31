@@ -69,7 +69,7 @@ function Index() {
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="rounded-full px-8">
-                <Link to="/publisher">{t("مساحة المؤلف","Author studio")}</Link>
+                <Link to="/publisher">{t("نشر كتاب","Publish a book")}</Link>
               </Button>
             </div>
           </div>

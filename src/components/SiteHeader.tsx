@@ -46,7 +46,7 @@ export function SiteHeader() {
             {t("المتجر", "Bookshop")}
           </Link>
           <Link to="/publisher" className={linkCls}>
-            {t("مساحة المؤلف", "Author studio")}
+            {t("نشر كتاب", "Publish a book")}
           </Link>
         </nav>
 

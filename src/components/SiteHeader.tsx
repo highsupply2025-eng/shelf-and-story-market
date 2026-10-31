@@ -197,7 +197,7 @@ export function SiteFooter() {
         <div>
           <div className="mb-2 font-semibold text-gold">{t("تابعنا", "Follow us")}</div>
           <p className="mb-3 text-xs opacity-60">
-            {t("قنوات التواصل الاجتماعي (مغلقة مؤقتاً لحين التدشين)", "Social channels (disabled until launch)")}
+            {t("قنوات التواصل الاجتماعي", "Social channels")}
           </p>
           <div className="flex items-center gap-2.5">
             {socialLinks.map((s) => (
@@ -220,12 +220,9 @@ export function SiteFooter() {
 
       {/* Bottom Copyright Bar */}
       <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-6 text-xs opacity-70 sm:flex-row">
+        <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-6 text-xs opacity-70 text-center">
           <div>
             © {new Date().getFullYear()} {t("unibook. جميع الحقوق محفوظة.", "unibook. All rights reserved.")}
-          </div>
-          <div className="text-[11px] opacity-60">
-            {t("المنصات الرسمية مغلقة حالياً للتطوير", "Official channels undergoing development")}
           </div>
         </div>
       </div>

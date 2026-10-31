@@ -1,5 +1,6 @@
+import { useState, useRef } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ShoppingBag, User, LogOut, PenLine, Shield } from "lucide-react";
+import { ShoppingBag, User, LogOut, PenLine } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
@@ -21,6 +22,29 @@ export function SiteHeader() {
     navigate({ to: "/auth", replace: true });
   }
 
+  const [logoClicks, setLogoClicks] = useState(0);
+  const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleLogoClick(e: React.MouseEvent) {
+    const nextCount = logoClicks + 1;
+    setLogoClicks(nextCount);
+
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+    }
+
+    if (nextCount >= 5) {
+      e.preventDefault();
+      setLogoClicks(0);
+      navigate({ to: "/admin" });
+      return;
+    }
+
+    clickTimeoutRef.current = setTimeout(() => {
+      setLogoClicks(0);
+    }, 2500);
+  }
+
   const linkCls =
     "text-[15px] font-semibold text-foreground/80 hover:text-primary transition-all duration-200 px-3.5 py-2 rounded-lg hover:bg-primary/5 [&.active]:text-primary [&.active]:font-bold [&.active]:bg-primary/10";
 
@@ -28,7 +52,11 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur-md shadow-xs">
       <div className="mx-auto flex h-18 max-w-7xl items-center gap-6 px-4 md:px-8">
         {/* Brand / Logo */}
-        <Link to="/" className="flex items-center gap-3 group transition-transform active:scale-95">
+        <Link
+          to="/"
+          onClick={handleLogoClick}
+          className="flex items-center gap-3 group transition-transform active:scale-95 cursor-pointer"
+        >
           <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-card border border-border/80 shadow-xs transition-all duration-200 group-hover:border-primary/40 group-hover:shadow-sm">
             <img src="/logo-icon.png" alt="unibook" className="h-8 w-auto object-contain" />
           </div>
@@ -67,15 +95,6 @@ export function SiteHeader() {
 
           {session ? (
             <>
-              {isAdmin && (
-                <Link
-                  to="/admin"
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card/80 text-foreground transition-all duration-200 hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
-                  aria-label={t("الإدارة", "Admin")}
-                >
-                  <Shield className="h-5 w-5" />
-                </Link>
-              )}
               <Link
                 to="/publisher"
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card/80 text-foreground transition-all duration-200 hover:border-primary/50 hover:bg-primary/10 hover:text-primary md:hidden"

@@ -161,8 +161,8 @@ export function SiteFooter() {
         {/* Col 1: Brand */}
         <div>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-foreground/10 border border-white/10">
-              <img src="/logo-icon.png" alt="unibook" className="h-7 w-auto object-contain brightness-110" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-card border border-border/80 shadow-xs">
+              <img src="/logo-icon.png" alt="unibook" className="h-8 w-auto object-contain" />
             </div>
             <span className="font-display text-3xl font-extrabold text-gold tracking-tight">unibook</span>
           </div>

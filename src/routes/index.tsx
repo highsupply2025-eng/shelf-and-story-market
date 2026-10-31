@@ -60,7 +60,7 @@ function Index() {
               <span className="text-primary">{t("عالم من الكتب","A world of books")}</span>
             </h1>
             <p className="mt-6 max-w-md text-lg text-muted-foreground">
-              {t("كتب رقمية وورقية، ورحلة نشر تبدأ بمخطوطك وتصل إلى القرّاء.","Digital and printed books. A publishing journey from your manuscript to your readers.")}
+              {t("كتب رقمية وورقية، ورحلة نشر تبدأ بمؤلفاتك وتصل إلى القرّاء","Digital and printed books. A publishing journey from your works to your readers.")}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" className="rounded-full px-8">

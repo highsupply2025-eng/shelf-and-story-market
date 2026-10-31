@@ -186,9 +186,14 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link to="/account" className="hover:text-gold transition-colors">
-                {t("مكتبتي", "My library")}
-              </Link>
+              <a
+                href="https://mail.google.com/mail/?view=cm&fs=1&to=darobaid@unigates.online"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-gold transition-colors"
+              >
+                {t("تواصل", "Contact")}
+              </a>
             </li>
           </ul>
         </div>

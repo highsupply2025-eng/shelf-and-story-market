@@ -195,10 +195,7 @@ export function SiteFooter() {
 
         {/* Col 3: Social Media (Disabled with badge) */}
         <div>
-          <div className="mb-2 font-semibold text-gold">{t("تابعنا", "Follow us")}</div>
-          <p className="mb-3 text-xs opacity-60">
-            {t("قنوات التواصل الاجتماعي", "Social channels")}
-          </p>
+          <div className="mb-3 font-semibold text-gold">{t("تابعنا", "Follow us")}</div>
           <div className="flex items-center gap-2.5">
             {socialLinks.map((s) => (
               <div

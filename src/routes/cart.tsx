@@ -66,7 +66,24 @@ function CartPage() {
   return (
     <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 lg:grid-cols-[1fr_380px]">
       <div>
-        <h1 className="text-4xl font-bold">{l.t("السلة","Your cart")}</h1>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-4xl font-bold">{l.t("السلة","Your cart")}</h1>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-destructive text-xs font-semibold cursor-pointer"
+            onClick={() => {
+              if (window.confirm(l.t("هل أنت متأكد من إلغاء هذا الطلب وتفريغ السلة؟", "Are you sure you want to cancel this order and empty your cart?"))) {
+                cart.clear();
+                toast.info(l.t("تم إلغاء الطلب وتفريغ السلة", "Order cancelled and cart emptied"));
+              }
+            }}
+          >
+            <Trash2 className="me-1.5 h-3.5 w-3.5" />
+            {l.t("إلغاء الطلب وتفريغ السلة", "Cancel order & empty cart")}
+          </Button>
+        </div>
         <ul className="mt-8 divide-y divide-border">
           {cart.items.map((i) => (
             <li key={i.book_id + i.format} className="flex items-center gap-4 py-5">
@@ -105,6 +122,20 @@ function CartPage() {
         <p className="text-xs text-muted-foreground">{l.t("الدفع غير مفعّل لبلدك حالياً. هذا طلب غير مدفوع بعملة SAR؛ التحويل المعروض تقديري. الشحن على العميل وتُحدد تكلفته قبل الدفع.","Payments are not connected for your country. This is an unpaid SAR order; converted prices are estimates. Shipping is charged to the customer and must be quoted before payment.")}</p>
         <Button className="w-full rounded-full" size="lg" disabled={busy} onClick={checkout}>
           {session ? l.t("تسجيل طلب غير مدفوع","Record unpaid order") : l.t("سجّل الدخول لإتمام الطلب","Sign in to order")}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full rounded-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive font-semibold cursor-pointer"
+          onClick={() => {
+            if (window.confirm(l.t("هل أنت متأكد من إلغاء هذا الطلب وتفريغ السلة؟", "Are you sure you want to cancel this order and empty your cart?"))) {
+              cart.clear();
+              toast.info(l.t("تم إلغاء الطلب بنجاح", "Order cancelled successfully"));
+            }
+          }}
+        >
+          <Trash2 className="me-2 h-4 w-4" />
+          {l.t("إلغاء الطلب", "Cancel order")}
         </Button>
       </aside>
     </div>

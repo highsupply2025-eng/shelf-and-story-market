@@ -100,7 +100,9 @@ function AccountPage() {
             <div key={o.id} className="rounded-2xl border border-border bg-card p-5">
               <div className="flex flex-wrap justify-between gap-2 text-sm">
                 <span>{l.t("طلب","Order")} #{o.id.slice(0, 8)} · {new Date(o.created_at).toLocaleDateString(l.language)}</span>
-                <span className="rounded-full bg-accent px-3 py-0.5">{o.status}</span>
+                <span className={`rounded-full px-3 py-0.5 text-xs font-semibold ${o.status === "cancelled" ? "bg-destructive/10 text-destructive" : "bg-accent"}`}>
+                  {o.status === "cancelled" ? l.t("ملغي", "Cancelled") : o.status}
+                </span>
               </div>
               <ul className="mt-3 space-y-1 text-sm">
                 {o.order_items.map((i) => (
@@ -110,7 +112,28 @@ function AccountPage() {
                   </li>
                 ))}
               </ul>
-              <div className="mt-3 border-t pt-3 text-end font-bold">{formatPrice(o.total)}</div>
+              <div className="mt-3 flex flex-wrap items-center justify-between border-t pt-3 gap-2">
+                <div className="font-bold text-lg">{formatPrice(o.total)}</div>
+                {o.status !== "cancelled" && o.status !== "delivered" && o.status !== "shipped" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-destructive/30 text-destructive hover:bg-destructive/10 text-xs rounded-full h-8 px-3 cursor-pointer"
+                    onClick={async () => {
+                      if (!window.confirm(l.t("هل أنت متأكد من إلغاء هذا الطلب؟", "Are you sure you want to cancel this order?"))) return;
+                      const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", o.id);
+                      if (error) {
+                        toast.error(l.t("تعذر إلغاء الطلب", "Could not cancel order"));
+                      } else {
+                        toast.success(l.t("تم إلغاء الطلب بنجاح", "Order cancelled successfully"));
+                        qc.invalidateQueries({ queryKey: ["my-orders"] });
+                      }
+                    }}
+                  >
+                    {l.t("إلغاء الطلب", "Cancel order")}
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </TabsContent>

@@ -7,6 +7,7 @@ import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/locale";
+import { AdminAuthModal } from "@/components/AdminAuthModal";
 
 export function SiteHeader() {
   const { t } = useLocale();
@@ -24,6 +25,7 @@ export function SiteHeader() {
 
   const [logoClicks, setLogoClicks] = useState(0);
   const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
 
   function handleLogoClick(e: React.MouseEvent) {
     const nextCount = logoClicks + 1;
@@ -33,16 +35,28 @@ export function SiteHeader() {
       clearTimeout(clickTimeoutRef.current);
     }
 
+    if (nextCount > 1 && nextCount < 5) {
+      e.preventDefault();
+    }
+
     if (nextCount >= 5) {
       e.preventDefault();
+      e.stopPropagation();
       setLogoClicks(0);
-      navigate({ to: "/admin" });
+      const isCurrentAdmin =
+        isAdmin ||
+        session?.user?.email?.toLowerCase().trim() === "highsupply2025@gmail.com";
+      if (isCurrentAdmin) {
+        navigate({ to: "/admin" });
+      } else {
+        setAdminModalOpen(true);
+      }
       return;
     }
 
     clickTimeoutRef.current = setTimeout(() => {
       setLogoClicks(0);
-    }, 2500);
+    }, 3000);
   }
 
   const linkCls =
@@ -124,6 +138,7 @@ export function SiteHeader() {
           )}
         </div>
       </div>
+      <AdminAuthModal open={adminModalOpen} onOpenChange={setAdminModalOpen} />
     </header>
   );
 }

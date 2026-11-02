@@ -30,11 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsPublisher(false);
       return;
     }
+    const isSpecialAdminEmail = s.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com";
     const [{ data: roles }, { data: pub }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", s.user.id),
       supabase.from("publishers").select("id").eq("id", s.user.id).maybeSingle(),
     ]);
-    setIsAdmin(!!roles?.some((r) => r.role === "admin"));
+    setIsAdmin(isSpecialAdminEmail || !!roles?.some((r) => r.role === "admin"));
     setIsPublisher(!!pub);
   }
 

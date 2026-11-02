@@ -22,6 +22,7 @@ import {
   setAdminWalletNumber,
   type AuthorPlanRequest,
 } from "@/lib/author-plans";
+import { AdminAuthCard } from "@/components/AdminAuthModal";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -71,7 +72,17 @@ function AdminPage() {
   });
 
   if (loading) return null;
-  if (!isAdmin) return <p className="py-32 text-center text-muted-foreground">هذه الصفحة لإدارة الموقع فقط.</p>;
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-[75vh] items-center justify-center px-4 py-12">
+        <AdminAuthCard
+          onSuccess={() => {
+            qc.invalidateQueries();
+          }}
+        />
+      </div>
+    );
+  }
 
   const pendingPlans = planRequests.filter((r) => r.status === "pending");
 

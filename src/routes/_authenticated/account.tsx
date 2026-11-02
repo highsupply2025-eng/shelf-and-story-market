@@ -244,7 +244,7 @@ function AccountPage() {
   const [transferNotes, setTransferNotes] = useState("");
   const [submittingPlan, setSubmittingPlan] = useState(false);
 
-  const userAccountType = session?.user?.user_metadata?.account_type;
+  const userAccountType = session?.user?.user_metadata?.["account_type"];
   const [accountMode, setAccountMode] = useState<"reader" | "author">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("unibook_account_mode");

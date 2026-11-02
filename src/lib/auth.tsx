@@ -43,6 +43,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
       setTimeout(() => loadFlags(s), 0);
+      // Admin magic-link sign-in: always land on the admin dashboard
+      if (s && typeof window !== "undefined") {
+        try {
+          const pending = Number(window.localStorage.getItem("admin_login_pending") || 0);
+          const isAdminEmail = s.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com";
+          if (pending && isAdminEmail) {
+            window.localStorage.removeItem("admin_login_pending");
+            if (Date.now() - pending < 2 * 60 * 60 * 1000 && !window.location.pathname.startsWith("/admin")) {
+              window.location.assign("/admin");
+            }
+          }
+        } catch {
+          /* ignore storage errors */
+        }
+      }
     });
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);

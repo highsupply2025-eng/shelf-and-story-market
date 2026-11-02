@@ -270,11 +270,11 @@ export async function activatePlanRequest(requestId: string): Promise<boolean> {
       }
     }
 
-    bioObj.status = "active";
-    bioObj.activated_at = req.activatedAt;
-    bioObj.plan_id = req.planId;
-    bioObj.plan_title = req.planTitle;
-    bioObj.books_count = req.booksCount;
+    bioObj["status"] = "active";
+    bioObj["activated_at"] = req.activatedAt;
+    bioObj["plan_id"] = req.planId;
+    bioObj["plan_title"] = req.planTitle;
+    bioObj["books_count"] = req.booksCount;
 
     if (pub) {
       await supabase

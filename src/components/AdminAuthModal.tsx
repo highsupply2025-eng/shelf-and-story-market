@@ -1,10 +1,11 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ShieldCheck, Mail, KeyRound, Loader2, RefreshCw, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Mail, KeyRound, Loader2, RefreshCw, ArrowRight, CheckCircle2, Lock, Eye, EyeOff, ExternalLink, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +19,28 @@ interface AdminAuthProps {
 export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
   const navigate = useNavigate();
   const { refresh } = useAuth();
-  const [step, setStep] = useState<"request" | "verify">("request");
+  const [step, setStep] = useState<"request" | "verify" | "password">("request");
   const [otpCode, setOtpCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
+
+  // Automatically detect when admin clicks the Magic Link in their email
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase()) {
+        toast.success("تم تأكيد الدخول عبر البريد بنجاح! جاري فتح لوحة الإدارة...");
+        await refresh();
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          navigate({ to: "/admin" });
+        }
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [navigate, refresh, onSuccess]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -34,22 +53,56 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
   async function handleSendOtp() {
     setLoading(true);
     try {
+      const redirectUrl = `${window.location.origin}/admin`;
       const { error } = await supabase.auth.signInWithOtp({
         email: ADMIN_EMAIL,
         options: {
+          emailRedirectTo: redirectUrl,
           shouldCreateUser: true,
         },
       });
 
       if (error) {
-        toast.error(error.message || "تعذر إرسال رمز التحقق. يرجى المحاولة بعد قليل.");
+        toast.error(error.message || "تعذر إرسال رسالة التحقق. يرجى المحاولة بعد قليل.");
       } else {
-        toast.success("تم إرسال كود التحقق بنجاح إلى بريد الإدارة!");
+        toast.success("تم إرسال رسالة الدخول بنجاح إلى بريد الإدارة!");
         setStep("verify");
         setCountdown(60);
       }
     } catch (err: any) {
-      toast.error(err?.message || "حدث خطأ أثناء إرسال الرمز");
+      toast.error(err?.message || "حدث خطأ أثناء إرسال الرسالة");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handlePasswordLogin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!password) {
+      toast.error("يرجى كتابة كلمة المرور");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: ADMIN_EMAIL,
+        password: password,
+      });
+
+      if (error) {
+        toast.error("كلمة المرور غير صحيحة. يمكنك استخدام رابط البريد بدلاً منها.");
+      } else {
+        toast.success("تم تسجيل الدخول بنجاح! مرحباً بك.");
+        await refresh();
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          navigate({ to: "/admin" });
+        }
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "تعذر الدخول بكلمة المرور");
     } finally {
       setLoading(false);
     }
@@ -126,7 +179,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
       {step === "request" ? (
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground text-center leading-relaxed">
-            لأمان لوحة التحكم، يتم الدخول حصرياً عبر رمز تحقق مؤقت (OTP) يتم إرساله إلى البريد الإلكتروني الخاص بالإدارة أعلاه.
+            لأمان لوحة التحكم، يمكنك استقبال رابط الدخول السريع مباشرة على بريد الإدارة، أو الدخول بكلمة المرور.
           </p>
 
           <Button
@@ -138,24 +191,102 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                جاري إرسال الكود...
+                جاري الإرسال للبريد...
               </>
             ) : (
               <>
-                <KeyRound className="h-4 w-4" />
-                إرسال كود التحقق إلى البريد
+                <Mail className="h-4 w-4" />
+                إرسال رابط الدخول / الكود للبريد
               </>
             )}
           </Button>
+
+          <div className="relative flex py-1 items-center">
+            <div className="flex-grow border-t border-border/70" />
+            <span className="flex-shrink mx-3 text-[11px] text-muted-foreground font-medium">أو</span>
+            <div className="flex-grow border-t border-border/70" />
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setStep("password")}
+            className="w-full h-11 text-xs font-bold rounded-xl gap-2 hover:bg-primary/5"
+          >
+            <Lock className="h-3.5 w-3.5" />
+            الدخول بكلمة مرور الحساب
+          </Button>
         </div>
+      ) : step === "password" ? (
+        <form onSubmit={handlePasswordLogin} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+              <span>كلمة مرور حساب الإدارة</span>
+            </label>
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="أدخل كلمة المرور"
+                className="h-11 rounded-xl pe-10"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 end-0 flex items-center pe-3 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading || !password}
+            className="w-full h-11 text-sm font-bold rounded-xl shadow-md gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                جاري التحقق...
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="h-4 w-4" />
+                تسجيل الدخول للوحة الإدارة
+              </>
+            )}
+          </Button>
+
+          <button
+            type="button"
+            onClick={() => setStep("request")}
+            className="w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1 pt-1"
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
+            الرجوع للدخول عبر البريد (رابط / كود)
+          </button>
+        </form>
       ) : (
         <form onSubmit={handleVerifyOtp} className="space-y-5">
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-              تم إرسال كود التحقق (6 أرقام) إلى بريدك الإلكتروني. تفقد صندوق الوارد أو الرسائل غير المرغوبة (Spam).
+          {/* Smart Notice About Email Link */}
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5 text-center space-y-1.5">
+            <div className="flex items-center justify-center gap-1.5 text-primary font-bold text-xs">
+              <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+              <span>تم إرسال رسالة الدخول إلى بريدك!</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              • يمكنك <strong className="text-foreground">الضغط مباشرة على زر (Log In / الدخول)</strong> داخل الرسالة التي وصلتك وسيتم فتح لوحة الإدارة تلقائياً!
             </p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              • أو إذا ظهر لك كود أرقام داخل الرسالة، يمكنك كتابته بالأسفل:
+            </p>
+          </div>
 
-            <div className="flex justify-center my-4" dir="ltr">
+          <div className="text-center">
+            <div className="flex justify-center my-3" dir="ltr">
               <InputOTP
                 maxLength={6}
                 value={otpCode}
@@ -170,12 +301,12 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
                 }}
               >
                 <InputOTPGroup className="gap-2">
-                  <InputOTPSlot index={0} className="h-12 w-11 rounded-lg text-lg font-bold border-border/80" />
-                  <InputOTPSlot index={1} className="h-12 w-11 rounded-lg text-lg font-bold border-border/80" />
-                  <InputOTPSlot index={2} className="h-12 w-11 rounded-lg text-lg font-bold border-border/80" />
-                  <InputOTPSlot index={3} className="h-12 w-11 rounded-lg text-lg font-bold border-border/80" />
-                  <InputOTPSlot index={4} className="h-12 w-11 rounded-lg text-lg font-bold border-border/80" />
-                  <InputOTPSlot index={5} className="h-12 w-11 rounded-lg text-lg font-bold border-border/80" />
+                  <InputOTPSlot index={0} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
+                  <InputOTPSlot index={1} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
+                  <InputOTPSlot index={2} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
+                  <InputOTPSlot index={3} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
+                  <InputOTPSlot index={4} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
+                  <InputOTPSlot index={5} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
                 </InputOTPGroup>
               </InputOTP>
             </div>
@@ -185,7 +316,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
             id="admin-verify-btn"
             type="submit"
             disabled={loading || otpCode.length < 6}
-            className="w-full h-12 text-sm font-bold rounded-xl shadow-md gap-2"
+            className="w-full h-11 text-sm font-bold rounded-xl shadow-md gap-2"
           >
             {loading ? (
               <>
@@ -200,18 +331,18 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
             )}
           </Button>
 
-          <div className="flex items-center justify-between pt-2 text-xs">
+          <div className="flex items-center justify-between pt-1 text-xs">
             <button
               type="button"
-              onClick={() => setStep("request")}
-              className="text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+              onClick={() => setStep("password")}
+              className="text-primary font-bold hover:underline flex items-center gap-1"
             >
-              <ArrowRight className="h-3.5 w-3.5" />
-              إعادة الإرسال
+              <Lock className="h-3 w-3" />
+              أو الدخول بكلمة المرور
             </button>
 
             {countdown > 0 ? (
-              <span className="text-muted-foreground">
+              <span className="text-muted-foreground text-[11px]">
                 إعادة الإرسال بعد ({countdown} ث)
               </span>
             ) : (
@@ -222,7 +353,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
                 className="text-primary font-bold hover:underline flex items-center gap-1"
               >
                 <RefreshCw className="h-3 w-3" />
-                إرسال كود جديد
+                إرسال رسالة جديدة
               </button>
             )}
           </div>

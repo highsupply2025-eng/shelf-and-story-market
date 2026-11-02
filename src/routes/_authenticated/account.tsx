@@ -22,7 +22,17 @@ import {
   ShieldCheck,
   ArrowRight,
   Zap,
+  Copy,
+  Clock,
+  AlertCircle,
+  Wallet,
 } from "lucide-react";
+import {
+  getUserPlanRequest,
+  submitPlanRequest,
+  getAdminWalletNumber,
+  type AuthorPlanRequest,
+} from "@/lib/author-plans";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -228,6 +238,21 @@ function AccountPage() {
     shipping_address: "",
   });
 
+  const [walletSender, setWalletSender] = useState("");
+  const [reference, setReference] = useState("");
+  const [authorNameInput, setAuthorNameInput] = useState("");
+  const [transferNotes, setTransferNotes] = useState("");
+  const [submittingPlan, setSubmittingPlan] = useState(false);
+
+  const { data: planRequest, refetch: refetchPlanRequest } = useQuery({
+    queryKey: ["my-plan-request", session?.user?.id],
+    enabled: !!session?.user?.id,
+    queryFn: async () => {
+      if (!session) return null;
+      return getUserPlanRequest(session.user.id);
+    },
+  });
+
   const [selectedPlanModal, setSelectedPlanModal] = useState<PublishingPlan | null>(null);
   const [activePlanId, setActivePlanId] = useState<string>(() => {
     if (typeof window !== "undefined") {
@@ -235,6 +260,49 @@ function AccountPage() {
     }
     return "plan-1";
   });
+
+  function handleSelectPlan(plan: PublishingPlan) {
+    setAuthorNameInput(profile.display_name || publisher?.store_name || session?.user.email?.split("@")[0] || "");
+    setWalletSender("");
+    setReference("");
+    setTransferNotes("");
+    setSelectedPlanModal(plan);
+  }
+
+  async function handleConfirmTransfer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!session || !selectedPlanModal) return;
+    setSubmittingPlan(true);
+    try {
+      await submitPlanRequest({
+        userId: session.user.id,
+        userEmail: session.user.email || "",
+        authorName: authorNameInput.trim() || session.user.email || "مؤلف",
+        planId: selectedPlanModal.id,
+        planTitle: selectedPlanModal.title,
+        booksCount: selectedPlanModal.booksCount,
+        price: selectedPlanModal.price,
+        priceDisplay: selectedPlanModal.priceDisplay,
+        walletSender: walletSender.trim() || (selectedPlanModal.price === 0 ? "خطة مجانية" : "تحويل محفظة"),
+        reference: reference.trim() || `TX-${Math.floor(100000 + Math.random() * 900000)}`,
+        notes: transferNotes,
+      });
+      await refetchPlanRequest();
+      setSelectedPlanModal(null);
+      toast.success(
+        selectedPlanModal.price === 0
+          ? l.t("تم إرسال طلب تفعيل الخطة المجانية! سيتم اعتماده وتفعيله من لوحة الإدارة.", "Free plan request submitted!")
+          : l.t(
+              "تم إرسال إشعار تحويل المحفظة بنجاح! سيتم التحقق وتفعيل حسابك كمؤلف من خلال لوحة الإدارة.",
+              "Wallet transfer submitted! Admin will activate after verification.",
+            ),
+      );
+    } catch {
+      toast.error(l.t("تعذر إرسال الطلب، يرجى المحاولة لاحقاً", "Could not submit request"));
+    } finally {
+      setSubmittingPlan(false);
+    }
+  }
 
   useEffect(() => {
     if (!session) return;
@@ -324,34 +392,7 @@ function AccountPage() {
     window.open(data.signedUrl, "_blank");
   }
 
-  function handleSelectPlan(plan: PublishingPlan) {
-    if (plan.price === 0) {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("unibook_selected_plan_id", plan.id);
-        localStorage.setItem("unibook_selected_plan_title", plan.title);
-      }
-      setActivePlanId(plan.id);
-      toast.success(l.t("تم تفعيل الخطة المجانية لنشر كتابك الأول!", "Free plan activated for your first book!"));
-      navigate({ to: "/publisher" });
-      return;
-    }
-
-    setSelectedPlanModal(plan);
-  }
-
-  function confirmPaidPlan(plan: PublishingPlan) {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("unibook_selected_plan_id", plan.id);
-      localStorage.setItem("unibook_selected_plan_title", plan.title);
-      localStorage.setItem("unibook_selected_plan_price", String(plan.price));
-    }
-    setActivePlanId(plan.id);
-    setSelectedPlanModal(null);
-    toast.success(
-      l.t(`تم تأكيد اختيار ${plan.title}! يمكنك الآن رفع أول مخطوط ومتابعة الإنتاج.`, `${plan.title} selected!`),
-    );
-    navigate({ to: "/publisher" });
-  }
+  const adminWallet = getAdminWalletNumber();
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 md:py-14">
@@ -396,6 +437,83 @@ function AccountPage() {
           </div>
         </div>
       </div>
+
+      {/* Author Plan Status Banner */}
+      {planRequest ? (
+        <div
+          className={`mt-6 rounded-3xl border p-5 sm:p-6 transition-all ${
+            planRequest.status === "active"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100"
+              : planRequest.status === "pending"
+              ? "border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-100"
+              : "border-destructive/30 bg-destructive/10 text-destructive"
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              {planRequest.status === "active" ? (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                  <Check className="h-5 w-5" />
+                </div>
+              ) : planRequest.status === "pending" ? (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse">
+                  <Clock className="h-5 w-5" />
+                </div>
+              ) : (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-destructive/20 text-destructive">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+              )}
+              <div>
+                <div className="font-extrabold text-base sm:text-lg">
+                  {planRequest.status === "active" && `🎉 باقة (${planRequest.planTitle}) مفعّلة بنجاح`}
+                  {planRequest.status === "pending" && `⏳ طلب تفعيل (${planRequest.planTitle}) قيد المراجعة في لوحة الإدارة`}
+                  {planRequest.status === "rejected" && `❌ تعذر تفعيل (${planRequest.planTitle})`}
+                </div>
+                <p className="mt-1 text-xs sm:text-sm opacity-90 leading-relaxed">
+                  {planRequest.status === "active" &&
+                    `حسابك كمؤلف نشط بالكامل. يمكنك الآن رفع المخطوطات والبدء بالإنتاج حتى ${planRequest.booksCount} كتب.`}
+                  {planRequest.status === "pending" &&
+                    `تم إرسال إشعار تحويل المحفظة (المرجع: ${planRequest.reference}). يقوم الأدمن بمراجعة التحويل وتفعيل حسابك كمؤلف.`}
+                  {planRequest.status === "rejected" &&
+                    (planRequest.rejectionReason || "يرجى مراجعة إشعار التحويل وإعادة المحاولة.")}
+                </p>
+              </div>
+            </div>
+
+            {planRequest.status === "active" ? (
+              <Button asChild className="rounded-xl font-bold shadow-xs">
+                <Link to="/publisher">
+                  <FileText className="me-2 h-4 w-4" />
+                  {l.t("نشر كتاب جديد", "Publish New Book")}
+                </Link>
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="rounded-xl bg-background/80 px-3 py-1.5 text-xs font-mono font-bold border border-border/60">
+                  {planRequest.status === "pending" ? "بانتظار تفعيل الأدمن" : "غير مفعّل"}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-6 rounded-3xl border border-primary/20 bg-primary/5 p-5 text-foreground flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Wallet className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold">
+                إنشاء الحساب مجاني بالكامل!
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                لاستخدام الحساب كمؤلف ونشر الكتب، اختر إحدى باقات النشر أدناه وقم بتحويل المبلغ عبر المحفظة لتفعيل حسابك من قِبل الإدارة.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="plans" className="mt-10">
@@ -798,9 +916,9 @@ function AccountPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Plan Subscription Dialog */}
+      {/* Plan Subscription Dialog via Wallet Transfer */}
       <Dialog open={!!selectedPlanModal} onOpenChange={(open) => !open && setSelectedPlanModal(null)}>
-        <DialogContent className="max-w-lg rounded-3xl p-6 sm:p-8" dir="rtl">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 sm:p-8" dir="rtl">
           {selectedPlanModal && (
             <>
               <DialogHeader>
@@ -813,60 +931,166 @@ function AccountPage() {
                 <DialogTitle className="mt-2 text-2xl font-extrabold">
                   {selectedPlanModal.title} — {selectedPlanModal.booksLabel}
                 </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  تفاصيل الخطة وإتمام الاشتراك لمتابعة نشر وإدارة مؤلفاتك.
+                <DialogDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  إنشاء الحساب مجاني بالكامل. يتم تفعيل صلاحيات المؤلف ونشر الكتب بعد إرسال رسوم الباقة عبر تحويل المحفظة واعتمادها من الإدارة.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="mt-4 rounded-2xl border border-border bg-muted/40 p-5 space-y-3">
+              {/* Price & Summary Box */}
+              <div className="mt-4 rounded-2xl border border-border bg-muted/40 p-4 sm:p-5 space-y-2.5">
                 <div className="flex items-baseline justify-between border-b border-border/60 pb-3">
-                  <span className="text-sm font-medium text-muted-foreground">سعر الباقة الإجمالي:</span>
-                  <span className="text-2xl font-extrabold text-foreground">
+                  <span className="text-sm font-medium text-muted-foreground">قيمة الباقة المطلوبة:</span>
+                  <span className="text-2xl sm:text-3xl font-extrabold text-foreground">
                     {selectedPlanModal.priceDisplay}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>عدد الكتب المشمولة:</span>
+                  <span>عدد الكتب المشمولة للنشر:</span>
                   <span className="font-bold text-foreground">{selectedPlanModal.booksLabel}</span>
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>نسبة أرباح المؤلف:</span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400">70% رقمي · 30% ورقي</span>
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>متوسط التكلفة للكتاب:</span>
-                  <span className="font-bold text-foreground">{selectedPlanModal.priceNote}</span>
+              </div>
+
+              {/* Admin Wallet Details (For Paid Plans) */}
+              {selectedPlanModal.price > 0 && (
+                <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 sm:p-5">
+                  <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                    <Wallet className="h-4 w-4" />
+                    <span>بيانات محفظة الإدارة للتحويل</span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    قم بتحويل مبلغ <strong className="text-foreground">{selectedPlanModal.priceDisplay}</strong> إلى رقم المحفظة التالي:
+                  </p>
+
+                  <div className="mt-3 flex items-center justify-between rounded-xl bg-card border border-border p-3">
+                    <div>
+                      <span className="text-[11px] text-muted-foreground">رقم المحفظة (فودافون كاش / إنستاباي / STC Pay):</span>
+                      <p className="font-mono text-lg font-extrabold tracking-wider text-foreground" dir="ltr">
+                        {adminWallet}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-lg h-9 px-3 text-xs font-semibold cursor-pointer"
+                      onClick={() => {
+                        navigator.clipboard.writeText(adminWallet);
+                        toast.success("تم نسخ رقم محفظة الإدارة بنجاح!");
+                      }}
+                    >
+                      <Copy className="me-1.5 h-3.5 w-3.5" />
+                      نسخ
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="mt-6 flex flex-col gap-3">
-                <Button
-                  onClick={() => confirmPaidPlan(selectedPlanModal)}
-                  className="w-full rounded-xl py-6 font-bold shadow-xs cursor-pointer text-base"
-                >
-                  <Zap className="me-2 h-5 w-5" />
-                  تأكيد الخطة والبدء في رفع أول كتاب
-                </Button>
+              {/* Transfer Details Form */}
+              <form onSubmit={handleConfirmTransfer} className="mt-5 space-y-4">
+                <div>
+                  <Label htmlFor="author-name-input" className="text-xs font-semibold">
+                    اسم المؤلف / المتجر
+                  </Label>
+                  <Input
+                    id="author-name-input"
+                    required
+                    value={authorNameInput}
+                    onChange={(e) => setAuthorNameInput(e.target.value)}
+                    placeholder="مثال: د. أحمد محمد"
+                    className="mt-1.5 rounded-xl text-sm"
+                  />
+                </div>
 
-                <Button
-                  asChild
-                  variant="outline"
-                  className="w-full rounded-xl py-5 text-sm font-semibold border-border hover:bg-muted"
-                >
-                  <a
-                    href={`https://mail.google.com/mail/?view=cm&fs=1&to=darobaid@unigates.online&su=${encodeURIComponent(
-                      `طلب الاشتراك في ${selectedPlanModal.title} (${selectedPlanModal.priceDisplay}) - unibook`,
-                    )}&body=${encodeURIComponent(
-                      `مرحباً فريق unibook ودار عبيد،\n\nأرغب في الاشتراك في ${selectedPlanModal.title} (${selectedPlanModal.booksLabel}) بسعر ${selectedPlanModal.priceDisplay}.\n\nالبريد الإلكتروني للحساب: ${session?.user.email}\nيرجى تزويدي ببيانات الدفع والتحويل لمباشرة الإنتاج.\n\nشكراً لكم.`,
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
+                {selectedPlanModal.price > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="wallet-sender-input" className="text-xs font-semibold">
+                          رقم المحفظة المحوّل منها *
+                        </Label>
+                        <Input
+                          id="wallet-sender-input"
+                          required
+                          dir="ltr"
+                          value={walletSender}
+                          onChange={(e) => setWalletSender(e.target.value)}
+                          placeholder="010xxxxxxxx أو اسم الحساب"
+                          className="mt-1.5 rounded-xl text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="reference-input" className="text-xs font-semibold">
+                          رقم العملية أو المرجع (Reference) *
+                        </Label>
+                        <Input
+                          id="reference-input"
+                          required
+                          dir="ltr"
+                          value={reference}
+                          onChange={(e) => setReference(e.target.value)}
+                          placeholder="TX-123456 أو رقم الإشعار"
+                          className="mt-1.5 rounded-xl text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="notes-input" className="text-xs font-semibold">
+                        ملاحظات إضافية للتحويل (اختياري)
+                      </Label>
+                      <Textarea
+                        id="notes-input"
+                        value={transferNotes}
+                        onChange={(e) => setTransferNotes(e.target.value)}
+                        placeholder="أي تفاصيل إضافية لتسريع التأكيد..."
+                        rows={2}
+                        className="mt-1.5 rounded-xl text-sm"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-950 dark:text-emerald-200">
+                    الخطة الأولى مجانية لنشر كتاب واحد. سيتم إرسال طلب التفعيل إلى لوحة الإدارة لاعتماده فوراً.
+                  </div>
+                )}
+
+                <div className="mt-6 flex flex-col gap-2.5 pt-2">
+                  <Button
+                    type="submit"
+                    disabled={submittingPlan}
+                    className="w-full rounded-xl py-6 font-bold shadow-xs cursor-pointer text-base bg-primary text-primary-foreground hover:bg-primary/90"
                   >
-                    <Mail className="me-2 h-4 w-4 text-primary" />
-                    طلب فاتورة رسمية / تحويل بنكي عبر الدعم
-                  </a>
-                </Button>
-              </div>
+                    <Zap className="me-2 h-5 w-5" />
+                    {submittingPlan
+                      ? "جارٍ إرسال الطلب للإدارة..."
+                      : selectedPlanModal.price === 0
+                      ? "إرسال طلب تفعيل الخطة المجانية للإدارة"
+                      : "تأكيد وإرسال إشعار تحويل المحفظة للإدارة"}
+                  </Button>
+
+                  <Button
+                    asChild
+                    type="button"
+                    variant="ghost"
+                    className="w-full rounded-xl py-4 text-xs font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    <a
+                      href={`https://mail.google.com/mail/?view=cm&fs=1&to=darobaid@unigates.online&su=${encodeURIComponent(
+                        `استفسار بخصوص تحويل باقة ${selectedPlanModal.title} - unibook`,
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Mail className="me-1.5 h-3.5 w-3.5 text-primary" />
+                      مراسلة الدعم بخصوص التحويل (darobaid@unigates.online)
+                    </a>
+                  </Button>
+                </div>
+              </form>
             </>
           )}
         </DialogContent>

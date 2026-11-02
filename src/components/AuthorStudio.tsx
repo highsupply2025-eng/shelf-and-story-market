@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FileText, Download, PenLine, Wallet, BookOpen, Plus, ArrowUpRight } from "lucide-react";
+import { FileText, Download, PenLine, Wallet, BookOpen, Plus, ArrowUpRight, Clock, AlertCircle, ShieldAlert, RefreshCw } from "lucide-react";
+import { getUserPlanRequest } from "@/lib/author-plans";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useLocale } from "@/lib/locale";
@@ -24,6 +25,7 @@ export function AuthorStudio(){
  const {session,isPublisher,loading,refresh}=useAuth();const l=useLocale();const qc=useQueryClient();const uid=session?.user.id;
  const [name,setName]=useState("");const [bio,setBio]=useState("");const [busy,setBusy]=useState(false);
  const {data:author}=useQuery({queryKey:["author",uid],enabled:!!uid,queryFn:async()=>{if(!uid)return null;const {data,error}=await supabase.from("publishers").select("*").eq("id",uid).maybeSingle();if(error)throw error;return data;}});
+ const {data:planRequest,isLoading:planLoading,refetch:refetchPlan}=useQuery({queryKey:["author-plan-request",uid],enabled:!!uid,queryFn:()=>getUserPlanRequest(uid!)});
  const {data:projects=[],isError}=useQuery({queryKey:["manuscripts",uid],enabled:!!uid&&isPublisher,queryFn:async()=>{const {data,error}=await supabase.from("manuscripts").select("*,manuscript_versions(*),production_invoices(*),production_events(*)").order("created_at",{ascending:false});if(error)throw error;return data;}});
  const {data:books=[]}=useQuery({queryKey:["author-books",uid],enabled:!!uid&&isPublisher,queryFn:async()=>{if(!uid)return [];const {data,error}=await supabase.from("books").select("*").eq("publisher_id",uid);if(error)throw error;return data??[];}});
  const {data:earnings=[]}=useQuery({queryKey:["earnings",uid],enabled:!!uid&&isPublisher,queryFn:async()=>{if(!uid)return [];const {data,error}=await supabase.from("author_earnings").select("*").eq("author_id",uid).order("created_at",{ascending:false});if(error)throw error;return data??[];}});
@@ -33,11 +35,123 @@ export function AuthorStudio(){
  const invoices=projects.flatMap(p=>(p.production_invoices ? [p.production_invoices] : []).map(i=>({...i,title:p.title})));
  async function activate(e:React.FormEvent){e.preventDefault();if(!uid)return;setBusy(true);const {error}=await supabase.from("publishers").insert({id:uid,store_name:name,bio});setBusy(false);if(error){toast.error(l.t("تعذر إنشاء حساب المؤلف","Could not create author account"));return;}await refresh();qc.invalidateQueries();}
  async function withdraw(){setBusy(true);const {error}=await supabase.rpc("request_author_payout",{_currency:currency,_details:details});setBusy(false);if(error){toast.error(l.t("السحب يوم 30 وآخر فبراير فقط، ويتطلب رصيداً متاحاً وبيانات تحويل","Withdrawals require an available balance, transfer details and an open withdrawal date"));return;}toast.success(l.t("أُرسل طلب السحب","Withdrawal requested"));qc.invalidateQueries();}
- if(loading)return <p className="p-12 text-center">{l.t("جارٍ التحميل…","Loading…")}</p>;
+
+ if(loading||(uid&&planLoading))return <p className="p-12 text-center text-muted-foreground">{l.t("جارٍ التحقق من باقة المؤلف والحساب…","Verifying author plan & account…")}</p>;
+
+ const isPlanActive = planRequest?.status === "active";
+
+ if(!isPlanActive){
+   return (
+     <div className="mx-auto max-w-3xl px-4 py-16 space-y-6">
+       <div className="text-center">
+         <span className="inline-block rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+           {l.t("إنشاء الحساب مجاني 100%","Account creation is 100% free")}
+         </span>
+         <h1 className="mt-3 text-3xl md:text-4xl font-bold">
+           {l.t("تفعيل باقة النشر مطلوب لاستخدام مساحة المؤلف","Author plan activation required to access the studio")}
+         </h1>
+         <p className="mt-2 text-sm text-muted-foreground max-w-lg mx-auto">
+           {l.t("لا يمكنك استعمال الحساب كمؤلف ورفع المخطوطات إلا بعد تفعيل الباقة وإتمام الدفع عبر تحويل المحفظة واعتمادها من الإدارة.","You cannot use the author account or submit manuscripts until your publishing plan is activated after wallet transfer approval by the Admin.")}
+         </p>
+       </div>
+
+       {planRequest?.status === "pending" && (
+         <div className="rounded-2xl border-2 border-amber-500/40 bg-amber-500/10 p-6 md:p-8">
+           <div className="flex items-start gap-4">
+             <div className="rounded-full bg-amber-500/20 p-3 text-amber-600 dark:text-amber-400 shrink-0">
+               <Clock className="h-7 w-7 animate-pulse" />
+             </div>
+             <div className="flex-1 space-y-3">
+               <div className="flex flex-wrap items-center justify-between gap-2">
+                 <h2 className="text-lg font-bold text-amber-900 dark:text-amber-100">
+                   طلب تفعيل {planRequest.planTitle} قيد المراجعة
+                 </h2>
+                 <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold text-amber-800 dark:text-amber-200">
+                   بانتظار تأكيد الإدارة
+                 </span>
+               </div>
+               <p className="text-sm text-muted-foreground leading-relaxed">
+                 تم استلام بيانات تحويل المحفظة بنجاح، ويقوم فريق الإدارة حالياً بمطابقة التحويل وتفعيل باقتك من خلال لوحة الإدارة. يمكنك تحديث الحالة فوراً بالضغط على زر التحديث أدناه.
+               </p>
+               <div className="grid gap-2 rounded-xl border border-amber-500/20 bg-background/80 p-4 text-xs sm:grid-cols-2">
+                 <div><span className="text-muted-foreground">الباقة:</span> <strong className="ms-1">{planRequest.planTitle} ({planRequest.booksCount} كتب)</strong></div>
+                 <div><span className="text-muted-foreground">قيمة الباقة:</span> <strong className="ms-1">{planRequest.priceDisplay}</strong></div>
+                 <div><span className="text-muted-foreground">محفظة المحوّل:</span> <strong className="ms-1" dir="ltr">{planRequest.walletSender}</strong></div>
+                 <div><span className="text-muted-foreground">رقم المرجع:</span> <strong className="ms-1" dir="ltr">{planRequest.reference}</strong></div>
+               </div>
+               <div className="pt-2 flex flex-wrap items-center gap-3">
+                 <Button variant="default" onClick={() => { refetchPlan(); toast.success("تم تحديث حالة الطلب"); }} className="gap-2">
+                   <RefreshCw className="h-4 w-4" /> تحديث حالة التفعيل
+                 </Button>
+                 <Button variant="outline" asChild>
+                   <a href="/account">استعراض خطط النشر</a>
+                 </Button>
+               </div>
+             </div>
+           </div>
+         </div>
+       )}
+
+       {planRequest?.status === "rejected" && (
+         <div className="rounded-2xl border-2 border-destructive/30 bg-destructive/10 p-6 md:p-8">
+           <div className="flex items-start gap-4">
+             <div className="rounded-full bg-destructive/20 p-3 text-destructive shrink-0">
+               <AlertCircle className="h-7 w-7" />
+             </div>
+             <div className="flex-1 space-y-3">
+               <h2 className="text-lg font-bold text-destructive">
+                 تعذر تفعيل الباقة السابقة
+               </h2>
+               <p className="text-sm text-muted-foreground">
+                 {planRequest.rejectionReason || "تعذر التحقق من وصول مبلغ التحويل لمحفظة الإدارة. يرجى التأكد من بيانات التحويل وإعادة إرسال الطلب."}
+               </p>
+               <div className="pt-2">
+                 <Button asChild>
+                   <a href="/account">اختيار باقة وإعادة إرسال بيانات التحويل</a>
+                 </Button>
+               </div>
+             </div>
+           </div>
+         </div>
+       )}
+
+       {(!planRequest || (planRequest.status !== "pending" && planRequest.status !== "rejected")) && (
+         <div className="rounded-2xl border bg-card p-6 md:p-10 text-center shadow-sm space-y-6">
+           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+             <ShieldAlert className="h-8 w-8" />
+           </div>
+           <div className="space-y-2">
+             <h2 className="text-xl md:text-2xl font-bold">
+               اختر باقتك من بين 6 باقات نشر معتمدة
+             </h2>
+             <p className="text-muted-foreground text-sm max-w-lg mx-auto">
+               تبدأ الباقات من الخطة المجانية (كتاب واحد)، والباقات المدفوعة تبدأ من 3 كتب (999 ر.س) حتى 12 كتاباً (8,500 ر.س). الدفع عبر تحويل المحفظة المباشر.
+             </p>
+           </div>
+           <div className="rounded-xl border bg-muted/40 p-4 text-start text-xs space-y-2 max-w-md mx-auto">
+             <div className="font-semibold text-foreground">آلية العمل:</div>
+             <div>1. إنشاء الحساب مجاني بالكامل.</div>
+             <div>2. اختيار إحدى خطط النشر الـ 6 في صفحة الحساب.</div>
+             <div>3. تحويل رسوم الباقة لمحفظة الإدارة وإرفاق رقم المرجع.</div>
+             <div>4. تفعيل حسابك من خلال لوحة الإدارة لفتح مساحة رفع المخطوطات فوراً.</div>
+           </div>
+           <Button size="lg" asChild className="rounded-xl px-8 font-bold">
+             <a href="/account">
+               <Wallet className="me-2 h-4 w-4" />
+               اختيار باقة النشر والتحويل
+             </a>
+           </Button>
+         </div>
+       )}
+     </div>
+   );
+ }
+
  if(!isPublisher)return <div className="mx-auto max-w-2xl px-4 py-16"><p className="text-sm text-primary">{l.t("دار عبيد · مساحة المؤلف","Dar Obaid · Author studio")}</p><h1 className="mt-3 text-4xl font-bold">{l.t("ابدأ رحلتك كمؤلف","Your next chapter starts here")}</h1><form onSubmit={activate} className="mt-10 space-y-5"><Label htmlFor="author-name">{l.t("اسم المؤلف","Author name")}</Label><Input id="author-name" required value={name} onChange={e=>setName(e.target.value)}/><Label htmlFor="author-bio">{l.t("نبذة عنك","About you")}</Label><Textarea id="author-bio" value={bio} onChange={e=>setBio(e.target.value)}/><Button disabled={busy} size="lg"><PenLine className="me-2 h-4 w-4"/>{l.t("إنشاء حساب المؤلف","Create author account")}</Button></form></div>;
- const activePlanTitle = typeof window !== "undefined" ? localStorage.getItem("unibook_selected_plan_title") : null;
+ const activePlanTitle = planRequest?.planTitle || (typeof window !== "undefined" ? localStorage.getItem("unibook_selected_plan_title") : null);
  return <div className="mx-auto max-w-7xl px-4 py-10">
- <div className="flex flex-wrap items-end justify-between gap-4 border-b pb-8"><div><p className="text-sm text-primary">{l.t("unibook · مساحة المؤلف والنشر","unibook · Author & Publishing Studio")}</p><h1 className="mt-2 text-4xl font-bold">{l.t("مساحة المؤلف","Author studio")}</h1><div className="mt-2 flex flex-wrap items-center gap-2 text-muted-foreground"><span>{author?.store_name}</span><span>·</span><span dir="ltr" className="font-mono text-xs">{author?.author_code}</span>{activePlanTitle && (<><span className="mx-1">·</span><span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-3 py-0.5 text-xs font-bold text-primary">الخطة: {activePlanTitle}</span></>)}<a href="/account" className="text-xs text-primary underline hover:text-primary/80 ms-2">{l.t("تغيير الخطة", "Change plan")}</a></div></div><div className="flex items-center gap-3"><Button variant="outline" asChild className="rounded-xl"><a href="/account">{l.t("خطط النشر (6 خطط)", "Publishing Plans")}</a></Button><Button onClick={()=>{setRevision(null);setTab("new");}} className="rounded-xl font-bold"><Plus className="me-2 h-4 w-4"/>{l.t("إرسال مخطوط Word","Submit manuscript")}</Button></div></div>
+ <div className="flex flex-wrap items-end justify-between gap-4 border-b pb-8"><div><p className="text-sm text-primary">{l.t("unibook · مساحة المؤلف والنشر","unibook · Author & Publishing Studio")}</p><h1 className="mt-2 text-4xl font-bold">{l.t("مساحة المؤلف","Author studio")}</h1><div className="mt-2 flex flex-wrap items-center gap-2 text-muted-foreground"><span>{author?.store_name}</span><span>·</span><span dir="ltr" className="font-mono text-xs">{author?.author_code}</span>{activePlanTitle && (<><span className="mx-1">·</span><span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-3 py-0.5 text-xs font-bold border border-emerald-500/30">الباقة المفعلة: {activePlanTitle} ({planRequest?.booksCount || 1} كتب)</span></>)}<a href="/account" className="text-xs text-primary underline hover:text-primary/80 ms-2">{l.t("تغيير الخطة", "Change plan")}</a></div></div><div className="flex items-center gap-3"><Button variant="outline" asChild className="rounded-xl"><a href="/account">{l.t("خطط النشر (6 خطط)", "Publishing Plans")}</a></Button><Button onClick={()=>{setRevision(null);setTab("new");}} className="rounded-xl font-bold"><Plus className="me-2 h-4 w-4"/>{l.t("إرسال مخطوط Word","Submit manuscript")}</Button></div></div>
+
  <div className="grid grid-cols-2 gap-4 py-8 lg:grid-cols-4">{[[FileText,l.t("مشروعاتي","Projects"),projects.length],[BookOpen,l.t("كتب منشورة","Published books"),books.filter(b=>b.status==="approved").length],[ArrowUpRight,l.t("نسخ مباعة مؤكدة","Confirmed copies sold"),earnings.filter(e=>!e.reversed).reduce((n,e)=>n+e.quantity,0)],[Wallet,l.t("حصتي الرقمية / الورقية","Digital / print share"),"70% / 30%"]].map(([Icon,label,value])=>{const I=Icon as typeof FileText;return <div key={String(label)} className="rounded-lg border bg-card p-5"><I className="h-5 w-5 text-primary"/><p className="mt-4 text-sm text-muted-foreground">{String(label)}</p><p className="mt-1 text-3xl font-semibold" dir="auto">{String(value)}</p></div>;})}</div>
  <Tabs value={tab} onValueChange={setTab} dir={l.language==="ar"?"rtl":"ltr"}><TabsList className="h-auto flex-wrap justify-start gap-1"><TabsTrigger value="projects">{l.t("رحلة الكتاب","Book projects")}</TabsTrigger><TabsTrigger value="new">{l.t("رفع Word","Upload Word")}</TabsTrigger><TabsTrigger value="invoices">{l.t("الفواتير","Invoices")}</TabsTrigger><TabsTrigger value="books">{l.t("كتبي","My books")}</TabsTrigger><TabsTrigger value="earnings">{l.t("المبيعات والأرباح","Sales & earnings")}</TabsTrigger><TabsTrigger value="blurb">{l.t("نبذة تسويقية بالذكاء الاصطناعي","AI marketing blurb")}</TabsTrigger></TabsList>
  <TabsContent value="projects" className="mt-8 space-y-5">{isError&&<p className="text-destructive">{l.t("تعذر تحميل المشروعات","Could not load projects")}</p>}{projects.length===0&&<StudioEmpty text={l.t("لا توجد مخطوطات بعد","No manuscripts yet")}/>} {projects.map(p=><article key={p.id} className="rounded-lg border bg-card p-6"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="text-xl font-semibold">{p.title}</h2><p className="mt-1 text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString(l.language)}</p></div><Stage value={p.stage}/></div><div className="mt-6 grid grid-cols-3 gap-2 border-y py-4 text-xs sm:grid-cols-6">{["review","accepted","invoiced","production","ready","published"].map((s,i)=><div key={s} className="space-y-2"><span className={`grid h-7 w-7 place-items-center rounded-full ${["review","accepted","invoiced","production","ready","published"].indexOf(p.stage)>=i?"bg-primary text-primary-foreground":"bg-muted text-muted-foreground"}`}>{i+1}</span><Stage value={s}/></div>)}</div>{p.review_note&&<p className="mt-4 border-s-2 border-primary ps-3 text-sm">{p.review_note}</p>}<div className="mt-4 flex flex-wrap gap-2">{p.manuscript_versions.map(v=><Button key={v.id} variant="outline" size="sm" onClick={()=>downloadAuthorFile(v.file_path)}><Download className="me-2 h-4 w-4"/><span className="max-w-48 truncate">{v.file_name}</span></Button>)}{p.stage==="revision"&&<Button size="sm" onClick={()=>{setRevision(p);setTab("new");}}>{l.t("رفع التعديل","Upload revision")}</Button>}{p.final_path&&<Button onClick={()=>downloadAuthorFile(p.final_path??"")}><Download className="me-2 h-4 w-4"/>{l.t("نسختي النهائية","My final copy")}</Button>}</div><details className="mt-5 text-xs text-muted-foreground"><summary className="cursor-pointer">{l.t("سجل المشروع","Project history")}</summary><ul className="mt-3 space-y-2">{[...p.production_events].sort((a,b)=>a.created_at.localeCompare(b.created_at)).map(e=><li key={e.id}><Stage value={e.stage}/> · {new Date(e.created_at).toLocaleString(l.language)} {e.note}</li>)}</ul></details></article>)}</TabsContent>

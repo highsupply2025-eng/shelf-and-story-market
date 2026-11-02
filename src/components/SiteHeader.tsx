@@ -175,8 +175,8 @@ export function SiteFooter() {
   ];
 
   return (
-    <footer className="mt-24 bg-ink text-ink-foreground">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 md:grid-cols-3">
+    <footer className="mt-auto border-t border-border/20 bg-ink text-ink-foreground">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 md:py-12 md:grid-cols-3">
         {/* Col 1: Brand */}
         <div>
           <div className="flex items-center gap-3">
@@ -241,7 +241,7 @@ export function SiteFooter() {
 
       {/* Bottom Copyright Bar */}
       <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-6 text-xs opacity-70 text-center">
+        <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-4 text-xs opacity-70 text-center">
           <div>
             © {new Date().getFullYear()} {t("unibook. جميع الحقوق محفوظة.", "unibook. All rights reserved.")}
           </div>

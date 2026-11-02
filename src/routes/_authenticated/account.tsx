@@ -244,6 +244,22 @@ function AccountPage() {
   const [transferNotes, setTransferNotes] = useState("");
   const [submittingPlan, setSubmittingPlan] = useState(false);
 
+  const userAccountType = session?.user?.user_metadata?.account_type;
+  const [accountMode, setAccountMode] = useState<"reader" | "author">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("unibook_account_mode");
+      if (saved === "reader" || saved === "author") return saved as "reader" | "author";
+    }
+    return userAccountType === "author" ? "author" : "reader";
+  });
+
+  function setMode(m: "reader" | "author") {
+    setAccountMode(m);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("unibook_account_mode", m);
+    }
+  }
+
   const { data: planRequest, refetch: refetchPlanRequest } = useQuery({
     queryKey: ["my-plan-request", session?.user?.id],
     enabled: !!session?.user?.id,
@@ -394,182 +410,277 @@ function AccountPage() {
 
   const adminWallet = getAdminWalletNumber();
 
+  const [tab, setTab] = useState<string>(accountMode === "reader" ? "library" : "plans");
+
+  useEffect(() => {
+    setTab(accountMode === "reader" ? "library" : "plans");
+  }, [accountMode]);
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 md:py-14">
-      {/* Author Space Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card/90 to-primary/5 p-6 md:p-10 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-bold text-primary">
-              <PenLine className="h-3.5 w-3.5" />
-              <span>{l.t("مساحة المؤلف · unibook", "Author Studio · unibook")}</span>
-            </div>
-            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-              {l.t("خطط نشر الكتب للمؤلفين", "Author Book Publishing Plans")}
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm sm:text-base text-muted-foreground leading-relaxed">
-              {l.t(
-                "اختر الخطة المناسبة لنشر مؤلفاتك الورقية والرقمية، وانطلق في رحلة نشر وإنتاج متكاملة تصل بأعمالك إلى آلاف القرّاء.",
-                "Choose the right publishing plan for your digital and print books and start your journey.",
-              )}
-            </p>
-          </div>
+    <div className="mx-auto max-w-7xl px-4 py-8 md:py-10">
+      {/* Account Mode Switcher (Reader vs Author) */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/70 pb-6 mb-8">
+        <div className="inline-flex items-center gap-1.5 rounded-2xl bg-muted/80 p-1.5 border border-border/60">
+          <button
+            type="button"
+            onClick={() => setMode("reader")}
+            className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all cursor-pointer ${
+              accountMode === "reader"
+                ? "bg-card text-primary shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <BookOpen className="h-4 w-4" />
+            <span>{l.t("مساحة القارئ", "Reader Space")}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("author")}
+            className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all cursor-pointer ${
+              accountMode === "author"
+                ? "bg-card text-primary shadow-xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <PenLine className="h-4 w-4" />
+            <span>{l.t("مساحة المؤلف (نشر الكتب)", "Author Space (Publishing)")}</span>
+          </button>
+        </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="rounded-2xl border border-border bg-background/80 px-4 py-2.5 backdrop-blur-xs">
-              <span className="text-xs text-muted-foreground">{l.t("حساب المؤلف:", "Author Account:")}</span>
-              <p className="font-mono text-xs font-bold text-foreground" dir="ltr">
-                {session?.user.email}
-              </p>
-              {publisher?.author_code && (
-                <p className="text-[11px] font-mono font-semibold text-primary">
-                  كود المؤلف: {publisher.author_code}
-                </p>
-              )}
-            </div>
-
-            <Button asChild className="rounded-xl font-bold shadow-xs">
-              <Link to="/publisher">
-                <FileText className="me-2 h-4 w-4" />
-                {l.t("نشر كتاب (رفع Word)", "Upload Word")}
-              </Link>
-            </Button>
-          </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            {accountMode === "reader"
+              ? l.t("مكتبتك الشخصية والطلبات", "Your personal library & orders")
+              : l.t("6 باقات لنشر الكتب والتحويل", "6 Publishing plans & wallet transfer")}
+          </span>
+          <span className="font-mono text-xs font-semibold text-foreground/80 bg-background/80 px-3 py-1.5 rounded-xl border border-border/60" dir="ltr">
+            {session?.user.email}
+          </span>
         </div>
       </div>
 
-      {/* Author Plan Status Banner */}
-      {planRequest ? (
-        <div
-          className={`mt-6 rounded-3xl border p-5 sm:p-6 transition-all ${
-            planRequest.status === "active"
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100"
-              : planRequest.status === "pending"
-              ? "border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-100"
-              : "border-destructive/30 bg-destructive/10 text-destructive"
-          }`}
-        >
+      {/* Reader Mode Header */}
+      {accountMode === "reader" ? (
+        <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card/90 to-primary/5 p-6 md:p-10 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-start sm:items-center gap-3.5">
-              {planRequest.status === "active" ? (
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                  <Check className="h-5 w-5" />
-                </div>
-              ) : planRequest.status === "pending" ? (
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse">
-                  <Clock className="h-5 w-5" />
-                </div>
-              ) : (
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-destructive/20 text-destructive">
-                  <AlertCircle className="h-5 w-5" />
-                </div>
-              )}
-              <div>
-                <div className="font-extrabold text-base sm:text-lg">
-                  {planRequest.status === "active" && `🎉 باقة (${planRequest.planTitle}) مفعّلة بنجاح`}
-                  {planRequest.status === "pending" && `⏳ طلب تفعيل (${planRequest.planTitle}) قيد المراجعة في لوحة الإدارة`}
-                  {planRequest.status === "rejected" && `❌ تعذر تفعيل (${planRequest.planTitle})`}
-                </div>
-                <p className="mt-1 text-xs sm:text-sm opacity-90 leading-relaxed">
-                  {planRequest.status === "active" &&
-                    `حسابك كمؤلف نشط بالكامل. يمكنك الآن رفع المخطوطات والبدء بالإنتاج حتى ${planRequest.booksCount} كتب.`}
-                  {planRequest.status === "pending" &&
-                    `تم إرسال إشعار تحويل المحفظة (المرجع: ${planRequest.reference}). يقوم الأدمن بمراجعة التحويل وتفعيل حسابك كمؤلف.`}
-                  {planRequest.status === "rejected" &&
-                    (planRequest.rejectionReason || "يرجى مراجعة إشعار التحويل وإعادة المحاولة.")}
-                </p>
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-bold text-primary">
+                <BookOpen className="h-3.5 w-3.5" />
+                <span>{l.t("مساحة القارئ", "Reader studio")}</span>
               </div>
+              <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+                {l.t("أهلاً بك في مكتبتك", "Welcome to your library")}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm sm:text-base text-muted-foreground leading-relaxed">
+                {l.t(
+                  "استعرض كتبك الرقمية المحملة، وتابع شحنات طلباتك الورقية، وخصص بيانات حسابك بسهولة.",
+                  "Browse downloaded digital books, track print orders, and manage account details.",
+                )}
+              </p>
             </div>
 
-            {planRequest.status === "active" ? (
-              <Button asChild className="rounded-xl font-bold shadow-xs">
-                <Link to="/publisher">
-                  <FileText className="me-2 h-4 w-4" />
-                  {l.t("نشر كتاب جديد", "Publish New Book")}
-                </Link>
-              </Button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="rounded-xl bg-background/80 px-3 py-1.5 text-xs font-mono font-bold border border-border/60">
-                  {planRequest.status === "pending" ? "بانتظار تفعيل الأدمن" : "غير مفعّل"}
-                </span>
-              </div>
-            )}
+            <Button
+              variant="outline"
+              onClick={() => setMode("author")}
+              className="rounded-xl font-bold border-primary/30 text-primary hover:bg-primary/10 gap-2 cursor-pointer"
+            >
+              <PenLine className="h-4 w-4" />
+              {l.t("انشر كتابك معنا (باقات المؤلفين)", "Publish with us (Author plans)")}
+            </Button>
           </div>
         </div>
       ) : (
-        <div className="mt-6 rounded-3xl border border-primary/20 bg-primary/5 p-5 text-foreground flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Wallet className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-bold">
-                إنشاء الحساب مجاني بالكامل!
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                لاستخدام الحساب كمؤلف ونشر الكتب، اختر إحدى باقات النشر أدناه وقم بتحويل المبلغ عبر المحفظة لتفعيل حسابك من قِبل الإدارة.
-              </p>
+        /* Author Mode Header */
+        <div className="space-y-6">
+          <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card/90 to-primary/5 p-6 md:p-10 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-bold text-primary">
+                  <PenLine className="h-3.5 w-3.5" />
+                  <span>{l.t("مساحة المؤلف · unibook", "Author Studio · unibook")}</span>
+                </div>
+                <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+                  {l.t("خطط نشر الكتب للمؤلفين", "Author Book Publishing Plans")}
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm sm:text-base text-muted-foreground leading-relaxed">
+                  {l.t(
+                    "اختر الخطة المناسبة لنشر مؤلفاتك الورقية والرقمية، وانطلق في رحلة نشر وإنتاج متكاملة تصل بأعمالك إلى آلاف القرّاء.",
+                    "Choose the right publishing plan for your digital and print books and start your journey.",
+                  )}
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="rounded-2xl border border-border bg-background/80 px-4 py-2.5 backdrop-blur-xs">
+                  <span className="text-xs text-muted-foreground">{l.t("حساب المؤلف:", "Author Account:")}</span>
+                  <p className="font-mono text-xs font-bold text-foreground" dir="ltr">
+                    {session?.user.email}
+                  </p>
+                  {publisher?.author_code && (
+                    <p className="text-[11px] font-mono font-semibold text-primary">
+                      كود المؤلف: {publisher.author_code}
+                    </p>
+                  )}
+                </div>
+
+                <Button asChild className="rounded-xl font-bold shadow-xs">
+                  <Link to="/publisher">
+                    <FileText className="me-2 h-4 w-4" />
+                    {l.t("نشر كتاب (رفع Word)", "Upload Word")}
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
+
+          {/* Author Plan Status Banner */}
+          {planRequest ? (
+            <div
+              className={`rounded-3xl border p-5 sm:p-6 transition-all ${
+                planRequest.status === "active"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100"
+                  : planRequest.status === "pending"
+                  ? "border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-100"
+                  : "border-destructive/30 bg-destructive/10 text-destructive"
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  {planRequest.status === "active" ? (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                      <Check className="h-5 w-5" />
+                    </div>
+                  ) : planRequest.status === "pending" ? (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                  ) : (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-destructive/20 text-destructive">
+                      <AlertCircle className="h-5 w-5" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="font-extrabold text-base sm:text-lg">
+                      {planRequest.status === "active" && `🎉 باقة (${planRequest.planTitle}) مفعّلة بنجاح`}
+                      {planRequest.status === "pending" && `⏳ طلب تفعيل (${planRequest.planTitle}) قيد المراجعة في لوحة الإدارة`}
+                      {planRequest.status === "rejected" && `❌ تعذر تفعيل (${planRequest.planTitle})`}
+                    </div>
+                    <p className="mt-1 text-xs sm:text-sm opacity-90 leading-relaxed">
+                      {planRequest.status === "active" &&
+                        `حسابك كمؤلف نشط بالكامل. يمكنك الآن رفع المخطوطات والبدء بالإنتاج حتى ${planRequest.booksCount} كتب.`}
+                      {planRequest.status === "pending" &&
+                        `تم إرسال إشعار تحويل المحفظة (المرجع: ${planRequest.reference}). يقوم الأدمن بمراجعة التحويل وتفعيل حسابك كمؤلف.`}
+                      {planRequest.status === "rejected" &&
+                        (planRequest.rejectionReason || "يرجى مراجعة إشعار التحويل وإعادة المحاولة.")}
+                    </p>
+                  </div>
+                </div>
+
+                {planRequest.status === "active" ? (
+                  <Button asChild className="rounded-xl font-bold shadow-xs">
+                    <Link to="/publisher">
+                      <FileText className="me-2 h-4 w-4" />
+                      {l.t("نشر كتاب جديد", "Publish New Book")}
+                    </Link>
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-xl bg-background/80 px-3 py-1.5 text-xs font-mono font-bold border border-border/60">
+                      {planRequest.status === "pending" ? "بانتظار تفعيل الأدمن" : "غير مفعّل"}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-primary/20 bg-primary/5 p-5 text-foreground flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Wallet className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold">
+                    إنشاء الحساب مجاني بالكامل!
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    لاستخدام الحساب كمؤلف ونشر الكتب، اختر إحدى باقات النشر أدناه وقم بتحويل المبلغ عبر المحفظة لتفعيل حسابك من قِبل الإدارة.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="plans" className="mt-10">
+      <Tabs value={tab} onValueChange={setTab} className="mt-8">
         <TabsList className="h-auto flex-wrap gap-1.5 p-1.5 bg-muted/70 rounded-2xl border border-border/60">
-          <TabsTrigger
-            value="plans"
-            className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
-          >
-            <Sparkles className="me-2 h-4 w-4 text-primary" />
-            {l.t("خطط النشر (6 خطط)", "Publishing Plans (6)")}
-          </TabsTrigger>
-          <TabsTrigger
-            value="manuscripts"
-            className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
-          >
-            <FileText className="me-2 h-4 w-4" />
-            {l.t("مخطوطاتي ومشروعاتي", "My Manuscripts")}
-            {manuscripts.length > 0 && (
-              <span className="ms-1.5 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary">
-                {manuscripts.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger
-            value="library"
-            className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
-          >
-            <Library className="me-2 h-4 w-4" />
-            {l.t("مكتبتي الرقمية", "Digital Library")}
-          </TabsTrigger>
-          <TabsTrigger
-            value="orders"
-            className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
-          >
-            <Package className="me-2 h-4 w-4" />
-            {l.t("طلباتي", "My Orders")}
-            {orders.length > 0 && (
-              <span className="ms-1.5 rounded-full bg-muted-foreground/15 px-2 py-0.5 text-xs font-bold">
-                {orders.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger
-            value="favorites"
-            className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
-          >
-            <Heart className="me-2 h-4 w-4" />
-            {l.t("المفضلة", "Favorites")}
-          </TabsTrigger>
-          <TabsTrigger
-            value="settings"
-            className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
-          >
-            <Settings className="me-2 h-4 w-4" />
-            {l.t("بيانات الحساب", "Account Settings")}
-          </TabsTrigger>
+          {accountMode === "reader" ? (
+            <>
+              <TabsTrigger
+                value="library"
+                className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
+              >
+                <Library className="me-2 h-4 w-4" />
+                {l.t("مكتبتي الرقمية", "Digital Library")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="orders"
+                className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
+              >
+                <Package className="me-2 h-4 w-4" />
+                {l.t("طلباتي", "My Orders")}
+                {orders.length > 0 && (
+                  <span className="ms-1.5 rounded-full bg-muted-foreground/15 px-2 py-0.5 text-xs font-bold">
+                    {orders.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger
+                value="favorites"
+                className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
+              >
+                <Heart className="me-2 h-4 w-4" />
+                {l.t("المفضلة", "Favorites")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="settings"
+                className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
+              >
+                <Settings className="me-2 h-4 w-4" />
+                {l.t("بيانات الحساب", "Account Settings")}
+              </TabsTrigger>
+            </>
+          ) : (
+            <>
+              <TabsTrigger
+                value="plans"
+                className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
+              >
+                <Sparkles className="me-2 h-4 w-4 text-primary" />
+                {l.t("خطط النشر (6 خطط)", "Publishing Plans (6)")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="manuscripts"
+                className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
+              >
+                <FileText className="me-2 h-4 w-4" />
+                {l.t("مخطوطاتي ومشروعاتي", "My Manuscripts")}
+                {manuscripts.length > 0 && (
+                  <span className="ms-1.5 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary">
+                    {manuscripts.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger
+                value="settings"
+                className="rounded-xl px-4 py-2.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:font-extrabold data-[state=active]:shadow-xs text-sm font-semibold transition-all cursor-pointer"
+              >
+                <Settings className="me-2 h-4 w-4" />
+                {l.t("بيانات الحساب", "Account Settings")}
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         {/* Tab 1: 6 Publishing Plans */}

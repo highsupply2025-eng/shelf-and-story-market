@@ -201,7 +201,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
             ) : (
               <>
                 <Mail className="h-4 w-4" />
-                إرسال رابط الدخول / الكود للبريد
+                إرسال رابط الدخول للبريد
               </>
             )}
           </Button>
@@ -271,7 +271,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
             className="w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1 pt-1"
           >
             <ArrowRight className="h-3.5 w-3.5" />
-            الرجوع للدخول عبر البريد (رابط / كود)
+            الرجوع للدخول عبر رابط البريد
           </button>
         </form>
       ) : (
@@ -286,7 +286,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
               • يمكنك <strong className="text-foreground">الضغط مباشرة على زر (Log In / الدخول)</strong> داخل الرسالة التي وصلتك وسيتم فتح لوحة الإدارة تلقائياً!
             </p>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              • أو إذا ظهر لك كود أرقام داخل الرسالة، يمكنك كتابته بالأسفل:
+              • ستُفتح لوحة الإدارة مباشرة بعد الضغط على الرابط. (إن احتوت الرسالة على كود أرقام يمكنك كتابته بالأسفل)
             </p>
           </div>
 

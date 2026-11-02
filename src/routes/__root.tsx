@@ -126,10 +126,11 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isAccountRoute =
+  const hideFooter =
     pathname.startsWith("/account") ||
     pathname.startsWith("/publisher") ||
-    pathname.startsWith("/admin");
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/cart");
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
@@ -150,7 +151,7 @@ function RootComponent() {
             <main className="flex-1">
               <Outlet />
             </main>
-            {!isAccountRoute && <SiteFooter />}
+            {!hideFooter && <SiteFooter />}
           </div>
           <Toaster position="top-center" richColors />
         </CartProvider>

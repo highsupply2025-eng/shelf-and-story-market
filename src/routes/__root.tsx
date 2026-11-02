@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -124,6 +125,12 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAccountRoute =
+    pathname.startsWith("/account") ||
+    pathname.startsWith("/publisher") ||
+    pathname.startsWith("/admin");
+
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
@@ -143,7 +150,7 @@ function RootComponent() {
             <main className="flex-1">
               <Outlet />
             </main>
-            <SiteFooter />
+            {!isAccountRoute && <SiteFooter />}
           </div>
           <Toaster position="top-center" richColors />
         </CartProvider>

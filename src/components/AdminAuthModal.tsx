@@ -54,6 +54,11 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
     setLoading(true);
     try {
       const redirectUrl = `${window.location.origin}/admin`;
+      try {
+        window.localStorage.setItem("admin_login_pending", String(Date.now()));
+      } catch {
+        /* ignore */
+      }
       const { error } = await supabase.auth.signInWithOtp({
         email: ADMIN_EMAIL,
         options: {

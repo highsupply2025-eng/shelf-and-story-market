@@ -8,7 +8,23 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, ArrowRight, ArrowLeft, KeyRound, Loader2, BookOpen, PenLine, Building2 } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  ArrowRight,
+  ArrowLeft,
+  KeyRound,
+  Loader2,
+  BookOpen,
+  PenLine,
+  Building2,
+  Mail,
+  Lock,
+  User,
+  CheckCircle2,
+  Sparkles,
+  ShieldCheck,
+} from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -16,9 +32,9 @@ export const Route = createFileRoute("/auth")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { title: "الدخول والتسجيل — unibook" },
-      { name: "description", content: "سجّل دخولك كقارئ أو مؤلف أو دار نشر في منصة unibook." },
+      { name: "description", content: "سجّل دخولك كقارئ أو مؤلف أو دار نشر في منصة unibook للكتب العلمية والرقمية." },
       { property: "og:title", content: "الدخول والتسجيل — unibook" },
-      { property: "og:description", content: "سجّل دخولك كقارئ أو مؤلف أو دار نشر في منصة unibook." },
+      { property: "og:description", content: "سجّل دخولك كقارئ أو مؤلف أو دار نشر في منصة unibook للكتب العلمية والرقمية." },
     ],
   }),
   component: AuthPage,
@@ -95,15 +111,17 @@ function AuthPage() {
           await supabase.from("publishers").insert({
             id: data.user.id,
             store_name: displayName,
-            bio: accountType === "publisher" ? "دار نشر ومؤسسة توزيع معتمدة في unibook" : "مؤلف وباحث علمي في unibook",
+            bio: accountType === "publisher"
+              ? "دار نشر ومؤسسة توزيع معتمدة في unibook"
+              : "مؤلف وباحث علمي في unibook",
           });
           await refresh();
         }
 
         const successMessages = {
-          reader: t("تم إنشاء حساب القارئ بنجاح!", "Reader account created successfully!"),
-          author: t("تم إنشاء حساب المؤلف بنجاح!", "Author account created successfully!"),
-          publisher: t("تم إنشاء حساب دار النشر بنجاح!", "Publisher account created successfully!"),
+          reader: t("تم إنشاء حساب القارئ بنجاح! مرحباً بك.", "Reader account created successfully!"),
+          author: t("تم إنشاء حساب المؤلف بنجاح! مرحباً بك في مساحة النشر.", "Author account created successfully!"),
+          publisher: t("تم إنشاء حساب دار النشر بنجاح! مرحباً بك.", "Publisher account created successfully!"),
         };
 
         toast.success(successMessages[accountType]);
@@ -149,14 +167,33 @@ function AuthPage() {
 
   const BackIcon = language === "ar" ? ArrowRight : ArrowLeft;
 
+  const roleDescriptions = {
+    reader: {
+      badge: "حساب قارئ",
+      tip: "شراء وتنزيل الكتب العلمية، قراءة الكتب الرقمية في مكتبتك، ومتابعة شحنات الكتب الورقية المطبوعة.",
+    },
+    author: {
+      badge: "حساب مؤلف",
+      tip: "نشر مؤلفاتك وأبحاثك، 6 باقات نشر مرنة، مراجعة وتدقيق المخطوطات، ونسبة أرباح تصل إلى 70%.",
+    },
+    publisher: {
+      badge: "حساب دار نشر",
+      tip: "لدور النشر والمؤسسات العلمية: إدارة كتالوج كامل من الإصدارات الرقمية والمطبوعة، ومتابعة المبيعات والطباعة.",
+    },
+  };
+
   return (
-    <div className="flex min-h-[85vh] items-center justify-center bg-gradient-to-b from-background via-card/30 to-background px-4 py-12">
-      <div className="w-full max-w-[480px] animate-rise rounded-3xl border border-border/80 bg-card p-6 sm:p-9 shadow-xl">
+    <div className="min-h-[calc(100vh-4.5rem)] flex items-center justify-center bg-gradient-to-b from-background via-card/20 to-background px-4 py-8 md:py-12" dir="rtl">
+      <div className="w-full max-w-[500px] animate-rise rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+        {/* Decorative ambient glows */}
+        <div className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-gold/10 blur-3xl pointer-events-none" />
+
         {/* Brand Logo Header */}
         <div className="mb-6 flex flex-col items-center text-center">
-          <Link to="/" className="group mb-4 flex items-center justify-center transition-transform active:scale-95">
+          <Link to="/" className="group mb-3 flex items-center justify-center transition-transform active:scale-95">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/80 bg-card shadow-sm transition-all group-hover:border-primary/40 group-hover:shadow-md">
-              <img src="/logo-icon.png" alt="unibook" className="h-10 w-auto object-contain" />
+              <img src="/logo-icon.png" alt="unibook" className="h-9 w-auto object-contain" />
             </div>
           </Link>
 
@@ -165,33 +202,33 @@ function AuthPage() {
               <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <KeyRound className="h-5 w-5" />
               </div>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+              <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                 {t("استعادة كلمة المرور", "Reset Password")}
               </h1>
-              <p className="mt-1.5 text-xs md:text-sm text-muted-foreground max-w-xs">
+              <p className="mt-1 text-xs sm:text-sm text-muted-foreground max-w-xs">
                 {t(
-                  "أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور",
-                  "Enter your email and we will send you a password reset link"
+                  "أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور فوراً",
+                  "Enter your email to receive a password reset link"
                 )}
               </p>
             </>
           ) : (
             <>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+              <h1 className="font-display text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
                 {mode === "in" ? t("تسجيل الدخول", "Sign In") : t("إنشاء حساب جديد", "Create an Account")}
               </h1>
-              <p className="mt-1.5 text-xs md:text-sm text-muted-foreground">
+              <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
                 {mode === "in"
-                  ? t("أهلاً بك مجدداً في unibook للكتب العلمية والرقمية", "Welcome back to unibook")
-                  : t("اختر نوع حسابك للانضمام إلى منصة unibook", "Select your account type to join unibook")}
+                  ? t("أهلاً بك مجدداً في منصة unibook للكتب العلمية والرقمية", "Welcome back to unibook")
+                  : t("اختر نوع حسابك للانضمام إلى مجتمع unibook", "Select your account type to join unibook")}
               </p>
 
               {/* Segmented Mode Selector */}
-              <div className="mt-6 flex w-full rounded-2xl bg-muted/70 p-1 border border-border/60">
+              <div className="mt-5 flex w-full rounded-2xl bg-muted/80 p-1 border border-border/60">
                 <button
                   type="button"
                   onClick={() => setMode("in")}
-                  className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition-all cursor-pointer ${
+                  className={`flex-1 rounded-xl py-2 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                     mode === "in"
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -202,13 +239,13 @@ function AuthPage() {
                 <button
                   type="button"
                   onClick={() => setMode("up")}
-                  className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition-all cursor-pointer ${
+                  className={`flex-1 rounded-xl py-2 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                     mode === "up"
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {t("حساب جديد", "New Account")}
+                  {t("إنشاء حساب جديد", "New Account")}
                 </button>
               </div>
             </>
@@ -222,11 +259,11 @@ function AuthPage() {
               type="button"
               variant="outline"
               size="lg"
-              className="relative w-full h-12 rounded-xl border-border/80 font-bold shadow-xs hover:bg-muted/50 transition-all flex items-center justify-center gap-3 cursor-pointer"
+              className="relative w-full h-11 rounded-xl border-border/80 font-bold text-xs sm:text-sm shadow-xs hover:bg-muted/50 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
               onClick={google}
               disabled={busy}
             >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                   fill="#4285F4"
@@ -248,9 +285,9 @@ function AuthPage() {
             </Button>
 
             {/* Divider */}
-            <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
               <div className="h-px flex-1 bg-border/80" />
-              <span className="font-semibold">{t("أو بالبريد الإلكتروني", "Or with email")}</span>
+              <span className="font-semibold text-[11px]">{t("أو بالبريد الإلكتروني", "Or with email")}</span>
               <div className="h-px flex-1 bg-border/80" />
             </div>
           </>
@@ -263,15 +300,11 @@ function AuthPage() {
               {/* 3 Account Roles Selector */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs md:text-sm font-bold text-foreground">
-                    {t("اختر نوع حسابك في المنصة:", "Select Account Type:")}
+                  <Label className="text-xs font-bold text-foreground">
+                    {t("اختر نوع الحساب في المنصة:", "Select Account Type:")}
                   </Label>
-                  <span className="text-[11px] text-primary font-medium">
-                    {accountType === "reader"
-                      ? "شراء وقراءة الكتب"
-                      : accountType === "author"
-                      ? "نشر كتب فردية وباقات"
-                      : "إصدارات دور النشر"}
+                  <span className="text-[11px] text-primary font-bold">
+                    {roleDescriptions[accountType].badge}
                   </span>
                 </div>
 
@@ -280,117 +313,132 @@ function AuthPage() {
                   <button
                     type="button"
                     onClick={() => setAccountType("reader")}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer text-center ${
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border-2 transition-all cursor-pointer text-center ${
                       accountType === "reader"
                         ? "border-primary bg-primary/10 text-primary font-bold shadow-sm ring-1 ring-primary/20 scale-[1.02]"
                         : "border-border/70 bg-card hover:bg-muted/40 text-muted-foreground"
                     }`}
                   >
                     <BookOpen className="h-5 w-5 mb-1 text-primary" />
-                    <span className="text-xs font-bold">{t("قارئ", "Reader")}</span>
-                    <span className="text-[10px] opacity-75 mt-0.5">{t("شراء وقراءة", "Read books")}</span>
+                    <span className="text-xs font-extrabold">{t("قارئ", "Reader")}</span>
+                    <span className="text-[10px] opacity-75 mt-0.5 leading-tight">{t("شراء وقراءة", "Read books")}</span>
                   </button>
 
                   {/* Author Role */}
                   <button
                     type="button"
                     onClick={() => setAccountType("author")}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer text-center ${
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border-2 transition-all cursor-pointer text-center ${
                       accountType === "author"
                         ? "border-primary bg-primary/10 text-primary font-bold shadow-sm ring-1 ring-primary/20 scale-[1.02]"
                         : "border-border/70 bg-card hover:bg-muted/40 text-muted-foreground"
                     }`}
                   >
                     <PenLine className="h-5 w-5 mb-1 text-primary" />
-                    <span className="text-xs font-bold">{t("مؤلف", "Author")}</span>
-                    <span className="text-[10px] opacity-75 mt-0.5">{t("نشر وباقات", "Publish")}</span>
+                    <span className="text-xs font-extrabold">{t("مؤلف", "Author")}</span>
+                    <span className="text-[10px] opacity-75 mt-0.5 leading-tight">{t("نشر وباقات", "Publish")}</span>
                   </button>
 
                   {/* Publisher Role */}
                   <button
                     type="button"
                     onClick={() => setAccountType("publisher")}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer text-center ${
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border-2 transition-all cursor-pointer text-center ${
                       accountType === "publisher"
                         ? "border-primary bg-primary/10 text-primary font-bold shadow-sm ring-1 ring-primary/20 scale-[1.02]"
                         : "border-border/70 bg-card hover:bg-muted/40 text-muted-foreground"
                     }`}
                   >
                     <Building2 className="h-5 w-5 mb-1 text-primary" />
-                    <span className="text-xs font-bold">{t("دار نشر", "Publisher")}</span>
-                    <span className="text-[10px] opacity-75 mt-0.5">{t("مؤسسات وكتالوج", "Press/House")}</span>
+                    <span className="text-xs font-extrabold">{t("دار نشر", "Publisher")}</span>
+                    <span className="text-[10px] opacity-75 mt-0.5 leading-tight">{t("مؤسسات وكتالوج", "Press/House")}</span>
                   </button>
+                </div>
+
+                {/* Role Description Tip Box */}
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-2.5 text-[11px] text-muted-foreground leading-relaxed flex items-start gap-2">
+                  <Sparkles className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                  <span>{roleDescriptions[accountType].tip}</span>
                 </div>
               </div>
 
               {/* Publisher Name (if publisher selected) */}
               {accountType === "publisher" && (
                 <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                  <Label htmlFor="publisherName" className="text-xs md:text-sm font-semibold text-foreground/90 flex items-center justify-between">
+                  <Label htmlFor="publisherName" className="text-xs font-semibold text-foreground/90 flex items-center justify-between">
                     <span>{t("اسم دار النشر أو المؤسسة العلمية", "Publishing House / Press Name")}</span>
-                    <span className="text-[11px] text-primary font-normal">يظهر على إصدارات الدار</span>
+                    <span className="text-[10px] text-primary font-medium">يظهر على إصدارات الدار</span>
                   </Label>
-                  <Input
-                    id="publisherName"
-                    type="text"
-                    required
-                    placeholder={t("مثال: دار عبيد للنشر والتوزيع", "e.g., Al-Obaid Publishing")}
-                    value={form.publisherName}
-                    onChange={(e) => setForm({ ...form, publisherName: e.target.value })}
-                    className="h-12 rounded-xl px-4 text-base border-border/80 focus-visible:ring-primary/20 bg-background/50 focus:bg-background transition-all"
-                  />
+                  <div className="relative">
+                    <Building2 className="absolute start-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="publisherName"
+                      type="text"
+                      required
+                      placeholder={t("مثال: دار عبيد للنشر والتوزيع", "e.g., Al-Obaid Publishing")}
+                      value={form.publisherName}
+                      onChange={(e) => setForm({ ...form, publisherName: e.target.value })}
+                      className="h-11 rounded-xl ps-9 pe-4 text-sm border-border/80 focus-visible:ring-primary/20 bg-background/50 focus:bg-background transition-all"
+                    />
+                  </div>
                 </div>
               )}
 
               {/* Full Name */}
               <div className="space-y-1.5">
-                <Label htmlFor="name" className="text-xs md:text-sm font-semibold text-foreground/90">
+                <Label htmlFor="name" className="text-xs font-semibold text-foreground/90">
                   {accountType === "publisher"
-                    ? t("اسم المسؤول / جهة الاتصال", "Manager / Contact Name")
+                    ? t("اسم المسؤول / جهة الاتصال في الدار", "Manager / Contact Name")
                     : accountType === "author"
                     ? t("اسم المؤلف الكامل (كما يظهر على الكتب)", "Author Full Name")
                     : t("الاسم الكامل", "Full Name")}
                 </Label>
-                <Input
-                  id="name"
-                  type="text"
-                  required
-                  placeholder={
-                    accountType === "publisher"
-                      ? t("اسم ممثل الدار", "Representative Name")
-                      : t("اكتب اسمك الكامل", "Enter your full name")
-                  }
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="h-12 rounded-xl px-4 text-base border-border/80 focus-visible:ring-primary/20 bg-background/50 focus:bg-background transition-all"
-                />
+                <div className="relative">
+                  <User className="absolute start-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="name"
+                    type="text"
+                    required
+                    placeholder={
+                      accountType === "publisher"
+                        ? t("اسم ممثل الدار", "Representative Name")
+                        : t("اكتب اسمك الكامل", "Enter your full name")
+                    }
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="h-11 rounded-xl ps-9 pe-4 text-sm border-border/80 focus-visible:ring-primary/20 bg-background/50 focus:bg-background transition-all"
+                  />
+                </div>
               </div>
             </>
           )}
 
           {/* Email Address */}
           <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs md:text-sm font-semibold text-foreground/90">
-              {accountType === "publisher"
-                ? t("البريد الإلكتروني الرسمي للدار", "Official Publisher Email")
+            <Label htmlFor="email" className="text-xs font-semibold text-foreground/90">
+              {accountType === "publisher" && mode === "up"
+                ? t("البريد الإلكتروني الرسمي لدار النشر", "Official Publisher Email")
                 : t("البريد الإلكتروني", "Email address")}
             </Label>
-            <Input
-              id="email"
-              type="email"
-              required
-              placeholder="name@example.com"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="h-12 rounded-xl px-4 text-base border-border/80 focus-visible:ring-primary/20 bg-background/50 focus:bg-background transition-all text-start"
-            />
+            <div className="relative">
+              <Mail className="absolute start-3 top-3.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                required
+                placeholder="name@example.com"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="h-11 rounded-xl ps-9 pe-4 text-sm border-border/80 focus-visible:ring-primary/20 bg-background/50 focus:bg-background transition-all text-start"
+              />
+            </div>
           </div>
 
           {/* Password */}
           {mode !== "reset" && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-xs md:text-sm font-semibold text-foreground/90">
+                <Label htmlFor="password" className="text-xs font-semibold text-foreground/90">
                   {t("كلمة المرور", "Password")}
                 </Label>
                 {mode === "in" && (
@@ -404,6 +452,7 @@ function AuthPage() {
                 )}
               </div>
               <div className="relative">
+                <Lock className="absolute start-3 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -412,16 +461,16 @@ function AuthPage() {
                   placeholder="••••••••"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="h-12 rounded-xl px-4 pe-12 text-base border-border/80 focus-visible:ring-primary/20 bg-background/50 focus:bg-background transition-all text-start"
+                  className="h-11 rounded-xl ps-9 pe-11 text-sm border-border/80 focus-visible:ring-primary/20 bg-background/50 focus:bg-background transition-all text-start"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute top-3.5 end-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-1 rounded-md hover:bg-muted/60"
+                  className="absolute top-3 end-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-0.5 rounded-md hover:bg-muted/60"
                   tabIndex={-1}
                   aria-label={showPassword ? t("إخفاء كلمة المرور", "Hide password") : t("إظهار كلمة المرور", "Show password")}
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -430,48 +479,64 @@ function AuthPage() {
           {/* Submit Button */}
           <Button
             type="submit"
-            className="w-full h-12 rounded-xl font-bold text-base shadow-sm hover:shadow transition-transform active:scale-[0.99] cursor-pointer mt-2"
+            className="w-full h-11 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-transform active:scale-[0.99] cursor-pointer mt-3 gap-2"
             disabled={busy}
           >
             {busy ? (
               <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 {t("جاري المعالجة...", "Processing...")}
               </span>
             ) : mode === "in" ? (
-              t("تسجيل الدخول", "Sign In")
+              <>
+                <CheckCircle2 className="h-4 w-4" />
+                <span>{t("تسجيل الدخول للمنصة", "Sign In")}</span>
+              </>
             ) : mode === "up" ? (
-              accountType === "publisher"
-                ? t("إنشاء حساب دار نشر", "Create Publisher Account")
-                : accountType === "author"
-                ? t("إنشاء حساب مؤلف", "Create Author Account")
-                : t("إنشاء حساب قارئ", "Create Reader Account")
+              accountType === "publisher" ? (
+                <>
+                  <Building2 className="h-4 w-4" />
+                  <span>{t("إنشاء حساب دار نشر جديدة", "Create Publisher Account")}</span>
+                </>
+              ) : accountType === "author" ? (
+                <>
+                  <PenLine className="h-4 w-4" />
+                  <span>{t("إنشاء حساب مؤلف جديد", "Create Author Account")}</span>
+                </>
+              ) : (
+                <>
+                  <BookOpen className="h-4 w-4" />
+                  <span>{t("إنشاء حساب قارئ جديد", "Create Reader Account")}</span>
+                </>
+              )
             ) : (
-              t("إرسال رابط الاستعادة", "Send Reset Link")
+              <span>{t("إرسال رابط الاستعادة", "Send Reset Link")}</span>
             )}
           </Button>
         </form>
 
         {/* Footer Navigation */}
-        <div className="mt-6 text-center">
+        <div className="mt-5 text-center pt-2 border-t border-border/50">
           {mode === "reset" ? (
             <button
               type="button"
               onClick={() => setMode("in")}
-              className="inline-flex items-center gap-1.5 text-xs md:text-sm font-semibold text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer"
             >
-              <BackIcon className="h-4 w-4" />
+              <BackIcon className="h-3.5 w-3.5" />
               <span>{t("العودة لتسجيل الدخول", "Back to sign in")}</span>
             </button>
           ) : (
-            <p className="text-xs md:text-sm text-muted-foreground">
-              {mode === "in" ? t("ليس لديك حساب بعد؟", "Don't have an account yet?") : t("لديك حساب بالفعل؟", "Already have an account?")}{" "}
+            <p className="text-xs text-muted-foreground">
+              {mode === "in"
+                ? t("ليس لديك حساب بعد؟", "Don't have an account yet?")
+                : t("لديك حساب بالفعل في المنصة؟", "Already have an account?")}{" "}
               <button
                 type="button"
                 onClick={() => setMode(mode === "in" ? "up" : "in")}
                 className="font-bold text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer ms-1"
               >
-                {mode === "in" ? t("أنشئ حساباً جديداً", "Create new account") : t("سجّل الدخول", "Sign in")}
+                {mode === "in" ? t("أنشئ حساباً جديداً الآن", "Create account") : t("سجّل الدخول الآن", "Sign in")}
               </button>
             </p>
           )}

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ShoppingBag, User, LogOut, PenLine } from "lucide-react";
+import { ShoppingBag, User, LogOut, PenLine, Building2, ShieldCheck, BookOpen } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
@@ -8,10 +8,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/locale";
 import { AdminAuthModal } from "@/components/AdminAuthModal";
+import { Badge } from "@/components/ui/badge";
 
 export function SiteHeader() {
   const { t } = useLocale();
-  const { session, isAdmin } = useAuth();
+  const { session, isAdmin, accountType } = useAuth();
   const { count } = useCart();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -62,6 +63,15 @@ export function SiteHeader() {
   const linkCls =
     "text-[15px] font-semibold text-foreground/80 hover:text-primary transition-all duration-200 px-3.5 py-2 rounded-lg hover:bg-primary/5 [&.active]:text-primary [&.active]:font-bold [&.active]:bg-primary/10";
 
+  const roleBadgeInfo = {
+    admin: { label: "الإدارة", class: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30", icon: ShieldCheck, to: "/admin" },
+    publisher: { label: "دار نشر", class: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30", icon: Building2, to: "/publisher" },
+    author: { label: "مؤلف", class: "bg-primary/15 text-primary border-primary/30", icon: PenLine, to: "/account" },
+    reader: { label: "قارئ", class: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30", icon: BookOpen, to: "/account" },
+  }[accountType] || { label: "قارئ", class: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30", icon: BookOpen, to: "/account" };
+
+  const RoleIcon = roleBadgeInfo.icon;
+
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur-md shadow-xs">
       <div className="mx-auto flex h-18 max-w-7xl items-center gap-6 px-4 md:px-8">
@@ -87,9 +97,25 @@ export function SiteHeader() {
           <Link to="/books" className={linkCls}>
             {t("المتجر", "Bookshop")}
           </Link>
-          <Link to="/publisher" className={linkCls}>
-            {t("نشر كتاب", "Publish a book")}
-          </Link>
+
+          {/* Dynamic Publish / Dashboard Link */}
+          {accountType === "publisher" ? (
+            <Link to="/publisher" className={linkCls}>
+              {t("لوحة دار النشر", "Publisher Hub")}
+            </Link>
+          ) : accountType === "author" ? (
+            <Link to="/publisher" className={linkCls}>
+              {t("مساحة المؤلف", "Author Studio")}
+            </Link>
+          ) : isAdmin ? (
+            <Link to="/admin" className={linkCls}>
+              {t("لوحة الإدارة", "Admin Dashboard")}
+            </Link>
+          ) : (
+            <Link to="/publisher" className={linkCls}>
+              {t("نشر كتاب", "Publish a book")}
+            </Link>
+          )}
         </nav>
 
         {/* Actions */}
@@ -109,20 +135,32 @@ export function SiteHeader() {
 
           {session ? (
             <>
+              {/* Account Role Badge Pill */}
+              <Link
+                to={roleBadgeInfo.to}
+                className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition-all hover:scale-105 ${roleBadgeInfo.class}`}
+              >
+                <RoleIcon className="h-3.5 w-3.5" />
+                <span>{roleBadgeInfo.label}</span>
+              </Link>
+
+              {/* Publisher / Studio Mobile shortcut */}
               <Link
                 to="/publisher"
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card/80 text-foreground transition-all duration-200 hover:border-primary/50 hover:bg-primary/10 hover:text-primary md:hidden"
                 aria-label={t("انشر", "Publish")}
               >
-                <PenLine className="h-5 w-5" />
+                {accountType === "publisher" ? <Building2 className="h-5 w-5" /> : <PenLine className="h-5 w-5" />}
               </Link>
+
               <Link
-                to="/account"
+                to={accountType === "publisher" ? "/publisher" : "/account"}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card/80 text-foreground transition-all duration-200 hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
                 aria-label={t("حسابي", "Account")}
               >
                 <User className="h-5 w-5" />
               </Link>
+
               <button
                 onClick={signOut}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card/80 text-foreground transition-all duration-200 hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive cursor-pointer"

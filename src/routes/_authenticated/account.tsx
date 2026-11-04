@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+﻿import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useLocale } from "@/lib/locale";
@@ -418,6 +418,27 @@ function AccountPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:py-10">
+      {/* Publisher Shortcut Banner */}
+      {userAccountType === "publisher" && (
+        <div className="mb-8 rounded-2xl border border-primary/30 bg-primary/5 p-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+              <Package className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-foreground">أنت مسجل بحساب دار نشر ومؤسسة علمية</h3>
+              <p className="text-xs text-muted-foreground">يمكنك إدارة كتالوج إصدارات الدار والمطبوعات والمبيعات من لوحة دار النشر المخصصة.</p>
+            </div>
+          </div>
+          <Button asChild className="gap-2 rounded-xl font-bold text-xs shadow-xs">
+            <Link to="/publisher">
+              <span>فتح لوحة دار النشر</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        </div>
+      )}
+
       {/* Account Mode Switcher (Reader vs Author) */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/70 pb-6 mb-8">
         <div className="inline-flex items-center gap-1.5 rounded-2xl bg-muted/80 p-1.5 border border-border/60">
@@ -1221,4 +1242,5 @@ function Empty({ text }: { text: string }) {
     </div>
   );
 }
+
 

@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, ArrowRight, ArrowLeft, KeyRound, Loader2, BookOpen, PenLine } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, ArrowLeft, KeyRound, Loader2, BookOpen, PenLine, Building2 } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -16,9 +16,9 @@ export const Route = createFileRoute("/auth")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { title: "الدخول والتسجيل — unibook" },
-      { name: "description", content: "سجّل دخولك أو أنشئ حساباً جديداً في unibook." },
+      { name: "description", content: "سجّل دخولك كقارئ أو مؤلف أو دار نشر في منصة unibook." },
       { property: "og:title", content: "الدخول والتسجيل — unibook" },
-      { property: "og:description", content: "سجّل دخولك أو أنشئ حساباً جديداً في unibook." },
+      { property: "og:description", content: "سجّل دخولك كقارئ أو مؤلف أو دار نشر في منصة unibook." },
     ],
   }),
   component: AuthPage,
@@ -27,23 +27,31 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { t, language } = useLocale();
   const [mode, setMode] = useState<"in" | "up" | "reset">("up");
-  const [accountType, setAccountType] = useState<"reader" | "author">("reader");
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [accountType, setAccountType] = useState<"reader" | "author" | "publisher">("reader");
+  const [form, setForm] = useState({ name: "", publisherName: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const { session, refresh } = useAuth();
+  const { session, refresh, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (session) navigate({ to: "/account" });
-  }, [session, navigate]);
+    if (session) {
+      if (isAdmin || session.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
+        navigate({ to: "/admin" });
+      } else if (session.user.user_metadata?.account_type === "publisher") {
+        navigate({ to: "/publisher" });
+      } else {
+        navigate({ to: "/account" });
+      }
+    }
+  }, [session, isAdmin, navigate]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
 
     if (mode === "in") {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: form.email.trim(),
         password: form.password,
       });
@@ -51,16 +59,30 @@ function AuthPage() {
         toast.error(t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));
       } else {
         toast.success(t("تم تسجيل الدخول بنجاح!", "Logged in successfully!"));
+        await refresh();
+        const userType = data.user?.user_metadata?.account_type;
+        if (data.user?.email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
+          navigate({ to: "/admin" });
+        } else if (userType === "publisher") {
+          navigate({ to: "/publisher" });
+        } else {
+          navigate({ to: "/account" });
+        }
       }
     } else if (mode === "up") {
+      const displayName = accountType === "publisher"
+        ? (form.publisherName.trim() || form.name.trim() || "دار نشر unibook")
+        : form.name.trim();
+
       const { data, error } = await supabase.auth.signUp({
         email: form.email.trim(),
         password: form.password,
         options: {
           emailRedirectTo: window.location.origin,
           data: {
-            display_name: form.name.trim(),
+            display_name: displayName,
             account_type: accountType,
+            publisher_name: form.publisherName.trim(),
           },
         },
       });
@@ -68,21 +90,29 @@ function AuthPage() {
       if (error) {
         toast.error(error.message);
       } else {
-        // If author account selected and user created, provision publisher record
-        if (accountType === "author" && data.user?.id) {
+        // Provision publisher record for authors or publishers
+        if ((accountType === "author" || accountType === "publisher") && data.user?.id) {
           await supabase.from("publishers").insert({
             id: data.user.id,
-            store_name: form.name.trim() || "مؤلف unibook",
-            bio: "",
+            store_name: displayName,
+            bio: accountType === "publisher" ? "دار نشر ومؤسسة توزيع معتمدة في unibook" : "مؤلف وباحث علمي في unibook",
           });
           await refresh();
         }
 
-        toast.success(
-          accountType === "author"
-            ? t("تم إنشاء حساب المؤلف بنجاح! تحقق من بريدك الإلكتروني.", "Author account created! Check your email to verify.")
-            : t("تم إنشاء الحساب بنجاح! تحقق من بريدك لتأكيده.", "Account created! Check your email to verify.")
-        );
+        const successMessages = {
+          reader: t("تم إنشاء حساب القارئ بنجاح!", "Reader account created successfully!"),
+          author: t("تم إنشاء حساب المؤلف بنجاح!", "Author account created successfully!"),
+          publisher: t("تم إنشاء حساب دار النشر بنجاح!", "Publisher account created successfully!"),
+        };
+
+        toast.success(successMessages[accountType]);
+
+        if (accountType === "publisher") {
+          navigate({ to: "/publisher" });
+        } else {
+          navigate({ to: "/account" });
+        }
       }
     } else if (mode === "reset") {
       if (!form.email.trim()) {
@@ -121,7 +151,7 @@ function AuthPage() {
 
   return (
     <div className="flex min-h-[85vh] items-center justify-center bg-gradient-to-b from-background via-card/30 to-background px-4 py-12">
-      <div className="w-full max-w-[440px] animate-rise rounded-3xl border border-border/80 bg-card p-6 sm:p-9 shadow-xl">
+      <div className="w-full max-w-[480px] animate-rise rounded-3xl border border-border/80 bg-card p-6 sm:p-9 shadow-xl">
         {/* Brand Logo Header */}
         <div className="mb-6 flex flex-col items-center text-center">
           <Link to="/" className="group mb-4 flex items-center justify-center transition-transform active:scale-95">
@@ -152,8 +182,8 @@ function AuthPage() {
               </h1>
               <p className="mt-1.5 text-xs md:text-sm text-muted-foreground">
                 {mode === "in"
-                  ? t("أهلاً بك مجدداً في unibook", "Welcome back to unibook")
-                  : t("انضم إلى منصة unibook للقراءة والنشر", "Join unibook for reading and publishing")}
+                  ? t("أهلاً بك مجدداً في unibook للكتب العلمية والرقمية", "Welcome back to unibook")
+                  : t("اختر نوع حسابك للانضمام إلى منصة unibook", "Select your account type to join unibook")}
               </p>
 
               {/* Segmented Mode Selector */}
@@ -230,51 +260,106 @@ function AuthPage() {
         <form onSubmit={submit} className="space-y-4">
           {mode === "up" && (
             <>
-              {/* Account Role Selector */}
+              {/* 3 Account Roles Selector */}
               <div className="space-y-2">
-                <Label className="text-xs md:text-sm font-semibold text-foreground/90">
-                  {t("اختر نوع الحساب", "Account type")}
-                </Label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs md:text-sm font-bold text-foreground">
+                    {t("اختر نوع حسابك في المنصة:", "Select Account Type:")}
+                  </Label>
+                  <span className="text-[11px] text-primary font-medium">
+                    {accountType === "reader"
+                      ? "شراء وقراءة الكتب"
+                      : accountType === "author"
+                      ? "نشر كتب فردية وباقات"
+                      : "إصدارات دور النشر"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Reader Role */}
                   <button
                     type="button"
                     onClick={() => setAccountType("reader")}
                     className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer text-center ${
                       accountType === "reader"
-                        ? "border-primary bg-primary/10 text-primary font-bold shadow-xs scale-[1.02]"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm ring-1 ring-primary/20 scale-[1.02]"
                         : "border-border/70 bg-card hover:bg-muted/40 text-muted-foreground"
                     }`}
                   >
-                    <BookOpen className="h-5 w-5 mb-1" />
-                    <span className="text-sm font-bold">{t("حساب قارئ", "Reader")}</span>
-                    <span className="text-[11px] opacity-75">{t("شراء وقراءة الكتب", "Buy & read books")}</span>
+                    <BookOpen className="h-5 w-5 mb-1 text-primary" />
+                    <span className="text-xs font-bold">{t("قارئ", "Reader")}</span>
+                    <span className="text-[10px] opacity-75 mt-0.5">{t("شراء وقراءة", "Read books")}</span>
                   </button>
+
+                  {/* Author Role */}
                   <button
                     type="button"
                     onClick={() => setAccountType("author")}
                     className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer text-center ${
                       accountType === "author"
-                        ? "border-primary bg-primary/10 text-primary font-bold shadow-xs scale-[1.02]"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm ring-1 ring-primary/20 scale-[1.02]"
                         : "border-border/70 bg-card hover:bg-muted/40 text-muted-foreground"
                     }`}
                   >
-                    <PenLine className="h-5 w-5 mb-1" />
-                    <span className="text-sm font-bold">{t("حساب مؤلف", "Author")}</span>
-                    <span className="text-[11px] opacity-75">{t("نشر ومتابعة المبيعات", "Publish & track sales")}</span>
+                    <PenLine className="h-5 w-5 mb-1 text-primary" />
+                    <span className="text-xs font-bold">{t("مؤلف", "Author")}</span>
+                    <span className="text-[10px] opacity-75 mt-0.5">{t("نشر وباقات", "Publish")}</span>
+                  </button>
+
+                  {/* Publisher Role */}
+                  <button
+                    type="button"
+                    onClick={() => setAccountType("publisher")}
+                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer text-center ${
+                      accountType === "publisher"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm ring-1 ring-primary/20 scale-[1.02]"
+                        : "border-border/70 bg-card hover:bg-muted/40 text-muted-foreground"
+                    }`}
+                  >
+                    <Building2 className="h-5 w-5 mb-1 text-primary" />
+                    <span className="text-xs font-bold">{t("دار نشر", "Publisher")}</span>
+                    <span className="text-[10px] opacity-75 mt-0.5">{t("مؤسسات وكتالوج", "Press/House")}</span>
                   </button>
                 </div>
               </div>
 
+              {/* Publisher Name (if publisher selected) */}
+              {accountType === "publisher" && (
+                <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                  <Label htmlFor="publisherName" className="text-xs md:text-sm font-semibold text-foreground/90 flex items-center justify-between">
+                    <span>{t("اسم دار النشر أو المؤسسة العلمية", "Publishing House / Press Name")}</span>
+                    <span className="text-[11px] text-primary font-normal">يظهر على إصدارات الدار</span>
+                  </Label>
+                  <Input
+                    id="publisherName"
+                    type="text"
+                    required
+                    placeholder={t("مثال: دار عبيد للنشر والتوزيع", "e.g., Al-Obaid Publishing")}
+                    value={form.publisherName}
+                    onChange={(e) => setForm({ ...form, publisherName: e.target.value })}
+                    className="h-12 rounded-xl px-4 text-base border-border/80 focus-visible:ring-primary/20 bg-background/50 focus:bg-background transition-all"
+                  />
+                </div>
+              )}
+
               {/* Full Name */}
               <div className="space-y-1.5">
                 <Label htmlFor="name" className="text-xs md:text-sm font-semibold text-foreground/90">
-                  {t("الاسم الكامل", "Full name")}
+                  {accountType === "publisher"
+                    ? t("اسم المسؤول / جهة الاتصال", "Manager / Contact Name")
+                    : accountType === "author"
+                    ? t("اسم المؤلف الكامل (كما يظهر على الكتب)", "Author Full Name")
+                    : t("الاسم الكامل", "Full Name")}
                 </Label>
                 <Input
                   id="name"
                   type="text"
                   required
-                  placeholder={t("اكتب اسمك الكامل", "Enter your full name")}
+                  placeholder={
+                    accountType === "publisher"
+                      ? t("اسم ممثل الدار", "Representative Name")
+                      : t("اكتب اسمك الكامل", "Enter your full name")
+                  }
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className="h-12 rounded-xl px-4 text-base border-border/80 focus-visible:ring-primary/20 bg-background/50 focus:bg-background transition-all"
@@ -286,7 +371,9 @@ function AuthPage() {
           {/* Email Address */}
           <div className="space-y-1.5">
             <Label htmlFor="email" className="text-xs md:text-sm font-semibold text-foreground/90">
-              {t("البريد الإلكتروني", "Email address")}
+              {accountType === "publisher"
+                ? t("البريد الإلكتروني الرسمي للدار", "Official Publisher Email")
+                : t("البريد الإلكتروني", "Email address")}
             </Label>
             <Input
               id="email"
@@ -354,7 +441,11 @@ function AuthPage() {
             ) : mode === "in" ? (
               t("تسجيل الدخول", "Sign In")
             ) : mode === "up" ? (
-              accountType === "author" ? t("إنشاء حساب مؤلف", "Create Author Account") : t("إنشاء حساب قارئ", "Create Reader Account")
+              accountType === "publisher"
+                ? t("إنشاء حساب دار نشر", "Create Publisher Account")
+                : accountType === "author"
+                ? t("إنشاء حساب مؤلف", "Create Author Account")
+                : t("إنشاء حساب قارئ", "Create Reader Account")
             ) : (
               t("إرسال رابط الاستعادة", "Send Reset Link")
             )}

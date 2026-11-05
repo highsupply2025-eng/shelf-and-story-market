@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthProvider } from "@/lib/auth";
 import { CartProvider } from "@/lib/cart";
 import { SiteHeader, SiteFooter } from "@/components/SiteHeader";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/lib/locale";
 
@@ -84,7 +85,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#9a4320" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "unibook" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
       { title: "unibook — متجر الكتب الرقمية والورقية" },
       { name: "description", content: "اشترِ الكتب الرقمية والورقية أو انشر كتابك على unibook." },
       { property: "og:type", content: "website" },
@@ -93,7 +99,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
-      { rel: "apple-touch-icon", href: "/logo-icon.png" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -155,6 +162,7 @@ function RootComponent() {
             {!hideFooter && <SiteFooter />}
           </div>
           <Toaster position="top-center" richColors />
+          <InstallPrompt />
         </CartProvider>
         </LocaleProvider>
       </AuthProvider>

@@ -14,3 +14,5 @@
 - Author production lives in separate manuscript/version/invoice/event records; state transitions use guarded database RPCs so authors cannot approve, invoice, or mark payment themselves.
 - Royalties are immutable sale-time records created only by trusted paid-order reconciliation; payouts reserve balance through a locked RPC and never imply an automatic bank transfer.
 - Shared locale context owns language, country and display currency; exchange rates are public server-function reads and converted display amounts never alter order settlement prices.
+
+- Native apps are Capacitor shells (android/, ios/) loading the published site and built by .github/workflows/build-mobile.yml; never ship an unsigned iOS bundle as an IPA.

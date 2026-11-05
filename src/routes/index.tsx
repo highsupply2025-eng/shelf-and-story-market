@@ -69,7 +69,7 @@ function Index() {
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="rounded-full px-8">
-                <Link to="/publisher">{t("نشر كتاب","Publish a book")}</Link>
+                <Link to="/author">{t("نشر كتاب","Publish a book")}</Link>
               </Button>
             </div>
           </div>
@@ -149,7 +149,7 @@ function Index() {
               </p>
             </div>
             <Button asChild size="lg" className="rounded-full bg-gold px-8 text-ink hover:bg-gold/90">
-              <Link to="/publisher">{t("ابدأ النشر الآن","Start your publishing journey")}</Link>
+              <Link to="/author">{t("ابدأ النشر الآن","Start your publishing journey")}</Link>
             </Button>
           </div>
         </div>

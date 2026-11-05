@@ -56,6 +56,8 @@ function AuthPage() {
         navigate({ to: "/admin" });
       } else if (session.user.user_metadata?.["account_type"] === "publisher") {
         navigate({ to: "/publisher" });
+      } else if (session.user.user_metadata?.["account_type"] === "author") {
+        navigate({ to: "/author" });
       } else {
         navigate({ to: "/account" });
       }
@@ -81,6 +83,8 @@ function AuthPage() {
           navigate({ to: "/admin" });
         } else if (userType === "publisher") {
           navigate({ to: "/publisher" });
+        } else if (userType === "author") {
+          navigate({ to: "/author" });
         } else {
           navigate({ to: "/account" });
         }
@@ -128,6 +132,8 @@ function AuthPage() {
 
         if (accountType === "publisher") {
           navigate({ to: "/publisher" });
+        } else if (accountType === "author") {
+          navigate({ to: "/author" });
         } else {
           navigate({ to: "/account" });
         }

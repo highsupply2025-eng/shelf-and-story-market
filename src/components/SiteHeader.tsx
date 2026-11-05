@@ -66,7 +66,7 @@ export function SiteHeader() {
   const roleBadgeInfo = {
     admin: { label: "الإدارة", class: "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30", icon: ShieldCheck, to: "/admin" },
     publisher: { label: "دار نشر", class: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30", icon: Building2, to: "/publisher" },
-    author: { label: "مؤلف", class: "bg-primary/15 text-primary border-primary/30", icon: PenLine, to: "/account" },
+    author: { label: "مؤلف", class: "bg-primary/15 text-primary border-primary/30", icon: PenLine, to: "/author" },
     reader: { label: "قارئ", class: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30", icon: BookOpen, to: "/account" },
   }[accountType] || { label: "قارئ", class: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30", icon: BookOpen, to: "/account" };
 
@@ -104,7 +104,7 @@ export function SiteHeader() {
               {t("لوحة دار النشر", "Publisher Hub")}
             </Link>
           ) : accountType === "author" ? (
-            <Link to="/publisher" className={linkCls}>
+            <Link to="/author" className={linkCls}>
               {t("مساحة المؤلف", "Author Studio")}
             </Link>
           ) : isAdmin ? (
@@ -112,7 +112,7 @@ export function SiteHeader() {
               {t("لوحة الإدارة", "Admin Dashboard")}
             </Link>
           ) : (
-            <Link to="/publisher" className={linkCls}>
+            <Link to="/author" className={linkCls}>
               {t("نشر كتاب", "Publish a book")}
             </Link>
           )}
@@ -146,7 +146,7 @@ export function SiteHeader() {
 
               {/* Publisher / Studio Mobile shortcut */}
               <Link
-                to="/publisher"
+                to={accountType === "publisher" ? "/publisher" : "/author"}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card/80 text-foreground transition-all duration-200 hover:border-primary/50 hover:bg-primary/10 hover:text-primary md:hidden"
                 aria-label={t("انشر", "Publish")}
               >
@@ -154,7 +154,7 @@ export function SiteHeader() {
               </Link>
 
               <Link
-                to={accountType === "publisher" ? "/publisher" : "/account"}
+                to={accountType === "publisher" ? "/publisher" : accountType === "author" ? "/author" : "/account"}
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card/80 text-foreground transition-all duration-200 hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
                 aria-label={t("حسابي", "Account")}
               >

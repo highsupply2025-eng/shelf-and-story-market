@@ -22,7 +22,7 @@ export function Stage({value}:{value:string}){
 }
 export async function downloadAuthorFile(path:string){const {data,error}=await supabase.storage.from("author-documents").createSignedUrl(path,60);if(error||!data){toast.error("تعذر تنزيل الملف / Download unavailable");return;}window.open(data.signedUrl,"_blank","noopener,noreferrer");}
 export function AuthorStudio(){
- const {session,isPublisher,loading,refresh}=useAuth();const l=useLocale();const qc=useQueryClient();const uid=session?.user.id;
+ const {session,isPublisher:isPub,isAuthor,loading,refresh}=useAuth();const isPublisher=isPub||isAuthor;const l=useLocale();const qc=useQueryClient();const uid=session?.user.id;
  const [name,setName]=useState("");const [bio,setBio]=useState("");const [busy,setBusy]=useState(false);
  const {data:author}=useQuery({queryKey:["author",uid],enabled:!!uid,queryFn:async()=>{if(!uid)return null;const {data,error}=await supabase.from("publishers").select("*").eq("id",uid).maybeSingle();if(error)throw error;return data;}});
  const {data:planRequest,isLoading:planLoading,refetch:refetchPlan}=useQuery({queryKey:["author-plan-request",uid],enabled:!!uid,queryFn:()=>getUserPlanRequest(uid!)});

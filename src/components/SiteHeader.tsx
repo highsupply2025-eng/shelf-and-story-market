@@ -126,7 +126,7 @@ export function SiteHeader() {
               <button className={`${iconBtn} md:hidden`} aria-label={t("القائمة", "Menu")}><Menu className="h-5 w-5" /></button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[85vw] max-w-sm p-0">
-              <SheetHeader className="border-b p-5 text-start">
+              <SheetHeader className="border-b p-5 pe-12 text-start">
                 <SheetTitle className="font-display text-2xl">unibook</SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-1 p-4">

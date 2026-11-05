@@ -137,7 +137,7 @@ export function AuthorStudio(){
              <div>4. تفعيل حسابك من خلال لوحة الإدارة لفتح مساحة رفع المخطوطات فوراً.</div>
            </div>
            <Button size="lg" asChild className="rounded-xl px-8 font-bold">
-             <a href="/account">
+             <Link to="/author" search={{view:"plans"}}>
                <Wallet className="me-2 h-4 w-4" />
                اختيار باقة النشر والتحويل
              </Link>

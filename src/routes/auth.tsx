@@ -54,7 +54,7 @@ function AuthPage() {
     if (session) {
       if (isAdmin || session.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
         navigate({ to: "/admin" });
-      } else if (session.user.user_metadata?.account_type === "publisher") {
+      } else if (session.user.user_metadata?.["account_type"] === "publisher") {
         navigate({ to: "/publisher" });
       } else {
         navigate({ to: "/account" });
@@ -76,7 +76,7 @@ function AuthPage() {
       } else {
         toast.success(t("تم تسجيل الدخول بنجاح!", "Logged in successfully!"));
         await refresh();
-        const userType = data.user?.user_metadata?.account_type;
+        const userType = data.user?.user_metadata?.["account_type"];
         if (data.user?.email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
           navigate({ to: "/admin" });
         } else if (userType === "publisher") {

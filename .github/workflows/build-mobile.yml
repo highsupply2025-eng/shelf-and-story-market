@@ -7,7 +7,7 @@ on:
     paths: ["android/**", "ios/**", "capacitor.config.ts", "mobile/**", "scripts/prepare-mobile.ts", ".github/workflows/build-mobile.yml"]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   android:
@@ -44,13 +44,32 @@ jobs:
           export ANDROID_KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}"
           chmod +x gradlew
           ./gradlew assembleRelease bundleRelease --no-daemon
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files
+          cp android/app/build/outputs/apk/release/*.apk release-files/unibook-app.apk
+          cp android/app/build/outputs/bundle/release/*.aab release-files/unibook-app.aab
       - uses: actions/upload-artifact@v4
         with:
           name: unibook-Android
-          path: |
-            android/app/build/outputs/apk/release/*.apk
-            android/app/build/outputs/bundle/release/*.aab
+          path: release-files/*
           if-no-files-found: error
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="v1.0.0-mobile"
+          gh release delete "$TAG_NAME" --yes || true
+          git push origin :refs/tags/"$TAG_NAME" 2>/dev/null || true
+          gh release create "$TAG_NAME" release-files/unibook-app.apk release-files/unibook-app.aab \
+            --title "تطبيق unibook للجوال (Android APK & AAB)" \
+            --notes "### 📱 تطبيق unibook للهواتف الذكية (Android)
+
+          - **unibook-app.apk**: ملف التطبيق المباشر للتثبيت الفوري على أي هاتف أندرويد.
+          - **unibook-app.aab**: حزمة Android App Bundle المعتمدة لرفع التطبيق على متجر Google Play Console.
+
+          - **اسم الحزمة (Package ID)**: \`store.unibook.app\`
+          - **الموقع المرتبط**: https://unibook.store"
 
   ios:
     runs-on: macos-latest

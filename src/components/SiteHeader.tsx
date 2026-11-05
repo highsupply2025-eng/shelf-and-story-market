@@ -1,7 +1,32 @@
 import { useState, useRef } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ShoppingBag, LogOut, PenLine, Building2, ShieldCheck, BookOpen, Menu, ChevronDown, LayoutDashboard, Library, Home } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  ShoppingBag,
+  LogOut,
+  PenLine,
+  Building2,
+  ShieldCheck,
+  BookOpen,
+  Menu,
+  ChevronDown,
+  LayoutDashboard,
+  Library,
+  Home,
+  User,
+  Sparkles,
+  Package,
+  Heart,
+  Settings,
+  ArrowUpRight,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
@@ -49,109 +74,370 @@ export function SiteHeader() {
     clickTimeoutRef.current = setTimeout(() => setLogoClicks(0), 3000);
   }
 
-  const role = {
-    admin: { label: t("الإدارة", "Admin"), dash: t("لوحة الإدارة", "Admin dashboard"), icon: ShieldCheck, to: "/admin" as const },
-    publisher: { label: t("دار نشر", "Publisher"), dash: t("لوحة دار النشر", "Publisher dashboard"), icon: Building2, to: "/publisher" as const },
-    author: { label: t("مؤلف", "Author"), dash: t("لوحة المؤلف", "Author dashboard"), icon: PenLine, to: "/author" as const },
-    reader: { label: t("قارئ", "Reader"), dash: t("لوحة القارئ", "Reader dashboard"), icon: BookOpen, to: "/account" as const },
+  // Account role configuration
+  const roleConfig = {
+    admin: {
+      label: t("إدارة المنصة", "Admin"),
+      fullBadge: t("إدارة unibook العليا", "Chief Admin"),
+      dash: t("لوحة الإدارة", "Admin dashboard"),
+      icon: ShieldCheck,
+      to: "/admin" as const,
+      color: "text-rose-600 bg-rose-500/10 border-rose-500/30",
+      accentBg: "from-rose-500 to-amber-600",
+    },
+    publisher: {
+      label: t("دار نشر", "Publisher"),
+      fullBadge: t("حساب دار نشر مستقلة", "Independent Publisher"),
+      dash: t("لوحة دار النشر", "Publisher dashboard"),
+      icon: Building2,
+      to: "/publisher" as const,
+      color: "text-blue-600 bg-blue-500/10 border-blue-500/30",
+      accentBg: "from-blue-600 to-indigo-700",
+    },
+    author: {
+      label: t("مؤلف", "Author"),
+      fullBadge: t("حساب مؤلف مستقل", "Independent Author"),
+      dash: t("استوديو المؤلف", "Author studio"),
+      icon: PenLine,
+      to: "/author" as const,
+      color: "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30",
+      accentBg: "from-amber-600 to-orange-600",
+    },
+    reader: {
+      label: t("قارئ", "Reader"),
+      fullBadge: t("حساب قارئ مستقل", "Independent Reader"),
+      dash: t("لوحة القارئ", "Reader dashboard"),
+      icon: BookOpen,
+      to: "/account" as const,
+      color: "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+      accentBg: "from-emerald-600 to-teal-700",
+    },
   }[accountType];
-  const RoleIcon = role.icon;
-  const name = (session?.user.user_metadata?.["full_name"] as string | undefined) || session?.user.email?.split("@")[0] || "";
+
+  const RoleIcon = roleConfig.icon;
+  const name =
+    (session?.user.user_metadata?.["display_name"] as string | undefined) ||
+    (session?.user.user_metadata?.["full_name"] as string | undefined) ||
+    session?.user.email?.split("@")[0] ||
+    "";
 
   const linkCls =
-    "text-[15px] font-semibold text-foreground/75 hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-primary/5 [&.active]:text-primary [&.active]:bg-primary/10";
+    "text-[14px] md:text-[15px] font-semibold text-foreground/80 hover:text-primary transition-colors px-3 py-2 rounded-xl hover:bg-primary/5 [&.active]:text-primary [&.active]:bg-primary/10 flex items-center gap-2";
   const iconBtn =
-    "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10 hover:text-primary";
+    "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground transition-all hover:border-primary/50 hover:bg-primary/10 hover:text-primary shadow-xs";
 
+  // Dedicated navigation links per account role
   const navLinks = (onClick?: () => void, cls = linkCls) => (
     <>
-      <Link to="/" className={cls} activeOptions={{ exact: true }} onClick={onClick}><Home className="h-4 w-4 md:hidden" />{t("الرئيسية", "Home")}</Link>
-      <Link to="/books" className={cls} onClick={onClick}><Library className="h-4 w-4 md:hidden" />{t("المتجر", "Bookshop")}</Link>
+      <Link to="/" className={cls} activeOptions={{ exact: true }} onClick={onClick}>
+        <Home className="h-4 w-4 opacity-75" />
+        <span>{t("الرئيسية", "Home")}</span>
+      </Link>
+      <Link to="/books" className={cls} onClick={onClick}>
+        <Library className="h-4 w-4 opacity-75" />
+        <span>{t("المتجر", "Bookshop")}</span>
+      </Link>
+
+      {/* Role specific links when signed in */}
+      {session && accountType === "reader" && (
+        <Link to="/account" className={cls} onClick={onClick}>
+          <BookOpen className="h-4 w-4 text-emerald-600" />
+          <span>{t("مكتبتي وطلباتي", "My Library & Orders")}</span>
+        </Link>
+      )}
+      {session && accountType === "author" && (
+        <Link to="/author" className={cls} onClick={onClick}>
+          <PenLine className="h-4 w-4 text-amber-600" />
+          <span>{t("استوديو النشر", "Publishing Studio")}</span>
+        </Link>
+      )}
+      {session && accountType === "publisher" && (
+        <Link to="/publisher" className={cls} onClick={onClick}>
+          <Building2 className="h-4 w-4 text-blue-600" />
+          <span>{t("كتالوج الدار", "Publisher Catalog")}</span>
+        </Link>
+      )}
+      {session && accountType === "admin" && (
+        <Link to="/admin" className={cls} onClick={onClick}>
+          <ShieldCheck className="h-4 w-4 text-rose-600" />
+          <span>{t("لوحة الإدارة العليا", "Admin Panel")}</span>
+        </Link>
+      )}
+
       {!session && (
-        <Link to="/auth" className={cls} onClick={onClick}><PenLine className="h-4 w-4 md:hidden" />{t("انشر معنا", "Publish with us")}</Link>
+        <Link to="/auth" className={cls} onClick={onClick}>
+          <PenLine className="h-4 w-4 opacity-75" />
+          <span>{t("انشر معنا", "Publish with us")}</span>
+        </Link>
       )}
     </>
   );
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur-md">
-      <div className="mx-auto grid h-16 max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 md:flex md:h-18 md:gap-6 md:px-8">
-        <Link to="/" onClick={handleLogoClick} className="flex min-w-0 items-center gap-2.5 group cursor-pointer">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card border border-border/80 md:h-11 md:w-11">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-3 md:h-18 md:gap-6 md:px-8">
+        
+        {/* Brand Logo with 5-click easter egg */}
+        <Link to="/" onClick={handleLogoClick} className="flex min-w-0 items-center gap-2.5 group cursor-pointer select-none">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card border border-border/80 shadow-xs md:h-11 md:w-11 transition-transform group-hover:scale-105">
             <img src="/logo-icon.png" alt="unibook" className="h-7 w-auto object-contain md:h-8" />
           </div>
-          <span className="truncate font-display text-2xl font-extrabold tracking-tight text-foreground group-hover:text-primary md:text-3xl">unibook</span>
+          <div className="flex flex-col">
+            <span className="truncate font-display text-2xl font-extrabold tracking-tight text-foreground group-hover:text-primary md:text-3xl">
+              unibook
+            </span>
+          </div>
         </Link>
 
+        {/* Desktop Navigation Links */}
         <nav className="hidden items-center gap-1 md:flex">{navLinks()}</nav>
 
-        <div className="flex items-center gap-2 md:ms-auto">
+        {/* Action Controls & Active Account Header */}
+        <div className="flex items-center gap-2 md:gap-3">
+          
+          {/* Cart Icon */}
           <Link to="/cart" className={iconBtn} aria-label={t("السلة", "Cart")}>
             <ShoppingBag className="h-5 w-5" />
             {count > 0 && (
-              <span className="absolute -top-1 -start-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] font-bold text-primary-foreground">{count}</span>
+              <span className="absolute -top-1 -start-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] font-bold text-primary-foreground shadow-xs animate-in zoom-in">
+                {count}
+              </span>
             )}
           </Link>
 
+          {/* ACTIVE ACCOUNT HEADER: Visible on both mobile and desktop when user is logged in */}
           {session ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="hidden items-center gap-2 rounded-full border border-border/70 bg-card py-1 ps-1 pe-3 text-sm font-bold transition-colors hover:border-primary/50 md:flex cursor-pointer">
-                  <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-primary-foreground"><RoleIcon className="h-4 w-4" /></span>
-                  <span className="max-w-32 truncate">{role.dash}</span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <button
+                  className="flex items-center gap-2 rounded-full border border-border/80 bg-card py-1 ps-1 pe-2.5 sm:pe-3.5 text-xs sm:text-sm font-bold transition-all hover:border-primary/50 hover:shadow-xs cursor-pointer select-none ring-1 ring-border/30"
+                  aria-label={roleConfig.dash}
+                >
+                  {/* Active Indicator & Avatar Icon */}
+                  <div className="relative">
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-primary-foreground shadow-xs">
+                      <RoleIcon className="h-4 w-4" />
+                    </span>
+                    <span className="absolute -bottom-0.5 -start-0.5 flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background"></span>
+                    </span>
+                  </div>
+
+                  {/* Account Text info */}
+                  <div className="flex flex-col items-start text-start leading-tight">
+                    <span className="max-w-24 sm:max-w-36 truncate font-extrabold text-foreground text-[12px] sm:text-[13px]">
+                      {name}
+                    </span>
+                    <span className="hidden sm:inline-block text-[10px] text-muted-foreground font-medium">
+                      {roleConfig.label} مفعّل
+                    </span>
+                  </div>
+
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ms-0.5" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60">
-                <DropdownMenuLabel className="space-y-0.5">
-                  <div className="truncate font-bold">{name}</div>
-                  <div className="truncate text-xs font-normal text-muted-foreground" dir="ltr">{session.user.email}</div>
-                  <Badge variant="secondary" className="mt-1 gap-1"><RoleIcon className="h-3 w-3" />{role.label}</Badge>
-                </DropdownMenuLabel>
+
+              <DropdownMenuContent align="end" className="w-64 sm:w-72 p-2 rounded-2xl shadow-xl border border-border/80 bg-card">
+                {/* Active Profile Info Header */}
+                <div className="rounded-xl border border-border/60 bg-muted/40 p-3 mb-1">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+                      <RoleIcon className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-extrabold text-sm">{name}</div>
+                      <div className="truncate text-[11px] text-muted-foreground font-mono" dir="ltr">
+                        {session.user.email}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between border-t border-border/50 pt-2">
+                    <Badge variant="outline" className={`text-[10px] font-bold py-0.5 px-2 gap-1 ${roleConfig.color}`}>
+                      <RoleIcon className="h-3 w-3" />
+                      {roleConfig.fullBadge}
+                    </Badge>
+                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      نشط ومفعّل
+                    </span>
+                  </div>
+                </div>
+
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild><Link to={role.to}><LayoutDashboard className="me-2 h-4 w-4" />{role.dash}</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link to="/books"><Library className="me-2 h-4 w-4" />{t("تصفح المتجر", "Browse shop")}</Link></DropdownMenuItem>
+
+                {/* Primary Role Dashboard Link */}
+                <DropdownMenuItem asChild className="p-2.5 rounded-xl font-bold cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary my-1">
+                  <Link to={roleConfig.to}>
+                    <LayoutDashboard className="me-2 h-4 w-4" />
+                    <span>{roleConfig.dash}</span>
+                    <ArrowUpRight className="ms-auto h-3.5 w-3.5 opacity-60" />
+                  </Link>
+                </DropdownMenuItem>
+
+                {/* Sub-links based on specific account type */}
+                {accountType === "reader" && (
+                  <>
+                    <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
+                      <Link to="/account">
+                        <BookOpen className="me-2 h-4 w-4 text-emerald-600" />
+                        <span>{t("مكتبتي الرقمية", "My Digital Library")}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
+                      <Link to="/cart">
+                        <ShoppingBag className="me-2 h-4 w-4 text-amber-600" />
+                        <span>{t("سلة المشتريات", "My Cart")}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {accountType === "author" && (
+                  <>
+                    <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
+                      <Link to="/author" search={{ view: "plans" }}>
+                        <Sparkles className="me-2 h-4 w-4 text-amber-600" />
+                        <span>{t("باقات النشر الستة", "Publishing Plans")}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
+                      <Link to="/author">
+                        <PenLine className="me-2 h-4 w-4 text-primary" />
+                        <span>{t("رفع وتدقيق المخطوطات", "Upload Manuscripts")}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {accountType === "publisher" && (
+                  <>
+                    <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
+                      <Link to="/publisher">
+                        <Building2 className="me-2 h-4 w-4 text-blue-600" />
+                        <span>{t("إدارة كتب الدار والمبيعات", "Manage Catalog & Sales")}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
+                  <Link to="/books">
+                    <Library className="me-2 h-4 w-4 opacity-75" />
+                    <span>{t("تصفح متجر الكتب", "Browse Bookshop")}</span>
+                  </Link>
+                </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive"><LogOut className="me-2 h-4 w-4" />{t("تسجيل الخروج", "Sign out")}</DropdownMenuItem>
+
+                {/* Sign out */}
+                <DropdownMenuItem
+                  onClick={signOut}
+                  className="p-2 rounded-lg text-destructive focus:text-destructive cursor-pointer font-semibold"
+                >
+                  <LogOut className="me-2 h-4 w-4" />
+                  <span>{t("تسجيل الخروج", "Sign out")}</span>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild className="hidden rounded-full px-6 font-bold md:inline-flex">
+            /* Sign in Button when guest */
+            <Button asChild className="rounded-full px-4 sm:px-6 font-bold shadow-xs text-xs sm:text-sm">
               <Link to="/auth">{t("دخول / تسجيل", "Sign in")}</Link>
             </Button>
           )}
 
+          {/* Mobile Navigation Drawer Trigger */}
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
-              <button className={`${iconBtn} md:hidden`} aria-label={t("القائمة", "Menu")}><Menu className="h-5 w-5" /></button>
+              <button className={`${iconBtn} md:hidden`} aria-label={t("القائمة", "Menu")}>
+                <Menu className="h-5 w-5" />
+              </button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[85vw] max-w-sm p-0">
-              <SheetHeader className="border-b p-5 pe-12 text-start">
-                <SheetTitle className="font-display text-2xl">unibook</SheetTitle>
-              </SheetHeader>
-              <div className="flex flex-col gap-1 p-4">
-                {session && (
-                  <Link to={role.to} onClick={() => setMenuOpen(false)} className="mb-3 flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-3">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"><RoleIcon className="h-5 w-5" /></span>
-                    <span className="min-w-0">
-                      <span className="block truncate font-bold">{role.dash}</span>
-                      <span className="block truncate text-xs text-muted-foreground" dir="ltr">{session.user.email}</span>
-                    </span>
-                  </Link>
-                )}
-                {navLinks(() => setMenuOpen(false), "flex items-center gap-3 rounded-xl px-3 py-3 font-semibold hover:bg-muted [&.active]:bg-muted [&.active]:text-primary")}
-                <div className="mt-4 border-t pt-4">
-                  {session ? (
-                    <Button variant="outline" className="w-full gap-2 text-destructive" onClick={signOut}><LogOut className="h-4 w-4" />{t("تسجيل الخروج", "Sign out")}</Button>
-                  ) : (
-                    <Button asChild className="w-full rounded-full font-bold"><Link to="/auth" onClick={() => setMenuOpen(false)}>{t("دخول / تسجيل", "Sign in")}</Link></Button>
+            <SheetContent side="right" className="w-[85vw] max-w-sm p-0 flex flex-col justify-between">
+              <div>
+                <SheetHeader className="border-b p-5 pe-12 text-start bg-muted/20">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-card border border-border/80 shadow-xs">
+                      <img src="/logo-icon.png" alt="unibook" className="h-6 w-auto object-contain" />
+                    </div>
+                    <SheetTitle className="font-display text-2xl font-extrabold text-foreground">
+                      unibook
+                    </SheetTitle>
+                  </div>
+                </SheetHeader>
+
+                <div className="flex flex-col gap-1 p-4">
+                  {/* If user is signed in: show prominent account profile card in mobile drawer */}
+                  {session && (
+                    <div className="mb-3 rounded-2xl border border-primary/20 bg-gradient-to-br from-card via-card/90 to-primary/5 p-3.5 shadow-xs">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+                            <RoleIcon className="h-5 w-5" />
+                          </span>
+                          <span className="absolute -bottom-0.5 -start-0.5 flex h-2.5 w-2.5">
+                            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 border border-background"></span>
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="block truncate font-extrabold text-sm">{name}</span>
+                          <span className="block truncate text-[11px] text-muted-foreground font-mono" dir="ltr">
+                            {session.user.email}
+                          </span>
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <Badge variant="outline" className={`text-[9px] font-bold px-1.5 py-0 ${roleConfig.color}`}>
+                              {roleConfig.label}
+                            </Badge>
+                            <span className="text-[10px] text-emerald-600 font-semibold">مفعّل</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button asChild size="sm" className="w-full mt-3 rounded-xl font-bold gap-1.5">
+                        <Link to={roleConfig.to} onClick={() => setMenuOpen(false)}>
+                          <LayoutDashboard className="h-4 w-4" />
+                          <span>{roleConfig.dash}</span>
+                        </Link>
+                      </Button>
+                    </div>
                   )}
+
+                  {/* Navigation Links */}
+                  <div className="space-y-0.5">
+                    {navLinks(
+                      () => setMenuOpen(false),
+                      "flex items-center gap-3 rounded-xl px-3.5 py-2.5 font-bold text-sm hover:bg-muted text-foreground/80 [&.active]:bg-primary/10 [&.active]:text-primary transition-colors"
+                    )}
+                  </div>
                 </div>
               </div>
+
+                {/* Footer of the Drawer */}
+                <div className="p-4 border-t border-border/60 bg-muted/10">
+                  {session ? (
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 rounded-xl font-bold"
+                      onClick={signOut}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      {t("تسجيل الخروج", "Sign out")}
+                    </Button>
+                  ) : (
+                    <Button asChild className="w-full rounded-xl font-bold shadow-xs">
+                      <Link to="/auth" onClick={() => setMenuOpen(false)}>
+                        {t("دخول / إنشاء حساب", "Sign in / Register")}
+                      </Link>
+                    </Button>
+                  )}
+                </div>
             </SheetContent>
           </Sheet>
         </div>
       </div>
+
+      {/* Secret Admin Verification Modal */}
       <AdminAuthModal open={adminModalOpen} onOpenChange={setAdminModalOpen} />
     </header>
   );

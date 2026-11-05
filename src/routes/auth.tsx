@@ -175,15 +175,15 @@ function AuthPage() {
 
   const roleDescriptions = {
     reader: {
-      badge: "حساب قارئ",
+      badge: "حساب قارئ مستقل",
       tip: "شراء وتنزيل الكتب العلمية، قراءة الكتب الرقمية في مكتبتك، ومتابعة شحنات الكتب الورقية المطبوعة.",
     },
     author: {
-      badge: "حساب مؤلف",
+      badge: "حساب مؤلف مستقل",
       tip: "نشر مؤلفاتك وأبحاثك، 6 باقات نشر مرنة، مراجعة وتدقيق المخطوطات، ونسبة أرباح تصل إلى 70%.",
     },
     publisher: {
-      badge: "حساب دار نشر",
+      badge: "حساب دار نشر مستقلة",
       tip: "لدور النشر والمؤسسات العلمية: إدارة كتالوج كامل من الإصدارات الرقمية والمطبوعة، ومتابعة المبيعات والطباعة.",
     },
   };
@@ -301,6 +301,37 @@ function AuthPage() {
 
         {/* Auth Form */}
         <form onSubmit={submit} className="space-y-4">
+          {mode === "in" && (
+            <div className="rounded-2xl border border-border/80 bg-muted/40 p-3 space-y-2 mb-2">
+              <div className="text-[11px] font-bold text-foreground/80 flex items-center justify-between">
+                <span>{t("بوابات الحسابات المعتمدة:", "Supported Portals:")}</span>
+                <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  دخول ذكي مباشر
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-bold">
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-1.5 text-emerald-700 dark:text-emerald-400">
+                  <BookOpen className="h-3.5 w-3.5 mx-auto mb-0.5" />
+                  <span>قارئ مستقل</span>
+                </div>
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-1.5 text-amber-700 dark:text-amber-400">
+                  <PenLine className="h-3.5 w-3.5 mx-auto mb-0.5" />
+                  <span>مؤلف مستقل</span>
+                </div>
+                <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-1.5 text-blue-700 dark:text-blue-400">
+                  <Building2 className="h-3.5 w-3.5 mx-auto mb-0.5" />
+                  <span>دار نشر مستقلة</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center leading-tight">
+                {t(
+                  "يتعرف النظام تلقائياً على نوع حسابك المسجل ويوجهك إلى لوحة التحكم الخاصة بك مباشرة.",
+                  "System automatically identifies your registered account type and routes you to your dashboard."
+                )}
+              </p>
+            </div>
+          )}
           {mode === "up" && (
             <>
               {/* 3 Account Roles Selector */}

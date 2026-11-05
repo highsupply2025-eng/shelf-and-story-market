@@ -126,8 +126,8 @@ export function PublisherDashboard() {
       const { error } = await supabase
         .from("publishers")
         .update({
-          store_name: editStoreName || publisher?.store_name,
-          bio: editBio || publisher?.bio,
+          store_name: editStoreName || publisher?.store_name || "",
+          bio: editBio || publisher?.bio || null,
         })
         .eq("id", uid);
 
@@ -255,7 +255,7 @@ export function PublisherDashboard() {
           </div>
           <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
             <p className="text-xs text-muted-foreground font-medium">{t("إجمالي المبيعات", "Total Sales")}</p>
-            <p className="mt-1 text-2xl font-extrabold text-primary">{formatPrice(totalSalesGross, "SAR")}</p>
+            <p className="mt-1 text-2xl font-extrabold text-primary">{formatPrice(totalSalesGross)}</p>
           </div>
         </div>
       </div>
@@ -357,9 +357,9 @@ export function PublisherDashboard() {
                         <p className="text-xs text-muted-foreground line-clamp-1">{t("المؤلف:", "Author:")} {book.author}</p>
 
                         <div className="pt-2 text-xs font-bold text-primary">
-                          {book.price_digital ? `${formatPrice(book.price_digital, "SAR")} (رقمي)` : ""}
+                          {book.price_digital ? `${formatPrice(book.price_digital)} (رقمي)` : ""}
                           {book.price_digital && book.price_physical ? " • " : ""}
-                          {book.price_physical ? `${formatPrice(book.price_physical, "SAR")} (ورقي)` : ""}
+                          {book.price_physical ? `${formatPrice(book.price_physical)} (ورقي)` : ""}
                         </div>
                       </div>
                     </div>
@@ -408,8 +408,8 @@ export function PublisherDashboard() {
                         <td className="py-3 font-bold text-foreground">{e.book_title}</td>
                         <td className="py-3 text-muted-foreground">{e.format === "digital" ? "رقمي" : "ورقي"}</td>
                         <td className="py-3">{e.quantity}</td>
-                        <td className="py-3">{formatPrice(e.gross, e.currency)}</td>
-                        <td className="py-3 font-bold text-emerald-600">{formatPrice(e.amount, e.currency)}</td>
+                        <td className="py-3">{formatPrice(e.gross)}</td>
+                        <td className="py-3 font-bold text-emerald-600">{formatPrice(e.amount)}</td>
                         <td className="py-3 text-muted-foreground">{new Date(e.created_at).toLocaleDateString("ar-EG")}</td>
                       </tr>
                     ))}

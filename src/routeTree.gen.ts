@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAuthorRouteImport } from './routes/_authenticated/author'
 import { Route as AuthenticatedPublisherRouteImport } from './routes/_authenticated/publisher'
 import { Route as BooksIndexRouteImport } from './routes/books.index'
 import { Route as BooksIdRouteImport } from './routes/books.$id'
@@ -48,6 +49,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAuthorRoute = AuthenticatedAuthorRouteImport.update({
+  id: '/author',
+  path: '/author',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPublisherRoute = AuthenticatedPublisherRouteImport.update({
   id: '/publisher',
   path: '/publisher',
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/cart': typeof CartRoute
   '/account': typeof AuthenticatedAccountRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/author': typeof AuthenticatedAuthorRoute
   '/publisher': typeof AuthenticatedPublisherRoute
   '/books/$id': typeof BooksIdRoute
   '/books/': typeof BooksIndexRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/cart': typeof CartRoute
   '/account': typeof AuthenticatedAccountRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/author': typeof AuthenticatedAuthorRoute
   '/publisher': typeof AuthenticatedPublisherRoute
   '/books/$id': typeof BooksIdRoute
   '/books': typeof BooksIndexRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/cart': typeof CartRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/author': typeof AuthenticatedAuthorRoute
   '/_authenticated/publisher': typeof AuthenticatedPublisherRoute
   '/books/$id': typeof BooksIdRoute
   '/books/': typeof BooksIndexRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/account'
     | '/admin'
+    | '/author'
     | '/publisher'
     | '/books/$id'
     | '/books/'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/account'
     | '/admin'
+    | '/author'
     | '/publisher'
     | '/books/$id'
     | '/books'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/_authenticated/account'
     | '/_authenticated/admin'
+    | '/_authenticated/author'
     | '/_authenticated/publisher'
     | '/books/$id'
     | '/books/'
@@ -183,6 +195,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/author': {
+      id: '/_authenticated/author'
+      path: '/author'
+      fullPath: '/author'
+      preLoaderRoute: typeof AuthenticatedAuthorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/publisher': {
       id: '/_authenticated/publisher'
       path: '/publisher'
@@ -210,12 +229,14 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAuthorRoute: typeof AuthenticatedAuthorRoute
   AuthenticatedPublisherRoute: typeof AuthenticatedPublisherRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAuthorRoute: AuthenticatedAuthorRoute,
   AuthenticatedPublisherRoute: AuthenticatedPublisherRoute,
 }
 

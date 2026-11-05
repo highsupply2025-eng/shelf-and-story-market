@@ -1,6 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { PublisherDashboard } from "@/components/PublisherDashboard";
-import { AuthorStudio } from "@/components/AuthorStudio";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/publisher")({
@@ -18,9 +17,7 @@ export const Route = createFileRoute("/_authenticated/publisher")({
 });
 
 function PublisherRouteComponent() {
-  const { accountType } = useAuth();
-  if (accountType === "author") {
-    return <AuthorStudio />;
-  }
+  const { accountType, loading } = useAuth();
+  if (!loading && accountType === "author") return <Navigate to="/author" />;
   return <PublisherDashboard />;
 }

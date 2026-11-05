@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ]);
 
     const admin = isSpecialAdminEmail || !!roles?.some((r) => r.role === "admin");
-    const metaType = s.user.user_metadata?.account_type as UserRoleType | undefined;
+    const metaType = s.user.user_metadata?.["account_type"] as UserRoleType | undefined;
 
     let role: UserRoleType = "reader";
     if (admin) {

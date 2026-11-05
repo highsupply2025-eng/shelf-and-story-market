@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { FileText, Download, PenLine, Wallet, BookOpen, Plus, ArrowUpRight, Clock, AlertCircle, ShieldAlert, RefreshCw } from "lucide-react";
@@ -84,7 +85,7 @@ export function AuthorStudio(){
                    <RefreshCw className="h-4 w-4" /> تحديث حالة التفعيل
                  </Button>
                  <Button variant="outline" asChild>
-                   <a href="/account">استعراض خطط النشر</a>
+                   <Link to="/author" search={{view:"plans"}}>استعراض خطط النشر</Link>
                  </Button>
                </div>
              </div>
@@ -107,7 +108,7 @@ export function AuthorStudio(){
                </p>
                <div className="pt-2">
                  <Button asChild>
-                   <a href="/account">اختيار باقة وإعادة إرسال بيانات التحويل</a>
+                   <Link to="/author" search={{view:"plans"}}>اختيار باقة وإعادة إرسال بيانات التحويل</Link>
                  </Button>
                </div>
              </div>
@@ -136,10 +137,10 @@ export function AuthorStudio(){
              <div>4. تفعيل حسابك من خلال لوحة الإدارة لفتح مساحة رفع المخطوطات فوراً.</div>
            </div>
            <Button size="lg" asChild className="rounded-xl px-8 font-bold">
-             <a href="/account">
+             <Link to="/author" search={{view:"plans"}}>
                <Wallet className="me-2 h-4 w-4" />
                اختيار باقة النشر والتحويل
-             </a>
+             </Link>
            </Button>
          </div>
        )}
@@ -150,7 +151,7 @@ export function AuthorStudio(){
  if(!isPublisher)return <div className="mx-auto max-w-2xl px-4 py-16"><p className="text-sm text-primary">{l.t("دار عبيد · مساحة المؤلف","Dar Obaid · Author studio")}</p><h1 className="mt-3 text-4xl font-bold">{l.t("ابدأ رحلتك كمؤلف","Your next chapter starts here")}</h1><form onSubmit={activate} className="mt-10 space-y-5"><Label htmlFor="author-name">{l.t("اسم المؤلف","Author name")}</Label><Input id="author-name" required value={name} onChange={e=>setName(e.target.value)}/><Label htmlFor="author-bio">{l.t("نبذة عنك","About you")}</Label><Textarea id="author-bio" value={bio} onChange={e=>setBio(e.target.value)}/><Button disabled={busy} size="lg"><PenLine className="me-2 h-4 w-4"/>{l.t("إنشاء حساب المؤلف","Create author account")}</Button></form></div>;
  const activePlanTitle = planRequest?.planTitle || (typeof window !== "undefined" ? localStorage.getItem("unibook_selected_plan_title") : null);
  return <div className="mx-auto max-w-7xl px-4 py-10">
- <div className="flex flex-wrap items-end justify-between gap-4 border-b pb-8"><div><p className="text-sm text-primary">{l.t("unibook · مساحة المؤلف والنشر","unibook · Author & Publishing Studio")}</p><h1 className="mt-2 text-4xl font-bold">{l.t("مساحة المؤلف","Author studio")}</h1><div className="mt-2 flex flex-wrap items-center gap-2 text-muted-foreground"><span>{author?.store_name}</span><span>·</span><span dir="ltr" className="font-mono text-xs">{author?.author_code}</span>{activePlanTitle && (<><span className="mx-1">·</span><span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-3 py-0.5 text-xs font-bold border border-emerald-500/30">الباقة المفعلة: {activePlanTitle} ({planRequest?.booksCount || 1} كتب)</span></>)}<a href="/account" className="text-xs text-primary underline hover:text-primary/80 ms-2">{l.t("تغيير الخطة", "Change plan")}</a></div></div><div className="flex items-center gap-3"><Button variant="outline" asChild className="rounded-xl"><a href="/account">{l.t("خطط النشر (6 خطط)", "Publishing Plans")}</a></Button><Button onClick={()=>{setRevision(null);setTab("new");}} className="rounded-xl font-bold"><Plus className="me-2 h-4 w-4"/>{l.t("إرسال مخطوط Word","Submit manuscript")}</Button></div></div>
+ <div className="flex flex-wrap items-end justify-between gap-4 border-b pb-8"><div><p className="text-sm text-primary">{l.t("unibook · مساحة المؤلف والنشر","unibook · Author & Publishing Studio")}</p><h1 className="mt-2 text-4xl font-bold">{l.t("مساحة المؤلف","Author studio")}</h1><div className="mt-2 flex flex-wrap items-center gap-2 text-muted-foreground"><span>{author?.store_name}</span><span>·</span><span dir="ltr" className="font-mono text-xs">{author?.author_code}</span>{activePlanTitle && (<><span className="mx-1">·</span><span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-3 py-0.5 text-xs font-bold border border-emerald-500/30">الباقة المفعلة: {activePlanTitle} ({planRequest?.booksCount || 1} كتب)</span></>)}<Link to="/author" search={{view:"plans"}} className="text-xs text-primary underline hover:text-primary/80 ms-2">{l.t("تغيير الخطة", "Change plan")}</Link></div></div><div className="flex items-center gap-3"><Button variant="outline" asChild className="rounded-xl"><Link to="/author" search={{view:"plans"}}>{l.t("خطط النشر (6 خطط)", "Publishing Plans")}</Link></Button><Button onClick={()=>{setRevision(null);setTab("new");}} className="rounded-xl font-bold"><Plus className="me-2 h-4 w-4"/>{l.t("إرسال مخطوط Word","Submit manuscript")}</Button></div></div>
 
  <div className="grid grid-cols-2 gap-4 py-8 lg:grid-cols-4">{[[FileText,l.t("مشروعاتي","Projects"),projects.length],[BookOpen,l.t("كتب منشورة","Published books"),books.filter(b=>b.status==="approved").length],[ArrowUpRight,l.t("نسخ مباعة مؤكدة","Confirmed copies sold"),earnings.filter(e=>!e.reversed).reduce((n,e)=>n+e.quantity,0)],[Wallet,l.t("حصتي الرقمية / الورقية","Digital / print share"),"70% / 30%"]].map(([Icon,label,value])=>{const I=Icon as typeof FileText;return <div key={String(label)} className="rounded-lg border bg-card p-5"><I className="h-5 w-5 text-primary"/><p className="mt-4 text-sm text-muted-foreground">{String(label)}</p><p className="mt-1 text-3xl font-semibold" dir="auto">{String(value)}</p></div>;})}</div>
  <Tabs value={tab} onValueChange={setTab} dir={l.language==="ar"?"rtl":"ltr"}><TabsList className="h-auto flex-wrap justify-start gap-1"><TabsTrigger value="projects">{l.t("رحلة الكتاب","Book projects")}</TabsTrigger><TabsTrigger value="new">{l.t("رفع Word","Upload Word")}</TabsTrigger><TabsTrigger value="invoices">{l.t("الفواتير","Invoices")}</TabsTrigger><TabsTrigger value="books">{l.t("كتبي","My books")}</TabsTrigger><TabsTrigger value="earnings">{l.t("المبيعات والأرباح","Sales & earnings")}</TabsTrigger><TabsTrigger value="blurb">{l.t("نبذة تسويقية بالذكاء الاصطناعي","AI marketing blurb")}</TabsTrigger></TabsList>

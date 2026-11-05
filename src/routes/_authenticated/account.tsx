@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AccountView } from "@/components/AccountView";
+import { DashboardShell } from "@/components/DashboardShell";
 
 export const Route = createFileRoute("/_authenticated/account")({
   head: () => ({
@@ -16,5 +17,9 @@ export const Route = createFileRoute("/_authenticated/account")({
 });
 
 function ReaderPage() {
-  return <AccountView mode="reader" />;
+  return (
+    <DashboardShell role="reader">
+      <AccountView mode="reader" />
+    </DashboardShell>
+  );
 }

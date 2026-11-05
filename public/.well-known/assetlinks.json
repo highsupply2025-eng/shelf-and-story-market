@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "store.unibook.app",
+        "sha256_cert_fingerprints": ["6B:31:4B:1A:C1:75:FE:30:2E:BF:A9:AA:A9:12:41:17:FD:C1:73:57:F2:99:B6:BB:4D:BA:ED:69:1F:8E:E8:C5"]
+      }
+    }]

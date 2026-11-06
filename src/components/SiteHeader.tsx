@@ -408,10 +408,10 @@ export function SiteFooter() {
           </ul>
         </div>
 
-        {/* Col 3: Social Media (Disabled with badge) */}
+        {/* Col 3: Social Media + Mobile Apps (Android & iOS) */}
         <div>
-          <div className="mb-3 font-semibold text-gold">{t("تابعنا", "Follow us")}</div>
-          <div className="flex items-center gap-2.5">
+          <div className="mb-3 font-semibold text-gold">{t("تابعنا وتطبيقات الهاتف", "Follow us & Mobile Apps")}</div>
+          <div className="flex flex-wrap items-center gap-2">
             {socialLinks.map((s) => (
               <div
                 key={s.name}
@@ -426,6 +426,48 @@ export function SiteFooter() {
                 </span>
               </div>
             ))}
+
+            {/* Separator */}
+            <div className="h-6 w-px bg-white/20 mx-0.5" />
+
+            {/* Android Icon (Direct APK Download + Coming soon to Google Play) */}
+            <a
+              href="/unibook-app.apk"
+              download="unibook-v1.0.apk"
+              className="group/android relative flex h-9 w-9 items-center justify-center rounded-full border border-emerald-500/50 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/30 hover:border-emerald-400 hover:scale-105 transition-all shadow-xs cursor-pointer"
+              aria-label="تحميل ملف APK مباشر للأندرويد (Google Play قريباً)"
+            >
+              <svg className="h-4.5 w-4.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5898 8.4026 13.8567 8.082 12 8.082s-3.5898.3206-5.1368.8677L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396" />
+              </svg>
+              <span className="pointer-events-none absolute -top-8 scale-0 rounded bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-emerald-300 shadow-md transition-all duration-150 group-hover/android:scale-100 whitespace-nowrap border border-emerald-500/40 z-50">
+                APK متاح حالياً · Google Play قريباً
+              </span>
+            </a>
+
+            {/* iOS (Apple) Icon (Coming soon to App Store) */}
+            <div
+              className="group/ios relative flex h-9 w-9 items-center justify-center rounded-full border border-sky-400/50 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25 hover:border-sky-300 transition-all shadow-xs cursor-default"
+              aria-label="تطبيق iOS قريباً على App Store"
+            >
+              <svg className="h-4.5 w-4.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.38c.62-.75 1.04-1.8 0.93-2.85-.9.04-1.99.6-2.64 1.35-.56.65-1.05 1.71-.92 2.73 1.01.08 2.01-.48 2.63-1.23z" />
+              </svg>
+              <span className="pointer-events-none absolute -top-8 scale-0 rounded bg-sky-950 px-2 py-0.5 text-[10px] font-bold text-sky-300 shadow-md transition-all duration-150 group-hover/ios:scale-100 whitespace-nowrap border border-sky-400/40 z-50">
+                App Store قريباً
+              </span>
+            </div>
+          </div>
+
+          {/* Explanation badge below icons */}
+          <div className="mt-3 space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>المتوفر حالياً: ملف APK للأندرويد</span>
+            </div>
+            <p className="text-[11px] text-white/60 leading-relaxed">
+              تطبيقات الهاتف الرسمية (Android & iOS) ستتوفر قريباً على متجري Google Play و App Store.
+            </p>
           </div>
         </div>
       </div>

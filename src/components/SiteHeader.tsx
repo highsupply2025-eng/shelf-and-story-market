@@ -7,27 +7,21 @@ import {
   Building2,
   ShieldCheck,
   BookOpen,
-  Menu,
   ChevronDown,
   LayoutDashboard,
   Library,
   Home,
   User,
   Sparkles,
-  Package,
-  Heart,
-  Settings,
   ArrowUpRight,
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
@@ -43,10 +37,8 @@ export function SiteHeader() {
   const { count } = useCart();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [menuOpen, setMenuOpen] = useState(false);
 
   async function signOut() {
-    setMenuOpen(false);
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
@@ -124,58 +116,11 @@ export function SiteHeader() {
   const linkCls =
     "text-[14px] md:text-[15px] font-semibold text-foreground/80 hover:text-primary transition-colors px-3 py-2 rounded-xl hover:bg-primary/5 [&.active]:text-primary [&.active]:bg-primary/10 flex items-center gap-2";
   const iconBtn =
-    "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground transition-all hover:border-primary/50 hover:bg-primary/10 hover:text-primary shadow-xs";
-
-  // Dedicated navigation links per account role
-  const navLinks = (onClick?: () => void, cls = linkCls) => (
-    <>
-      <Link to="/" className={cls} activeOptions={{ exact: true }} onClick={onClick}>
-        <Home className="h-4 w-4 opacity-75" />
-        <span>{t("الرئيسية", "Home")}</span>
-      </Link>
-      <Link to="/books" className={cls} onClick={onClick}>
-        <Library className="h-4 w-4 opacity-75" />
-        <span>{t("المتجر", "Bookshop")}</span>
-      </Link>
-
-      {/* Role specific links when signed in */}
-      {session && accountType === "reader" && (
-        <Link to="/account" className={cls} onClick={onClick}>
-          <BookOpen className="h-4 w-4 text-emerald-600" />
-          <span>{t("مكتبتي وطلباتي", "My Library & Orders")}</span>
-        </Link>
-      )}
-      {session && accountType === "author" && (
-        <Link to="/author" className={cls} onClick={onClick}>
-          <PenLine className="h-4 w-4 text-amber-600" />
-          <span>{t("استوديو النشر", "Publishing Studio")}</span>
-        </Link>
-      )}
-      {session && accountType === "publisher" && (
-        <Link to="/publisher" className={cls} onClick={onClick}>
-          <Building2 className="h-4 w-4 text-blue-600" />
-          <span>{t("كتالوج الدار", "Publisher Catalog")}</span>
-        </Link>
-      )}
-      {session && accountType === "admin" && (
-        <Link to="/admin" className={cls} onClick={onClick}>
-          <ShieldCheck className="h-4 w-4 text-rose-600" />
-          <span>{t("لوحة الإدارة العليا", "Admin Panel")}</span>
-        </Link>
-      )}
-
-      {!session && (
-        <Link to="/auth" className={cls} onClick={onClick}>
-          <PenLine className="h-4 w-4 opacity-75" />
-          <span>{t("انشر معنا", "Publish with us")}</span>
-        </Link>
-      )}
-    </>
-  );
+    "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground transition-all hover:border-primary/50 hover:bg-primary/10 hover:text-primary shadow-xs cursor-pointer";
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-3 md:h-18 md:gap-6 md:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 md:h-18 md:gap-6 md:px-8">
         
         {/* Brand Logo with 5-click easter egg */}
         <Link to="/" onClick={handleLogoClick} className="flex min-w-0 items-center gap-2.5 group cursor-pointer select-none">
@@ -190,12 +135,25 @@ export function SiteHeader() {
         </Link>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden items-center gap-1 md:flex">{navLinks()}</nav>
+        <nav className="hidden items-center gap-1 md:flex">
+          <Link to="/" className={linkCls} activeOptions={{ exact: true }}>
+            <Home className="h-4 w-4 opacity-75" />
+            <span>{t("الرئيسية", "Home")}</span>
+          </Link>
+          <Link to="/books" className={linkCls}>
+            <Library className="h-4 w-4 opacity-75" />
+            <span>{t("المتجر", "Bookshop")}</span>
+          </Link>
+          <Link to="/author" className={linkCls}>
+            <PenLine className="h-4 w-4 opacity-75" />
+            <span>{t("انشر كتاب", "Publish")}</span>
+          </Link>
+        </nav>
 
-        {/* Action Controls & Active Account Header */}
-        <div className="flex items-center gap-2 md:gap-3">
+        {/* Top Header Controls: السلة + دخول (No hamburger menu / No redundant dropdowns) */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
           
-          {/* Cart Icon */}
+          {/* السلة (Cart Icon) */}
           <Link to="/cart" className={iconBtn} aria-label={t("السلة", "Cart")}>
             <ShoppingBag className="h-5 w-5" />
             {count > 0 && (
@@ -205,7 +163,7 @@ export function SiteHeader() {
             )}
           </Link>
 
-          {/* ACTIVE ACCOUNT HEADER: Visible on both mobile and desktop when user is logged in */}
+          {/* دخول (Login Button or Active Profile) */}
           {session ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -219,8 +177,7 @@ export function SiteHeader() {
                       <RoleIcon className="h-4 w-4" />
                     </span>
                     <span className="absolute -bottom-0.5 -start-0.5 flex h-2.5 w-2.5">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background"></span>
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 border border-background"></span>
                     </span>
                   </div>
 
@@ -277,48 +234,30 @@ export function SiteHeader() {
 
                 {/* Sub-links based on specific account type */}
                 {accountType === "reader" && (
-                  <>
-                    <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
-                      <Link to="/account">
-                        <BookOpen className="me-2 h-4 w-4 text-emerald-600" />
-                        <span>{t("مكتبتي الرقمية", "My Digital Library")}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
-                      <Link to="/cart">
-                        <ShoppingBag className="me-2 h-4 w-4 text-amber-600" />
-                        <span>{t("سلة المشتريات", "My Cart")}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
+                  <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
+                    <Link to="/account">
+                      <BookOpen className="me-2 h-4 w-4 text-emerald-600" />
+                      <span>{t("مكتبتي وطلباتي", "My Library & Orders")}</span>
+                    </Link>
+                  </DropdownMenuItem>
                 )}
 
                 {accountType === "author" && (
-                  <>
-                    <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
-                      <Link to="/author" search={{ view: "plans" }}>
-                        <Sparkles className="me-2 h-4 w-4 text-amber-600" />
-                        <span>{t("باقات النشر الستة", "Publishing Plans")}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
-                      <Link to="/author">
-                        <PenLine className="me-2 h-4 w-4 text-primary" />
-                        <span>{t("رفع وتدقيق المخطوطات", "Upload Manuscripts")}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
+                  <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
+                    <Link to="/author" search={{ view: "plans" }}>
+                      <Sparkles className="me-2 h-4 w-4 text-amber-600" />
+                      <span>{t("باقات النشر الستة", "Publishing Plans")}</span>
+                    </Link>
+                  </DropdownMenuItem>
                 )}
 
                 {accountType === "publisher" && (
-                  <>
-                    <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
-                      <Link to="/publisher">
-                        <Building2 className="me-2 h-4 w-4 text-blue-600" />
-                        <span>{t("إدارة كتب الدار والمبيعات", "Manage Catalog & Sales")}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
+                  <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
+                    <Link to="/publisher">
+                      <Building2 className="me-2 h-4 w-4 text-blue-600" />
+                      <span>{t("إدارة كتب الدار والمبيعات", "Manage Catalog & Sales")}</span>
+                    </Link>
+                  </DropdownMenuItem>
                 )}
 
                 <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
@@ -341,99 +280,11 @@ export function SiteHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            /* Sign in Button when guest */
-            <Button asChild className="rounded-full px-4 sm:px-6 font-bold shadow-xs text-xs sm:text-sm">
-              <Link to="/auth">{t("دخول / تسجيل", "Sign in")}</Link>
+            /* دخول (Sign In Button when guest) */
+            <Button asChild className="rounded-full px-4 sm:px-6 font-extrabold shadow-xs text-xs sm:text-sm">
+              <Link to="/auth">{t("دخول", "Sign In")}</Link>
             </Button>
           )}
-
-          {/* Mobile Navigation Drawer Trigger */}
-          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-            <SheetTrigger asChild>
-              <button className={`${iconBtn} md:hidden`} aria-label={t("القائمة", "Menu")}>
-                <Menu className="h-5 w-5" />
-              </button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[85vw] max-w-sm p-0 flex flex-col justify-between">
-              <div>
-                <SheetHeader className="border-b p-5 pe-12 text-start bg-muted/20">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-card border border-border/80 shadow-xs">
-                      <img src="/logo-icon.png" alt="unibook" className="h-6 w-auto object-contain" />
-                    </div>
-                    <SheetTitle className="font-display text-2xl font-extrabold text-foreground">
-                      unibook
-                    </SheetTitle>
-                  </div>
-                </SheetHeader>
-
-                <div className="flex flex-col gap-1 p-4">
-                  {/* If user is signed in: show prominent account profile card in mobile drawer */}
-                  {session && (
-                    <div className="mb-3 rounded-2xl border border-primary/20 bg-gradient-to-br from-card via-card/90 to-primary/5 p-3.5 shadow-xs">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-xs">
-                            <RoleIcon className="h-5 w-5" />
-                          </span>
-                          <span className="absolute -bottom-0.5 -start-0.5 flex h-2.5 w-2.5">
-                            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 border border-background"></span>
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <span className="block truncate font-extrabold text-sm">{name}</span>
-                          <span className="block truncate text-[11px] text-muted-foreground font-mono" dir="ltr">
-                            {session.user.email}
-                          </span>
-                          <div className="mt-1 flex items-center gap-1.5">
-                            <Badge variant="outline" className={`text-[9px] font-bold px-1.5 py-0 ${roleConfig.color}`}>
-                              {roleConfig.label}
-                            </Badge>
-                            <span className="text-[10px] text-emerald-600 font-semibold">مفعّل</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <Button asChild size="sm" className="w-full mt-3 rounded-xl font-bold gap-1.5">
-                        <Link to={roleConfig.to} onClick={() => setMenuOpen(false)}>
-                          <LayoutDashboard className="h-4 w-4" />
-                          <span>{roleConfig.dash}</span>
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Navigation Links */}
-                  <div className="space-y-0.5">
-                    {navLinks(
-                      () => setMenuOpen(false),
-                      "flex items-center gap-3 rounded-xl px-3.5 py-2.5 font-bold text-sm hover:bg-muted text-foreground/80 [&.active]:bg-primary/10 [&.active]:text-primary transition-colors"
-                    )}
-                  </div>
-                </div>
-              </div>
-
-                {/* Footer of the Drawer */}
-                <div className="p-4 border-t border-border/60 bg-muted/10">
-                  {session ? (
-                    <Button
-                      variant="outline"
-                      className="w-full gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 rounded-xl font-bold"
-                      onClick={signOut}
-                    >
-                      <LogOut className="h-4 w-4" />
-                      {t("تسجيل الخروج", "Sign out")}
-                    </Button>
-                  ) : (
-                    <Button asChild className="w-full rounded-xl font-bold shadow-xs">
-                      <Link to="/auth" onClick={() => setMenuOpen(false)}>
-                        {t("دخول / إنشاء حساب", "Sign in / Register")}
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
 
@@ -515,7 +366,7 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link to="/publisher" className="hover:text-gold transition-colors">
+              <Link to="/author" className="hover:text-gold transition-colors">
                 {t("انشر معنا", "Publish with us")}
               </Link>
             </li>

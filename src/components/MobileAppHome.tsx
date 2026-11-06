@@ -62,9 +62,9 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-12 select-none">
+    <div className="min-h-screen bg-background pb-20 select-none max-w-4xl mx-auto">
       {/* 1. App Top Search Bar & Category Chips */}
-      <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-md px-4 pt-3 pb-2 border-b border-border/50">
+      <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-md px-4 sm:px-6 pt-3 pb-2 border-b border-border/50">
         <form onSubmit={handleSearchSubmit} className="relative">
           <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
@@ -77,7 +77,7 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
         </form>
 
         {/* Scrollable category pills */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar py-2.5 -mx-4 px-4 mt-1">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar py-2.5 -mx-4 sm:-mx-6 px-4 sm:px-6 mt-1">
           {CATEGORY_TAGS.map((tag) => (
             <button
               key={tag.id}
@@ -86,7 +86,7 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
                 if (tag.id === "all") navigate({ to: "/books" });
                 else navigate({ to: "/books", search: { category: tag.id } as any });
               }}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                 selectedTag === tag.id
                   ? "bg-primary text-primary-foreground shadow-xs scale-105"
                   : "bg-card border border-border/70 text-muted-foreground hover:text-foreground"
@@ -99,18 +99,18 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
         </div>
       </div>
 
-      <div className="space-y-6 pt-3">
+      <div className="space-y-6 pt-3 px-0 sm:px-2">
         {/* 2. Spotlight Hero Card */}
         {spotlightBook && (
           <div className="px-4">
             <Link
               to="/books/$id"
               params={{ id: spotlightBook.id }}
-              className="block group relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-card to-amber-500/10 border border-primary/25 p-4 shadow-sm active:scale-[0.99] transition-transform"
+              className="block group relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-card to-amber-500/10 border border-primary/25 p-4 sm:p-6 shadow-sm active:scale-[0.99] transition-transform"
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 sm:gap-6">
                 {/* 3D Book Cover */}
-                <div className="w-24 shrink-0 transition-transform duration-300 group-hover:scale-105">
+                <div className="w-24 sm:w-32 shrink-0 transition-transform duration-300 group-hover:scale-105">
                   <BookCover
                     book={spotlightBook}
                     className="aspect-[2/3] rounded-xl shadow-[0_8px_20px_rgba(0,0,0,0.18)] object-cover"
@@ -124,24 +124,24 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
                     <span>{t("كتاب الأسبوع المميز", "Book of the Week")}</span>
                   </div>
 
-                  <h3 className="font-display text-lg font-extrabold text-foreground leading-snug line-clamp-2">
+                  <h3 className="font-display text-base sm:text-xl font-extrabold text-foreground leading-snug line-clamp-2">
                     {spotlightBook.title}
                   </h3>
 
-                  <p className="text-xs text-muted-foreground font-medium mt-1 truncate">
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-1 truncate">
                     {spotlightBook.author}
                   </p>
 
                   <div className="mt-3 flex items-center justify-between">
                     <div>
                       {getLowestPrice(spotlightBook) != null && (
-                        <span className="font-extrabold text-sm text-foreground">
+                        <span className="font-extrabold text-sm sm:text-base text-foreground">
                           {money(getLowestPrice(spotlightBook)!)}
                         </span>
                       )}
                     </div>
 
-                    <span className="inline-flex items-center gap-1 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-xs group-hover:bg-primary/90 transition-colors">
+                    <span className="inline-flex items-center gap-1 rounded-xl bg-primary px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-bold text-primary-foreground shadow-xs group-hover:bg-primary/90 transition-colors">
                       {t("استكشف", "Explore")}
                       <ChevronLeft className="h-3.5 w-3.5" />
                     </span>
@@ -169,7 +169,7 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
             </Link>
           </div>
 
-          <div className="flex gap-3.5 overflow-x-auto no-scrollbar px-4 pb-2 snap-x">
+          <div className="flex gap-3.5 sm:gap-4.5 overflow-x-auto no-scrollbar px-4 pb-2 snap-x">
             {(featuredBooks.length > 0 ? featuredBooks : books.slice(0, 6)).map((book) => {
               const lowest = getLowestPrice(book);
               return (
@@ -177,7 +177,7 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
                   key={book.id}
                   to="/books/$id"
                   params={{ id: book.id }}
-                  className="snap-start shrink-0 w-32 group flex flex-col active:scale-95 transition-transform"
+                  className="snap-start shrink-0 w-32 sm:w-36 md:w-40 group flex flex-col active:scale-95 transition-transform"
                 >
                   <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-border/50 bg-muted">
                     <BookCover book={book} className="h-full w-full object-cover" />
@@ -185,12 +185,12 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
                       {formatLabel[book.format] || book.format}
                     </span>
                   </div>
-                  <h4 className="mt-2 text-xs font-extrabold text-foreground line-clamp-1 group-hover:text-primary">
+                  <h4 className="mt-2 text-xs sm:text-sm font-extrabold text-foreground line-clamp-1 group-hover:text-primary">
                     {book.title}
                   </h4>
                   <p className="text-[11px] text-muted-foreground truncate">{book.author}</p>
                   {lowest != null && (
-                    <p className="text-xs font-bold text-primary mt-0.5">{money(lowest)}</p>
+                    <p className="text-xs sm:text-sm font-bold text-primary mt-0.5">{money(lowest)}</p>
                   )}
                 </Link>
               );
@@ -215,7 +215,7 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
             </Link>
           </div>
 
-          <div className="flex gap-3.5 overflow-x-auto no-scrollbar px-4 pb-2 snap-x">
+          <div className="flex gap-3.5 sm:gap-4.5 overflow-x-auto no-scrollbar px-4 pb-2 snap-x">
             {latestBooks.map((book) => {
               const lowest = getLowestPrice(book);
               return (
@@ -223,17 +223,17 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
                   key={book.id}
                   to="/books/$id"
                   params={{ id: book.id }}
-                  className="snap-start shrink-0 w-32 group flex flex-col active:scale-95 transition-transform"
+                  className="snap-start shrink-0 w-32 sm:w-36 md:w-40 group flex flex-col active:scale-95 transition-transform"
                 >
                   <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-border/50 bg-muted">
                     <BookCover book={book} className="h-full w-full object-cover" />
                   </div>
-                  <h4 className="mt-2 text-xs font-extrabold text-foreground line-clamp-1 group-hover:text-primary">
+                  <h4 className="mt-2 text-xs sm:text-sm font-extrabold text-foreground line-clamp-1 group-hover:text-primary">
                     {book.title}
                   </h4>
                   <p className="text-[11px] text-muted-foreground truncate">{book.author}</p>
                   {lowest != null && (
-                    <p className="text-xs font-bold text-primary mt-0.5">{money(lowest)}</p>
+                    <p className="text-xs sm:text-sm font-bold text-primary mt-0.5">{money(lowest)}</p>
                   )}
                 </Link>
               );
@@ -259,7 +259,7 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
               </Link>
             </div>
 
-            <div className="flex gap-3.5 overflow-x-auto no-scrollbar px-4 pb-2 snap-x">
+            <div className="flex gap-3.5 sm:gap-4.5 overflow-x-auto no-scrollbar px-4 pb-2 snap-x">
               {digitalBooks.map((book) => {
                 const lowest = getLowestPrice(book);
                 return (
@@ -267,7 +267,7 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
                     key={book.id}
                     to="/books/$id"
                     params={{ id: book.id }}
-                    className="snap-start shrink-0 w-32 group flex flex-col active:scale-95 transition-transform"
+                    className="snap-start shrink-0 w-32 sm:w-36 md:w-40 group flex flex-col active:scale-95 transition-transform"
                   >
                     <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden shadow-[0_6px_16px_rgba(0,0,0,0.12)] border border-border/50 bg-muted">
                       <BookCover book={book} className="h-full w-full object-cover" />
@@ -275,12 +275,12 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
                         {t("قراءة فورية", "Digital")}
                       </span>
                     </div>
-                    <h4 className="mt-2 text-xs font-extrabold text-foreground line-clamp-1 group-hover:text-primary">
+                    <h4 className="mt-2 text-xs sm:text-sm font-extrabold text-foreground line-clamp-1 group-hover:text-primary">
                       {book.title}
                     </h4>
                     <p className="text-[11px] text-muted-foreground truncate">{book.author}</p>
                     {lowest != null && (
-                      <p className="text-xs font-bold text-emerald-600 mt-0.5">{money(lowest)}</p>
+                      <p className="text-xs sm:text-sm font-bold text-emerald-600 mt-0.5">{money(lowest)}</p>
                     )}
                   </Link>
                 );

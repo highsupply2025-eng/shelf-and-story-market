@@ -71,7 +71,7 @@ function ContactPage() {
   const BackIcon = language === "ar" ? ArrowRight : ArrowLeft;
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-background via-muted/20 to-background px-4 py-8 md:py-16 select-none" dir="rtl">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-background via-muted/20 to-background px-4 pt-6 pb-28 sm:pb-32 md:pt-10 md:pb-36 select-none" dir="rtl">
       {/* Ambient background glows */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute top-1/4 -start-40 h-96 w-96 rounded-full bg-emerald-500/10 blur-[120px]" />

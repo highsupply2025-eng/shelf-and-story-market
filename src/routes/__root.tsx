@@ -165,7 +165,7 @@ function RootComponent() {
         <CartProvider>
           <div className="flex min-h-screen flex-col">
             <SiteHeader />
-            <main className="flex-1 pb-20 md:pb-0">
+            <main className={`flex-1 ${isAppExperience ? "pb-24 sm:pb-28" : "pb-20 md:pb-0"} pb-safe`}>
               <Outlet />
             </main>
             {!hideFooter && <SiteFooter />}

@@ -1,15 +1,14 @@
-import {useLocale} from "@/lib/locale";
-import {useAuth} from "@/lib/auth";
-import {Heart} from "lucide-react";
+import { useLocale } from "@/lib/locale";
+import { useAuth } from "@/lib/auth";
+import { Heart, BookOpen, Package, FileText, ArrowRight, ArrowLeft, ShieldCheck, Truck, Sparkles } from "lucide-react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { BookOpen, Package, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { BookCover, formatLabel, type Book } from "@/components/BookCard";
-import { useCart, formatPrice } from "@/lib/cart";
+import { useCart } from "@/lib/cart";
 
 export const Route = createFileRoute("/books/$id")({
   head: () => ({
@@ -17,7 +16,7 @@ export const Route = createFileRoute("/books/$id")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { title: "تفاصيل الكتاب — unibook" },
-      { name: "description", content: "تفاصيل الكتاب وأسعار النسخ الرقمية والورقية على unibook." },
+      { name: "description", content: "تفاصيل الكتاب وأسعار النسخ الرقمية والورقية على منصة unibook العالمية." },
       { property: "og:title", content: "تفاصيل الكتاب — unibook" },
       { property: "og:description", content: "تفاصيل الكتاب وأسعار النسخ الرقمية والورقية." },
     ],
@@ -28,7 +27,11 @@ export const Route = createFileRoute("/books/$id")({
 function BookPage() {
   const { id } = Route.useParams();
   const cart = useCart();
-  const {t,price:money}=useLocale();const {session}=useAuth();
+  const { t, price: money, language } = useLocale();
+  const { session } = useAuth();
+
+  const BackIcon = language === "ar" ? ArrowRight : ArrowLeft;
+
   const { data: book, isLoading } = useQuery({
     queryKey: ["book", id],
     queryFn: async () => {
@@ -41,74 +44,197 @@ function BookPage() {
       return data as (Book & { publishers: { store_name: string } | null }) | null;
     },
   });
+
   const [fmt, setFmt] = useState<"digital" | "physical" | null>(null);
 
-  if (isLoading) return <div className="py-32 text-center text-muted-foreground">{t("جارٍ التحميل…","Loading…")}</div>;
-  if (!book)
+  if (isLoading) {
     return (
-      <div className="py-32 text-center">
-        <p>{t("الكتاب غير موجود.","Book not found.")}</p>
-        <Link to="/books" className="text-primary">{t("العودة للمتجر","Back to bookshop")}</Link>
+      <div className="min-h-[50vh] flex items-center justify-center text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     );
+  }
+
+  if (!book) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center py-20 px-4 text-center select-none" dir="rtl">
+        <div className="h-16 w-16 rounded-3xl bg-muted flex items-center justify-center mb-4">
+          <BookOpen className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h2 className="font-display text-2xl font-bold text-foreground">{t("الكتاب غير موجود", "Book not found")}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("قد يكون تم نقله أو حذفه من المتجر.", "It may have been removed.")}</p>
+        <Button asChild className="mt-6 rounded-2xl">
+          <Link to="/books">{t("العودة لمتجر الكتب", "Back to bookshop")}</Link>
+        </Button>
+      </div>
+    );
+  }
 
   const options = [
     book.format !== "physical" && book.price_digital != null && {
-      key: "digital" as const, label: t("نسخة رقمية","Digital edition"), icon: FileText, price: Number(book.price_digital), note: t("ملف رقمي","Digital file"),
+      key: "digital" as const,
+      label: t("نسخة رقمية فورية", "Digital edition"),
+      icon: FileText,
+      price: Number(book.price_digital),
+      note: t("ملف رقمي عالي الدقة يتاح فوراً", "Instant digital file"),
     },
     book.format !== "digital" && book.price_physical != null && {
-      key: "physical" as const, label: t("نسخة ورقية","Print edition"), icon: Package, price: Number(book.price_physical),
-      note: book.stock > 0 ? `${t("متوفر:","Available:")} ${book.stock}` : t("نفدت الكمية","Out of stock"),
+      key: "physical" as const,
+      label: t("نسخة مطبوعة ورقية", "Print edition"),
+      icon: Package,
+      price: Number(book.price_physical),
+      note: book.stock > 0 ? `${t("متوفر بالمستودع:", "In stock:")} ${book.stock}` : t("نفدت الكمية مؤقتاً", "Out of stock"),
     },
   ].filter(Boolean) as { key: "digital" | "physical"; label: string; icon: typeof FileText; price: number; note: string }[];
+
   const selected = fmt ?? options[0]?.key;
   const opt = options.find((o) => o.key === selected);
   const outOfStock = selected === "physical" && book.stock <= 0;
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-12 px-4 py-14 md:grid-cols-[360px_1fr]">
-      <div className="animate-rise">
-        <div className="book-hover"><BookCover book={book} /></div>
-      </div>
-      <div className="animate-rise" style={{ animationDelay: "120ms" }}>
-        <span className="text-sm text-primary">{book.category} · {formatLabel[book.format]}</span>
-        <h1 className="mt-2 text-5xl font-bold">{book.title}</h1>
-        <p className="mt-2 text-lg text-muted-foreground">{t("تأليف","By")} {book.author}</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("الناشر:","Publisher:")} {book.publishers?.store_name ?? "unibook"}
-          {book.pages ? ` · ${book.pages} ${t("صفحة","pages")}` : ""}
-        </p>
-        <p className="mt-8 leading-loose">{book.description}</p>
-
-        <div className="mt-10 grid gap-3 sm:grid-cols-2">
-          {options.map((o) => (
-            <button
-              key={o.key}
-              onClick={() => setFmt(o.key)}
-              className={`rounded-xl border-2 p-5 text-start transition-all ${
-                selected === o.key ? "border-primary bg-accent/40" : "border-border bg-card hover:border-primary/50"
-              }`}
-            >
-              <o.icon className="h-5 w-5 text-primary" />
-              <div className="mt-2 font-semibold">{o.label}</div>
-              <div className="text-2xl font-bold">{money(o.price)}</div>
-              <div className="text-xs text-muted-foreground">{o.note}</div>
-            </button>
-          ))}
-        </div>
-        <Button
-          size="lg"
-          className="mt-6 w-full rounded-full sm:w-auto sm:px-12"
-          disabled={!opt || outOfStock}
-          onClick={() => {
-            if (!opt) return;
-            cart.add({ book_id: book.id, format: opt.key, title: book.title, cover_url: book.cover_url, price: opt.price });
-            toast.success("أُضيف الكتاب إلى السلة");
-          }}
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 md:py-14 pb-24 sm:pb-32 select-none" dir="rtl">
+      {/* Return button */}
+      <div className="mb-6">
+        <Link
+          to="/books"
+          className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-muted-foreground hover:text-foreground transition-colors group"
         >
-          <BookOpen className="me-2 h-4 w-4" /> {t("أضف إلى السلة","Add to cart")}
-        </Button>
-        <Button variant="outline" className="mt-4 ms-3" onClick={async()=>{if(!session){toast.info(t("سجّل الدخول لحفظ المفضلة","Sign in to save favorites"));return;}const {error}=await supabase.from("reader_favorites").upsert({user_id:session.user.id,book_id:book.id},{onConflict:"user_id,book_id",ignoreDuplicates:true});if(error)toast.error(t("تعذر الحفظ","Could not save"));else toast.success(t("أُضيف إلى المفضلة","Saved to favorites"));}}><Heart className="me-2 h-4 w-4"/>{t("المفضلة","Favorite")}</Button>
+          <BackIcon className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+          <span>{t("العودة لمتجر الكتب", "Back to bookshop")}</span>
+        </Link>
+      </div>
+
+      <div className="grid gap-8 sm:gap-10 md:gap-12 md:grid-cols-[300px_1fr] lg:grid-cols-[360px_1fr] items-start">
+        {/* Book Cover (Responsive on mobile & tablet) */}
+        <div className="animate-rise max-w-[240px] sm:max-w-[280px] md:max-w-none mx-auto md:mx-0 w-full">
+          <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-border/80 bg-card p-3 sm:p-4">
+            <BookCover book={book} className="w-full aspect-[2/3] object-cover rounded-2xl shadow-book" />
+          </div>
+
+          {/* Quick Perks under cover on tablet/desktop */}
+          <div className="mt-4 hidden md:flex flex-col gap-2 p-3.5 rounded-2xl bg-muted/40 border border-border/60 text-xs">
+            <div className="flex items-center gap-2 text-foreground font-semibold">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+              <span>{t("حقوق ملكية وطباعة أصلية معتمدة", "Verified Authentic Copyright")}</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
+              <Truck className="h-4 w-4 text-blue-600" />
+              <span>{t("شحن وتوصيل لكافة مدن العالم العربي", "Global distribution & shipping")}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Book Information & Purchase Controls */}
+        <div className="animate-rise flex-1 min-w-0" style={{ animationDelay: "100ms" }}>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-xs font-bold px-3 py-1 rounded-full bg-primary/10 text-primary">
+              {book.category}
+            </span>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+              {formatLabel[book.format] || book.format}
+            </span>
+          </div>
+
+          <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-extrabold text-foreground leading-tight">
+            {book.title}
+          </h1>
+
+          <p className="mt-2 text-sm sm:text-lg text-muted-foreground font-medium">
+            {t("تأليف:", "By:")} <span className="text-foreground font-bold">{book.author}</span>
+          </p>
+
+          <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+            {t("الناشر:", "Publisher:")}{" "}
+            <span className="text-foreground font-semibold">
+              {book.publishers?.store_name ?? "دار عبيد للنشر والتوزيع"}
+            </span>
+            {book.pages ? ` · ${book.pages} ${t("صفحة", "pages")}` : ""}
+          </p>
+
+          <div className="mt-6 pt-4 border-t border-border/60">
+            <h3 className="font-bold text-xs sm:text-sm text-muted-foreground mb-2">
+              {t("نبذة عن الكتاب والمحتوى:", "Book Overview:")}
+            </h3>
+            <p className="text-xs sm:text-sm leading-relaxed text-foreground/90 whitespace-pre-line">
+              {book.description || t("لا يتوفر وصف مفصل لهذا الكتاب حالياً.", "No description available.")}
+            </p>
+          </div>
+
+          {/* Formats Selection */}
+          <div className="mt-8">
+            <h3 className="font-bold text-xs sm:text-sm text-foreground mb-3">
+              {t("اختر صيغة الكتاب المطلوبة:", "Select Format:")}
+            </h3>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {options.map((o) => (
+                <button
+                  key={o.key}
+                  type="button"
+                  onClick={() => setFmt(o.key)}
+                  className={`rounded-2xl border-2 p-4 text-start transition-all cursor-pointer active:scale-[0.99] ${
+                    selected === o.key
+                      ? "border-primary bg-primary/5 shadow-sm"
+                      : "border-border/80 bg-card hover:border-primary/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary">
+                      <o.icon className="h-4.5 w-4.5" />
+                    </span>
+                    <span className="text-xl font-extrabold text-primary font-mono">{money(o.price)}</span>
+                  </div>
+                  <div className="font-bold text-sm text-foreground">{o.label}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">{o.note}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <Button
+              size="lg"
+              className="h-12 rounded-2xl font-extrabold text-sm shadow-md hover:shadow-lg transition-transform active:scale-[0.99] flex-1 sm:flex-initial sm:px-10 gap-2 cursor-pointer"
+              disabled={!opt || outOfStock}
+              onClick={() => {
+                if (!opt) return;
+                cart.add({
+                  book_id: book.id,
+                  format: opt.key,
+                  title: book.title,
+                  cover_url: book.cover_url,
+                  price: opt.price,
+                });
+                toast.success(t("أُضيف الكتاب إلى سلة مشترياتك بنجاح", "Added to cart successfully"));
+              }}
+            >
+              <BookOpen className="h-4.5 w-4.5" />
+              <span>{outOfStock ? t("نفدت الكمية", "Out of stock") : t("أضف إلى السلة", "Add to Cart")}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-12 rounded-2xl font-bold text-sm border-border/80 hover:bg-muted/50 gap-2 cursor-pointer"
+              onClick={async () => {
+                if (!session) {
+                  toast.info(t("سجّل الدخول لحفظ الكتاب في قائمتك المفضلة", "Sign in to save favorites"));
+                  return;
+                }
+                const { error } = await supabase.from("reader_favorites").upsert(
+                  { user_id: session.user.id, book_id: book.id },
+                  { onConflict: "user_id,book_id", ignoreDuplicates: true }
+                );
+                if (error) toast.error(t("تعذر الحفظ في المفضلة", "Could not save"));
+                else toast.success(t("أُضيف الكتاب إلى قائمة مفضلتك", "Saved to favorites"));
+              }}
+            >
+              <Heart className="h-4.5 w-4.5 text-rose-500 fill-rose-500/20" />
+              <span>{t("المفضلة", "Favorites")}</span>
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

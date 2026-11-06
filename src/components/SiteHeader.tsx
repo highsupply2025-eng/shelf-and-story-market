@@ -31,11 +31,13 @@ import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/locale";
 import { AdminAuthModal } from "@/components/AdminAuthModal";
 import { Badge } from "@/components/ui/badge";
+import { useAppMode } from "@/lib/useAppMode";
 
 export function SiteHeader() {
   const { t } = useLocale();
   const { session, isAdmin, accountType } = useAuth();
   const { count } = useCart();
+  const { isAppExperience } = useAppMode();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -135,30 +137,32 @@ export function SiteHeader() {
           </div>
         </Link>
 
-        {/* Desktop Navigation Links */}
-        <nav className="hidden items-center gap-1 md:flex">
-          <Link to="/" className={linkCls} activeOptions={{ exact: true }}>
-            <Home className="h-4 w-4 opacity-75" />
-            <span>{t("الرئيسية", "Home")}</span>
-          </Link>
-          <Link to="/books" className={linkCls}>
-            <Library className="h-4 w-4 opacity-75" />
-            <span>{t("المتجر", "Bookshop")}</span>
-          </Link>
-          <a
-            href="https://wa.me/966563057356?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20unibook%D8%8C%20%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D9%86%D8%B4%D8%B1%20%D9%83%D8%AA%D8%A7%D8%A8%D9%8A%20%D9%85%D8%B9%D9%83%D9%85."
-            target="_blank"
-            rel="noopener noreferrer"
-            className={linkCls}
-          >
-            <PenLine className="h-4 w-4 opacity-75" />
-            <span>{t("انشر كتاب", "Publish")}</span>
-          </a>
-          <Link to="/contact" className={linkCls}>
-            <MessageSquare className="h-4 w-4 opacity-75" />
-            <span>{t("تواصل معنا", "Contact")}</span>
-          </Link>
-        </nav>
+        {/* Desktop Navigation Links (Only in desktop web mode) */}
+        {!isAppExperience && (
+          <nav className="hidden items-center gap-1 md:flex">
+            <Link to="/" className={linkCls} activeOptions={{ exact: true }}>
+              <Home className="h-4 w-4 opacity-75" />
+              <span>{t("الرئيسية", "Home")}</span>
+            </Link>
+            <Link to="/books" className={linkCls}>
+              <Library className="h-4 w-4 opacity-75" />
+              <span>{t("المتجر", "Bookshop")}</span>
+            </Link>
+            <a
+              href="https://wa.me/966563057356?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20unibook%D8%8C%20%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D9%86%D8%B4%D8%B1%20%D9%83%D8%AA%D8%A7%D8%A8%D9%8A%20%D9%85%D8%B9%D9%83%D9%85."
+              target="_blank"
+              rel="noopener noreferrer"
+              className={linkCls}
+            >
+              <PenLine className="h-4 w-4 opacity-75" />
+              <span>{t("انشر كتاب", "Publish")}</span>
+            </a>
+            <Link to="/contact" className={linkCls}>
+              <MessageSquare className="h-4 w-4 opacity-75" />
+              <span>{t("تواصل معنا", "Contact")}</span>
+            </Link>
+          </nav>
+        )}
 
         {/* Top Header Controls: السلة + دخول (No hamburger menu / No redundant dropdowns) */}
         <div className="flex items-center gap-2.5 sm:gap-3">
@@ -292,13 +296,15 @@ export function SiteHeader() {
           ) : (
             /* دخول + إنشاء حساب (في الموقع فقط بجوار دخول) */
             <div className="flex items-center gap-2">
-              <Button
-                asChild
-                variant="outline"
-                className="hidden md:inline-flex rounded-full px-4 sm:px-5 font-bold shadow-xs text-xs sm:text-sm border-primary/30 hover:border-primary hover:bg-primary/5 transition-all"
-              >
-                <Link to="/register">{t("إنشاء حساب", "Sign Up")}</Link>
-              </Button>
+              {!isAppExperience && (
+                <Button
+                  asChild
+                  variant="outline"
+                  className="hidden md:inline-flex rounded-full px-4 sm:px-5 font-bold shadow-xs text-xs sm:text-sm border-primary/30 hover:border-primary hover:bg-primary/5 transition-all"
+                >
+                  <Link to="/register">{t("إنشاء حساب", "Sign Up")}</Link>
+                </Button>
+              )}
               <Button asChild className="rounded-full px-4 sm:px-6 font-extrabold shadow-xs text-xs sm:text-sm">
                 <Link to="/login">{t("دخول", "Sign In")}</Link>
               </Button>

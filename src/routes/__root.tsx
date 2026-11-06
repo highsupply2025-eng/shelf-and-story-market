@@ -146,7 +146,8 @@ function RootComponent() {
     pathname.startsWith("/cart") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/login") ||
-    pathname.startsWith("/register");
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/contact");
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {

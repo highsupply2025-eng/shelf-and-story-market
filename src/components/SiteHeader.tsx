@@ -14,6 +14,7 @@ import {
   User,
   Sparkles,
   ArrowUpRight,
+  MessageSquare,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -144,9 +145,18 @@ export function SiteHeader() {
             <Library className="h-4 w-4 opacity-75" />
             <span>{t("المتجر", "Bookshop")}</span>
           </Link>
-          <Link to="/author" className={linkCls}>
+          <a
+            href="https://wa.me/966563057356?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20unibook%D8%8C%20%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D9%86%D8%B4%D8%B1%20%D9%83%D8%AA%D8%A7%D8%A8%D9%8A%20%D9%85%D8%B9%D9%83%D9%85."
+            target="_blank"
+            rel="noopener noreferrer"
+            className={linkCls}
+          >
             <PenLine className="h-4 w-4 opacity-75" />
             <span>{t("انشر كتاب", "Publish")}</span>
+          </a>
+          <Link to="/contact" className={linkCls}>
+            <MessageSquare className="h-4 w-4 opacity-75" />
+            <span>{t("تواصل معنا", "Contact")}</span>
           </Link>
         </nav>
 

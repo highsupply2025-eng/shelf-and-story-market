@@ -340,9 +340,13 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
             </div>
 
             <Button asChild size="sm" className="mt-3.5 w-full rounded-xl font-bold shadow-xs">
-              <Link to="/author">
-                {t("ابدأ النشر الآن", "Start Publishing")}
-              </Link>
+              <a
+                href="https://wa.me/966563057356?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20unibook%D8%8C%20%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D9%86%D8%B4%D8%B1%20%D9%83%D8%AA%D8%A7%D8%A8%D9%8A%20%D9%85%D8%B9%D9%83%D9%85."
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("تواصل معنا لنشر كتابك عبر واتساب", "Publish via WhatsApp")}
+              </a>
             </Button>
           </div>
         </section>

@@ -1,4 +1,4 @@
-﻿import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useLocale } from "@/lib/locale";
@@ -105,7 +105,7 @@ export const PUBLISHING_PLANS: PublishingPlan[] = [
     id: "plan-3",
     title: "باقة الـ 3 كتب",
     tagline: "باقة الكاتب الصاعد",
-    badge: "للكتّاب المستقلين",
+    badge: "للكتّاب والمؤلفين",
     badgeStyle: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
     booksCount: 3,
     booksLabel: "3 كتب للنشر",

@@ -135,7 +135,7 @@ function RegisterPage() {
   const roleConfigs = {
     reader: {
       title: t("قارئ", "Reader"),
-      badge: t("حساب قارئ مستقل", "Reader Account"),
+      badge: t("حساب قارئ", "Reader Account"),
       desc: t("شراء وقراءة الكتب الرقمية والمطبوعة، ومتابعة الطلبات ومكتبتك الخاصة.", "Buy & read books."),
       icon: BookOpen,
       perks: [

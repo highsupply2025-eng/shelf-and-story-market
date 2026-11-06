@@ -242,15 +242,15 @@ function LoginPage() {
               <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-bold pt-1">
                 <div className="rounded-xl border border-emerald-500/30 bg-card p-2 text-emerald-700 dark:text-emerald-400 shadow-xs">
                   <BookOpen className="h-4 w-4 mx-auto mb-1 text-emerald-600" />
-                  <span>قارئ مستقل</span>
+                  <span>قارئ</span>
                 </div>
                 <div className="rounded-xl border border-amber-500/30 bg-card p-2 text-amber-700 dark:text-amber-400 shadow-xs">
                   <PenLine className="h-4 w-4 mx-auto mb-1 text-amber-600" />
-                  <span>مؤلف مستقل</span>
+                  <span>مؤلف</span>
                 </div>
                 <div className="rounded-xl border border-blue-500/30 bg-card p-2 text-blue-700 dark:text-blue-400 shadow-xs">
                   <Building2 className="h-4 w-4 mx-auto mb-1 text-blue-600" />
-                  <span>دار نشر مستقلة</span>
+                  <span>دار نشر</span>
                 </div>
               </div>
             </div>

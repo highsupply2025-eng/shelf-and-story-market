@@ -82,7 +82,7 @@ export function SiteHeader() {
     },
     publisher: {
       label: t("دار نشر", "Publisher"),
-      fullBadge: t("حساب دار نشر مستقلة", "Independent Publisher"),
+      fullBadge: t("حساب دار نشر", "Publisher"),
       dash: t("لوحة دار النشر", "Publisher dashboard"),
       icon: Building2,
       to: "/publisher" as const,
@@ -91,7 +91,7 @@ export function SiteHeader() {
     },
     author: {
       label: t("مؤلف", "Author"),
-      fullBadge: t("حساب مؤلف مستقل", "Independent Author"),
+      fullBadge: t("حساب مؤلف", "Author"),
       dash: t("استوديو المؤلف", "Author studio"),
       icon: PenLine,
       to: "/author" as const,
@@ -100,7 +100,7 @@ export function SiteHeader() {
     },
     reader: {
       label: t("قارئ", "Reader"),
-      fullBadge: t("حساب قارئ مستقل", "Independent Reader"),
+      fullBadge: t("حساب قارئ", "Reader"),
       dash: t("لوحة القارئ", "Reader dashboard"),
       icon: BookOpen,
       to: "/account" as const,

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["android/**", "ios/**", "capacitor.config.ts", "mobile/**", "scripts/prepare-mobile.ts", ".github/workflows/build-mobile.yml"]
+    paths: ["src/**", "android/**", "ios/**", "capacitor.config.ts", "mobile/**", "scripts/prepare-mobile.ts", ".github/workflows/build-mobile.yml"]
 
 permissions:
   contents: write

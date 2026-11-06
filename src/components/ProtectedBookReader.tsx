@@ -44,6 +44,8 @@ export function ProtectedBookReader({ book, open, onClose }: ProtectedBookReader
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isWindowBlurred, setIsWindowBlurred] = useState(false);
   const [screenshotAttempted, setScreenshotAttempted] = useState(false);
+  const isForeignDefault = /^[a-zA-Z]/.test((book.title || "").trim());
+  const [readingDirection, setReadingDirection] = useState<"rtl" | "ltr">(isForeignDefault ? "ltr" : "rtl");
   const readerContainerRef = useRef<HTMLDivElement>(null);
 
   const readerEmail = session?.user?.email || "قارئ unibook المعتمد";
@@ -157,7 +159,7 @@ export function ProtectedBookReader({ book, open, onClose }: ProtectedBookReader
     <div
       ref={readerContainerRef}
       className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-xl select-none print:hidden"
-      dir="rtl"
+      dir={readingDirection}
       onContextMenu={(e) => {
         e.preventDefault();
         toast.warning("القائمة المنسدلة والنسخ محظورة لحماية حقوق النشر.");
@@ -207,6 +209,16 @@ export function ProtectedBookReader({ book, open, onClose }: ProtectedBookReader
               <ZoomIn className="h-4 w-4" />
             </button>
           </div>
+
+          {/* LTR / RTL Direction Switcher for Foreign/Arabic Books */}
+          <button
+            type="button"
+            onClick={() => setReadingDirection((d) => (d === "rtl" ? "ltr" : "rtl"))}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border/70 text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            title="تبديل اتجاه القراءة (عربي RTL / أجنبي LTR)"
+          >
+            <span>{readingDirection === "rtl" ? "عربي (RTL)" : "English (LTR)"}</span>
+          </button>
 
           {/* Theme Switcher */}
           <div className="flex items-center rounded-lg border border-border/70 p-0.5 bg-muted/40">
@@ -307,7 +319,8 @@ export function ProtectedBookReader({ book, open, onClose }: ProtectedBookReader
           </div>
 
           {/* Book Page Header */}
-          <div className="flex items-center justify-between border-b border-black/5 px-6 py-3 text-[11px] opacity-60">
+          <div className={`flex items-center justify-between border-b border-black/5 px-6 py-3 text-[11px] opacity-60 ${readingDirection === "ltr" ? "flex-row-reverse" : ""}`}>
+            <span>{readingDirection === "ltr" ? `Chapter ${Math.ceil(currentPage / 15)}: Fundamentals & Principles` : `الفصل ${Math.ceil(currentPage / 15)}: مبادئ ورؤى`}</span>
             <span className="truncate max-w-[200px]">{book.title}</span>
             <span>الفصل {Math.ceil(currentPage / 15)}: مبادئ ورؤى</span>
           </div>

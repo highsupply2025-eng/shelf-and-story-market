@@ -38,16 +38,21 @@ const BANNERS_KEY = "unibook_admin_banners";
 const MARQUEE_KEY = "unibook_admin_marquee";
 
 const DEFAULT_CATEGORIES = [
-  "روايات",
-  "تطوير الذات",
-  "علوم",
-  "شعر",
-  "تاريخ",
-  "أعمال",
-  "فلسفة وفكر",
-  "دراسات إسلامية",
-  "لغات وترجمة",
-  "كتب أكاديمية",
+  "كتب أجنبية (English & International)",
+  "طب وعلوم صحية (Medicine & Health)",
+  "حاسوب وذكاء اصطناعي (Computer Science & AI)",
+  "هندسة وتكنولوجيا (Engineering & Tech)",
+  "إدارة واقتصاد دولي (Business & Economics)",
+  "قانون وعلوم سياسية (Law & Politics)",
+  "علوم طبيعية وفيزياء (Sciences & Physics)",
+  "علم النفس والاجتماع (Psychology & Social Sciences)",
+  "لغات وآداب عالمية (World Literature)",
+  "كتب أكاديمية ومراجع جامعية (Academic References)",
+  "روايات عالمية (World Fiction)",
+  "تطوير الذات والقيادة (Self-Development)",
+  "فلسفة وفكر (Philosophy)",
+  "تاريخ وحضارات (History)",
+  "دراسات إسلامية (Islamic Studies)",
 ];
 
 const DEFAULT_BANNERS: SiteBanner[] = [

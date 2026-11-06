@@ -78,6 +78,7 @@ export function AdminProductionAI() {
   const [newTitle, setNewTitle] = useState("");
   const [newAuthor, setNewAuthor] = useState("");
   const [newPublisher, setNewPublisher] = useState("دار عبيد للنشر والتوزيع والطباعة");
+  const [bookLanguage, setBookLanguage] = useState<"ar" | "en" | "fr" | "de" | "other">("ar");
   const [newCategory, setNewCategory] = useState(categoriesList[0] || "روايات");
   const [customCategoryInput, setCustomCategoryInput] = useState("");
   const [newFormat, setNewFormat] = useState<"digital" | "physical" | "both">("both");
@@ -573,6 +574,36 @@ export function AdminProductionAI() {
             {/* Grid Form Fields */}
             <div className="grid gap-6 md:grid-cols-2">
               
+              {/* Language & Edition Selector */}
+              <div className="space-y-1.5 md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-foreground">لغة الكتاب ونوع الإصدار (Book Language & Edition)</Label>
+                  <span className="text-[11px] text-primary font-bold">يدعم المنصة نشر الكتب الأجنبية بكافة اللغات والتخصصات العلمية</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {[
+                    { id: "ar", label: "العربية (Arabic)" },
+                    { id: "en", label: "الإنجليزية (English)" },
+                    { id: "fr", label: "الفرنسية (Français)" },
+                    { id: "de", label: "الألمانية (Deutsch)" },
+                    { id: "other", label: "لغات أخرى (Other)" },
+                  ].map((lang) => (
+                    <button
+                      key={lang.id}
+                      type="button"
+                      onClick={() => setBookLanguage(lang.id as any)}
+                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer text-xs font-bold ${
+                        bookLanguage === lang.id
+                          ? "border-primary bg-primary/10 text-primary shadow-xs"
+                          : "border-border/70 bg-card text-muted-foreground hover:border-border"
+                      }`}
+                    >
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* 1. Title */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold">عنوان الكتاب <span className="text-destructive">*</span></Label>
@@ -580,7 +611,7 @@ export function AdminProductionAI() {
                   required
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="مثال: أسس الفيزياء الحديثة وتطبيقاتها"
+                  placeholder="مثال: Artificial Intelligence: A Modern Approach أو مبادئ الطب البشري الحديث"
                   className="rounded-xl h-11 text-sm font-bold"
                 />
               </div>

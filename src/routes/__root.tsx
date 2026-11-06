@@ -17,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthProvider } from "@/lib/auth";
 import { CartProvider } from "@/lib/cart";
 import { SiteHeader, SiteFooter } from "@/components/SiteHeader";
+import { AppBottomNav } from "@/components/AppBottomNav";
+import { useAppMode } from "@/lib/useAppMode";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { Toaster } from "@/components/ui/sonner";
 import { LocaleProvider } from "@/lib/locale";
@@ -132,8 +134,12 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const { isAppExperience } = useAppMode();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // Completely hide web footer in mobile app experience OR on specific account/checkout pages
   const hideFooter =
+    isAppExperience ||
     pathname.startsWith("/account") ||
     pathname.startsWith("/publisher") ||
     pathname.startsWith("/admin") ||
@@ -156,10 +162,11 @@ function RootComponent() {
         <CartProvider>
           <div className="flex min-h-screen flex-col">
             <SiteHeader />
-            <main className="flex-1">
+            <main className="flex-1 pb-20 md:pb-0">
               <Outlet />
             </main>
             {!hideFooter && <SiteFooter />}
+            <AppBottomNav />
           </div>
           <Toaster position="top-center" richColors />
           <InstallPrompt />

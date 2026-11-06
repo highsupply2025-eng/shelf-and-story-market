@@ -1,10 +1,12 @@
-import {useLocale} from "@/lib/locale";
+import { useLocale } from "@/lib/locale";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Download, Truck, PenLine, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { BookCard, type Book } from "@/components/BookCard";
+import { MobileAppHome } from "@/components/MobileAppHome";
+import { useAppMode } from "@/lib/useAppMode";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,9 +32,11 @@ const heroBooks = [
 const categories = ["روايات", "تطوير الذات", "علوم", "شعر", "تاريخ", "أعمال"];
 
 function Index() {
- const {t}=useLocale();
-  const { data: books = [] } = useQuery({
-    queryKey: ["books", "featured"],
+  const { t } = useLocale();
+  const { isAppExperience } = useAppMode();
+
+  const { data: books = [], isLoading } = useQuery({
+    queryKey: ["books", "home-catalog"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("books")
@@ -40,12 +44,18 @@ function Index() {
         .eq("status", "approved")
         .order("featured", { ascending: false })
         .order("created_at", { ascending: false })
-        .limit(8);
+        .limit(24);
       if (error) throw error;
       return data as Book[];
     },
   });
 
+  // If in Mobile App Mode or Mobile Viewport: render world-class native book app layout
+  if (isAppExperience) {
+    return <MobileAppHome books={books} isLoading={isLoading} />;
+  }
+
+  // Desktop Web View
   return (
     <div>
       {/* Hero */}
@@ -97,7 +107,7 @@ function Index() {
         </div>
       </section>
 
-      {/* Featured */}
+      {/* Featured Books Grid */}
       <section className="mx-auto max-w-7xl px-4 py-20">
         <div className="mb-10 flex items-end justify-between">
           <div>

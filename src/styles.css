@@ -143,6 +143,19 @@
     transform: perspective(900px) rotateY(-14deg) translateY(-6px);
   }
 }
+@utility pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+}
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .animate-float, .animate-marquee, .animate-rise { animation: none; }
 }

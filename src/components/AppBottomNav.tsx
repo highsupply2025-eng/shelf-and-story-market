@@ -2,22 +2,16 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Compass,
   BookOpen,
-  Library,
   PenLine,
   User,
-  ShoppingBag,
-  Sparkles,
   Building2,
-  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { useCart } from "@/lib/cart";
 import { useLocale } from "@/lib/locale";
 
 export function AppBottomNav() {
   const { t } = useLocale();
   const { session, isAdmin, accountType } = useAuth();
-  const { count: cartCount } = useCart();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   // Determine account destination
@@ -35,6 +29,7 @@ export function AppBottomNav() {
     return "/author";
   };
 
+  // 4 Core App Navigation Tabs
   const navItems = [
     {
       id: "home",
@@ -51,14 +46,6 @@ export function AppBottomNav() {
       isActive: pathname.startsWith("/books"),
     },
     {
-      id: "library",
-      label: t("مكتبتي", "My Library"),
-      to: session ? "/account" : "/auth",
-      icon: Library,
-      isActive: pathname === "/account",
-      badge: null,
-    },
-    {
       id: "publish",
       label: accountType === "publisher" ? t("الناشر", "Publisher") : t("النشر", "Publish"),
       to: getPublishLink(),
@@ -70,7 +57,7 @@ export function AppBottomNav() {
       label: session ? t("حسابي", "Profile") : t("دخول", "Login"),
       to: getAccountLink(),
       icon: User,
-      isActive: pathname.startsWith("/auth") || (pathname.startsWith("/admin") && !pathname.startsWith("/account")),
+      isActive: pathname.startsWith("/auth") || pathname.startsWith("/account") || pathname.startsWith("/admin"),
       isLive: Boolean(session),
     },
   ];
@@ -80,7 +67,7 @@ export function AppBottomNav() {
       className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-card/95 backdrop-blur-xl border-t border-border/80 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] pb-safe transition-all select-none"
       aria-label="App Navigation"
     >
-      <div className="flex h-16 items-center justify-around px-2 max-w-lg mx-auto">
+      <div className="flex h-16 items-center justify-around px-4 max-w-md mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = item.isActive;
@@ -98,7 +85,7 @@ export function AppBottomNav() {
               {/* Active subtle pill glow */}
               <div className="relative">
                 <span
-                  className={`flex h-8 w-11 items-center justify-center rounded-full transition-all duration-200 ${
+                  className={`flex h-8 w-12 items-center justify-center rounded-full transition-all duration-200 ${
                     active ? "bg-primary/15 text-primary scale-105" : "bg-transparent"
                   }`}
                 >
@@ -107,7 +94,7 @@ export function AppBottomNav() {
 
                 {/* Live account dot */}
                 {item.isLive && (
-                  <span className="absolute 1 top-0.5 right-1 flex h-2 w-2">
+                  <span className="absolute top-0.5 right-1.5 flex h-2 w-2">
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500 border border-background shadow-xs"></span>
                   </span>
                 )}

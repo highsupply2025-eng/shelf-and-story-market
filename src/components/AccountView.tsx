@@ -35,6 +35,7 @@ import {
 } from "@/lib/author-plans";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { ProtectedBookReader } from "@/components/ProtectedBookReader";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -231,6 +232,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
   const [authorNameInput, setAuthorNameInput] = useState("");
   const [transferNotes, setTransferNotes] = useState("");
   const [submittingPlan, setSubmittingPlan] = useState(false);
+  const [readingBook, setReadingBook] = useState<{ id: string; title: string; author: string; file_path?: string | null; pages?: number | null; cover_url?: string | null } | null>(null);
 
   const userAccountType = session?.user?.user_metadata?.["account_type"];
   const accountMode = mode;
@@ -801,11 +803,16 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
                   <div className="mt-3 font-display font-semibold">{b.title}</div>
                   <Button
                     size="sm"
-                    variant="outline"
-                    className="mt-2 w-full"
-                    onClick={() => download(b.file_path)}
+                    className="mt-2 w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    onClick={() => setReadingBook({
+                      id: b.id,
+                      title: b.title,
+                      author: "دار عبيد للنشر والتوزيع",
+                      file_path: b.file_path,
+                      cover_url: b.cover_url,
+                    })}
                   >
-                    <Download className="me-1 h-4 w-4" /> {l.t("تحميل", "Download")}
+                    <BookOpen className="h-4 w-4" /> {l.t("قراءة الكتاب (محمي DRM)", "Read Book (DRM Protected)")}
                   </Button>
                 </div>
               ))}
@@ -1142,6 +1149,15 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Protected In-App Reader (Zero-Download DRM) */}
+      {readingBook && (
+        <ProtectedBookReader
+          book={readingBook}
+          open={!!readingBook}
+          onClose={() => setReadingBook(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1154,7 +1170,7 @@ function Empty({ text }: { text: string }) {
       <Link to="/books" className="mt-3 inline-block font-semibold text-primary hover:underline">
         {t("تصفّح المتجر", "Browse books")}
       </Link>
-    </div>
+</div>
   );
 }
 

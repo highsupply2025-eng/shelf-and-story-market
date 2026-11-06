@@ -29,13 +29,13 @@ import { useAuth } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { useLocale } from "@/lib/locale";
+import { useLocale, countries } from "@/lib/locale";
 import { AdminAuthModal } from "@/components/AdminAuthModal";
 import { Badge } from "@/components/ui/badge";
 import { useAppMode } from "@/lib/useAppMode";
 
 export function SiteHeader() {
-  const { t, language, set } = useLocale();
+  const { t, language, currency, currentCountry, set } = useLocale();
   const { session, isAdmin, accountType } = useAuth();
 
   function toggleLanguage() {
@@ -173,6 +173,44 @@ export function SiteHeader() {
         {/* Top Header Controls: السلة + دخول (No hamburger menu / No redundant dropdowns) */}
         <div className="flex items-center gap-2.5 sm:gap-3">
           
+          {/* Geo Currency & Country Selector Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex h-10 items-center gap-1.5 rounded-full border border-border/80 bg-card px-2 sm:px-2.5 text-foreground transition-all hover:border-primary/50 hover:bg-primary/5 shadow-xs cursor-pointer select-none active:scale-95"
+                title={t("المنطقة الجغرافية والعملة التلقائية", "Geographic Region & Currency")}
+              >
+                <span className="text-sm sm:text-base leading-none">{currentCountry.flag}</span>
+                <span className="text-[10px] sm:text-xs font-mono font-bold">
+                  {currency}
+                </span>
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60 p-2 rounded-2xl shadow-xl border border-border/80 bg-card max-h-80 overflow-y-auto">
+              <div className="px-2.5 py-1.5 text-xs font-bold text-muted-foreground border-b border-border/50 mb-1 flex items-center justify-between">
+                <span>{t("تحديد المنطقة والعملة", "Select Region & Currency")}</span>
+                <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full">تلقائي جغرافي</span>
+              </div>
+              {countries.map((c) => (
+                <DropdownMenuItem
+                  key={c.code}
+                  onClick={() => set({ country: c.code, currency: c.currency, language: ["EG", "SA", "AE", "KW", "QA", "BH", "OM", "JO"].includes(c.code) ? "ar" : language }, true)}
+                  className={`flex items-center justify-between p-2 rounded-xl text-xs font-bold cursor-pointer ${
+                    currentCountry.code === c.code ? "bg-primary/10 text-primary" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="text-base leading-none shrink-0">{c.flag}</span>
+                    <span className="truncate">{language === "ar" ? c.nameAr : c.nameEn}</span>
+                  </div>
+                  <span className="font-mono text-[11px] text-muted-foreground font-semibold shrink-0">{c.currency}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {/* Language Switcher Icon Button (عربي / EN) */}
           <button
             type="button"

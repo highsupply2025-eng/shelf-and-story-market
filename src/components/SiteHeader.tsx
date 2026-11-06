@@ -15,6 +15,7 @@ import {
   Sparkles,
   ArrowUpRight,
   MessageSquare,
+  Globe,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,8 +35,13 @@ import { Badge } from "@/components/ui/badge";
 import { useAppMode } from "@/lib/useAppMode";
 
 export function SiteHeader() {
-  const { t } = useLocale();
+  const { t, language, set } = useLocale();
   const { session, isAdmin, accountType } = useAuth();
+
+  function toggleLanguage() {
+    const nextLang = language === "ar" ? "en" : "ar";
+    set({ language: nextLang });
+  }
   const { count } = useCart();
   const { isAppExperience } = useAppMode();
   const navigate = useNavigate();
@@ -167,6 +173,20 @@ export function SiteHeader() {
         {/* Top Header Controls: السلة + دخول (No hamburger menu / No redundant dropdowns) */}
         <div className="flex items-center gap-2.5 sm:gap-3">
           
+          {/* Language Switcher Icon Button (عربي / EN) */}
+          <button
+            type="button"
+            onClick={toggleLanguage}
+            className="flex h-10 items-center gap-1.5 rounded-full border border-border/80 bg-card px-2.5 sm:px-3 text-foreground transition-all hover:border-primary/50 hover:bg-primary/5 shadow-xs cursor-pointer select-none active:scale-95"
+            aria-label={language === "ar" ? "Switch to English" : "التبديل إلى العربية"}
+            title={language === "ar" ? "Switch to English" : "التبديل إلى العربية"}
+          >
+            <Globe className="h-4 w-4 text-primary" />
+            <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider">
+              {language === "ar" ? "EN" : "عربي"}
+            </span>
+          </button>
+
           {/* السلة (Cart Icon) */}
           <Link to="/cart" className={iconBtn} aria-label={t("السلة", "Cart")}>
             <ShoppingBag className="h-5 w-5" />
@@ -320,7 +340,12 @@ export function SiteHeader() {
 }
 
 export function SiteFooter() {
-  const { t } = useLocale();
+  const { t, language, set } = useLocale();
+
+  function toggleLanguage() {
+    const nextLang = language === "ar" ? "en" : "ar";
+    set({ language: nextLang });
+  }
 
   const socialLinks = [
     {
@@ -474,10 +499,18 @@ export function SiteFooter() {
 
       {/* Bottom Copyright Bar */}
       <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-4 text-xs opacity-70 text-center">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 text-xs opacity-80 text-center">
           <div>
             © {new Date().getFullYear()} {t("unibook. جميع الحقوق محفوظة.", "unibook. All rights reserved.")}
           </div>
+          <button
+            type="button"
+            onClick={toggleLanguage}
+            className="flex items-center gap-1.5 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-white/90 hover:bg-white/10 hover:border-gold hover:text-gold transition-colors cursor-pointer"
+          >
+            <Globe className="h-3.5 w-3.5" />
+            <span>{language === "ar" ? "English (الإنجليزية)" : "العربية (Arabic)"}</span>
+          </button>
         </div>
       </div>
     </footer>

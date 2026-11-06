@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ShieldCheck, Mail, KeyRound, Loader2, RefreshCw, ArrowRight, CheckCircle2, Lock, Eye, EyeOff, ExternalLink, Sparkles } from "lucide-react";
+import {
+  ShieldCheck,
+  Mail,
+  KeyRound,
+  Loader2,
+  RefreshCw,
+  ArrowRight,
+  CheckCircle2,
+  Lock,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Send,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -26,11 +39,11 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
-  // Automatically detect when admin clicks the Magic Link in their email
+  // Automatically detect when admin verifies session or magic link
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase()) {
-        toast.success("تم تأكيد الدخول عبر البريد بنجاح! جاري فتح لوحة الإدارة...");
+        toast.success("تم تأكيد دخول الإدارة بنجاح! جاري فتح لوحة التحكم...");
         await refresh();
         if (onSuccess) {
           onSuccess();
@@ -59,6 +72,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
       } catch {
         /* ignore */
       }
+
       const { error } = await supabase.auth.signInWithOtp({
         email: ADMIN_EMAIL,
         options: {
@@ -68,14 +82,14 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
       });
 
       if (error) {
-        toast.error(error.message || "تعذر إرسال رسالة التحقق. يرجى المحاولة بعد قليل.");
+        toast.error(error.message || "تعذر إرسال كود التحقق. يرجى المحاولة بعد قليل.");
       } else {
-        toast.success("تم إرسال رسالة الدخول بنجاح إلى بريد الإدارة!");
+        toast.success("تم إرسال كود التحقق بنجاح إلى: " + ADMIN_EMAIL);
         setStep("verify");
         setCountdown(60);
       }
     } catch (err: any) {
-      toast.error(err?.message || "حدث خطأ أثناء إرسال الرسالة");
+      toast.error(err?.message || "حدث خطأ أثناء إرسال كود التحقق");
     } finally {
       setLoading(false);
     }
@@ -96,7 +110,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
       });
 
       if (error) {
-        toast.error("كلمة المرور غير صحيحة. يمكنك استخدام رابط البريد بدلاً منها.");
+        toast.error("كلمة المرور غير صحيحة. يمكنك الدخول عبر كود التحقق المرسل للبريد.");
       } else {
         toast.success("تم تسجيل الدخول بنجاح! مرحباً بك.");
         await refresh();
@@ -130,7 +144,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
       });
 
       if (error) {
-        toast.error("كود التحقق غير صحيح أو انتهت صلاحيته. يرجى إعادة الإرسال.");
+        toast.error("كود التحقق غير صحيح أو انتهت صلاحيته. تفقد الكود المرسل للبريد أو أعد الإرسال.");
       } else {
         toast.success("تم تأكيد الكود بنجاح! مرحباً بك في لوحة الإدارة.");
         await refresh();
@@ -148,63 +162,82 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto rounded-3xl border border-primary/20 bg-card p-6 md:p-8 shadow-2xl relative overflow-hidden" dir="rtl">
-      <div className="absolute -top-12 -right-12 h-32 w-32 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
+    <div className="w-full max-w-md mx-auto rounded-3xl border border-primary/25 bg-card p-6 md:p-8 shadow-2xl relative overflow-hidden select-none" dir="rtl">
+      <div className="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
 
       {/* Header */}
       <div className="text-center mb-6">
-        <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3 shadow-inner">
-          <ShieldCheck className="h-8 w-8 text-primary" />
+        <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3 shadow-inner ring-1 ring-primary/20">
+          <KeyRound className="h-7 w-7 text-primary" />
         </div>
-        <div className="flex items-center justify-center gap-2 mb-1">
-          <Badge variant="outline" className="border-primary/30 text-primary px-2.5 py-0.5 text-xs font-semibold">
-            لوحة الإدارة العليا
+        <div className="flex items-center justify-center gap-2 mb-1.5">
+          <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5 px-3 py-0.5 text-xs font-bold">
+            لوحة الإدارة العليا · الحساب المعتمد
           </Badge>
         </div>
-        <h2 className="font-display text-2xl font-bold text-foreground">
+        <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-foreground">
           تسجيل دخول الإدارة
         </h2>
         <p className="text-xs text-muted-foreground mt-1">
-          unibook Admin Portal
+          unibook Admin Portal · تحقق آمن عبر البريد
         </p>
       </div>
 
-      {/* Email Display */}
-      <div className="mb-6 rounded-2xl border border-border/80 bg-background/50 p-4 flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card border border-border/70 text-muted-foreground">
+      {/* Verified Email Banner */}
+      <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card border border-emerald-500/30 text-emerald-600 shadow-xs">
           <Mail className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground font-medium">البريد المعتمد للإدارة</p>
-          <p className="text-sm font-bold text-foreground truncate" dir="ltr">{ADMIN_EMAIL}</p>
+          <p className="text-xs text-muted-foreground font-semibold">البريد الإلكتروني المعتمد للإدارة</p>
+          <p className="text-sm font-extrabold text-foreground font-mono truncate" dir="ltr">
+            {ADMIN_EMAIL}
+          </p>
         </div>
-        <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+        <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
       </div>
 
-      {step === "request" ? (
+      {/* STEP 1: REQUEST CODE */}
+      {step === "request" && (
         <div className="space-y-4">
-          <p className="text-xs text-muted-foreground text-center leading-relaxed">
-            لأمان لوحة التحكم، يمكنك استقبال رابط الدخول السريع مباشرة على بريد الإدارة، أو الدخول بكلمة المرور.
-          </p>
+          <div className="rounded-2xl border border-border/80 bg-muted/30 p-3.5 text-center space-y-1">
+            <p className="text-xs font-bold text-foreground">
+              تسجيل الدخول محمي بكود سري مكون من 6 أرقام
+            </p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              انقر على الزر أدناه وسيصلك كود التحقق فوراً على بريدك الإلكتروني المعتمد <span className="font-mono font-bold text-foreground" dir="ltr">{ADMIN_EMAIL}</span>
+            </p>
+          </div>
 
           <Button
             type="button"
             onClick={handleSendOtp}
             disabled={loading}
-            className="w-full h-12 text-sm font-bold rounded-xl shadow-md gap-2"
+            className="w-full h-13 text-sm font-extrabold rounded-2xl shadow-md gap-2.5 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer active:scale-[0.99]"
           >
             {loading ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                جاري الإرسال للبريد...
+                <Loader2 className="h-5 w-5 animate-spin" />
+                جاري إرسال كود التحقق للبريد...
               </>
             ) : (
               <>
-                <Mail className="h-4 w-4" />
-                إرسال رابط الدخول للبريد
+                <Send className="h-4.5 w-4.5" />
+                إرسال كود التحقق السري إلى الإيميل
               </>
             )}
           </Button>
+
+          {/* Quick jump if user already has a code */}
+          <div className="pt-1 text-center">
+            <button
+              type="button"
+              onClick={() => setStep("verify")}
+              className="text-xs text-primary font-bold hover:underline cursor-pointer"
+            >
+              وصلني كود التحقق بالفعل؟ (أدخل الكود الآن)
+            </button>
+          </div>
 
           <div className="relative flex py-1 items-center">
             <div className="flex-grow border-t border-border/70" />
@@ -216,13 +249,110 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
             type="button"
             variant="outline"
             onClick={() => setStep("password")}
-            className="w-full h-11 text-xs font-bold rounded-xl gap-2 hover:bg-primary/5"
+            className="w-full h-11 text-xs font-bold rounded-xl gap-2 hover:bg-primary/5 cursor-pointer"
           >
             <Lock className="h-3.5 w-3.5" />
-            الدخول بكلمة مرور الحساب
+            الدخول بكلمة مرور الحساب (إن وجدت)
           </Button>
         </div>
-      ) : step === "password" ? (
+      )}
+
+      {/* STEP 2: VERIFY OTP CODE */}
+      {step === "verify" && (
+        <form onSubmit={handleVerifyOtp} className="space-y-5">
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-center space-y-1">
+            <div className="flex items-center justify-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-extrabold text-xs">
+              <Sparkles className="h-4 w-4" />
+              <span>تم إرسال كود التحقق إلى بريدك الإلكتروني!</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              افتح بريدك <strong className="font-mono text-foreground">{ADMIN_EMAIL}</strong> (تفقد صندوق الوارد أو البريد غير الهام Spam)، ثم اكتب الكود المكون من 6 أرقام بالأسفل:
+            </p>
+          </div>
+
+          {/* 6-Digit OTP Input */}
+          <div className="text-center py-2">
+            <label className="text-xs font-bold text-foreground block mb-2">
+              أدخل كود التحقق المكون من 6 أرقام:
+            </label>
+            <div className="flex justify-center" dir="ltr">
+              <InputOTP
+                maxLength={6}
+                value={otpCode}
+                onChange={(val) => {
+                  setOtpCode(val);
+                  if (val.length === 6) {
+                    setTimeout(() => {
+                      const btn = document.getElementById("admin-verify-btn");
+                      btn?.click();
+                    }, 100);
+                  }
+                }}
+                autoFocus
+              >
+                <InputOTPGroup className="gap-2 sm:gap-2.5">
+                  <InputOTPSlot index={0} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                  <InputOTPSlot index={1} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                  <InputOTPSlot index={2} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                  <InputOTPSlot index={3} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                  <InputOTPSlot index={4} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                  <InputOTPSlot index={5} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+          </div>
+
+          <Button
+            id="admin-verify-btn"
+            type="submit"
+            disabled={loading || otpCode.length < 6}
+            className="w-full h-12 text-sm font-extrabold rounded-2xl shadow-md gap-2 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer active:scale-[0.99]"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                جاري التحقق من صحة الكود...
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="h-4 w-4" />
+                تأكيد الكود ودخول لوحة الإدارة
+              </>
+            )}
+          </Button>
+
+          {/* Resend and Return Actions */}
+          <div className="flex items-center justify-between pt-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setStep("request")}
+              className="text-muted-foreground hover:text-foreground font-semibold flex items-center gap-1 cursor-pointer"
+            >
+              <ArrowRight className="h-3.5 w-3.5" />
+              الرجوع
+            </button>
+
+            {countdown > 0 ? (
+              <span className="text-muted-foreground text-[11px] font-mono">
+                إعادة الإرسال بعد ({countdown} ث)
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSendOtp}
+                disabled={loading}
+                className="text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                إرسال كود جديد للإيميل
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+
+      {/* STEP 3: PASSWORD LOGIN (FALLBACK) */}
+      {step === "password" && (
         <form onSubmit={handlePasswordLogin} className="space-y-4">
           <div className="space-y-2">
             <label className="text-xs font-semibold text-foreground flex items-center justify-between">
@@ -268,100 +398,11 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
           <button
             type="button"
             onClick={() => setStep("request")}
-            className="w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1 pt-1"
+            className="w-full text-center text-xs text-primary font-bold hover:underline flex items-center justify-center gap-1 pt-1 cursor-pointer"
           >
             <ArrowRight className="h-3.5 w-3.5" />
-            الرجوع للدخول عبر رابط البريد
+            الرجوع للدخول عن طريق كود الإيميل
           </button>
-        </form>
-      ) : (
-        <form onSubmit={handleVerifyOtp} className="space-y-5">
-          {/* Smart Notice About Email Link */}
-          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5 text-center space-y-1.5">
-            <div className="flex items-center justify-center gap-1.5 text-primary font-bold text-xs">
-              <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-              <span>تم إرسال رسالة الدخول إلى بريدك!</span>
-            </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              • يمكنك <strong className="text-foreground">الضغط مباشرة على زر (Log In / الدخول)</strong> داخل الرسالة التي وصلتك وسيتم فتح لوحة الإدارة تلقائياً!
-            </p>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              • ستُفتح لوحة الإدارة مباشرة بعد الضغط على الرابط. (إن احتوت الرسالة على كود أرقام يمكنك كتابته بالأسفل)
-            </p>
-          </div>
-
-          <div className="text-center">
-            <div className="flex justify-center my-3" dir="ltr">
-              <InputOTP
-                maxLength={6}
-                value={otpCode}
-                onChange={(val) => {
-                  setOtpCode(val);
-                  if (val.length === 6) {
-                    setTimeout(() => {
-                      const btn = document.getElementById("admin-verify-btn");
-                      btn?.click();
-                    }, 100);
-                  }
-                }}
-              >
-                <InputOTPGroup className="gap-2">
-                  <InputOTPSlot index={0} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
-                  <InputOTPSlot index={1} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
-                  <InputOTPSlot index={2} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
-                  <InputOTPSlot index={3} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
-                  <InputOTPSlot index={4} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
-                  <InputOTPSlot index={5} className="h-11 w-10 rounded-lg text-lg font-bold border-border/80" />
-                </InputOTPGroup>
-              </InputOTP>
-            </div>
-          </div>
-
-          <Button
-            id="admin-verify-btn"
-            type="submit"
-            disabled={loading || otpCode.length < 6}
-            className="w-full h-11 text-sm font-bold rounded-xl shadow-md gap-2"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                جاري التحقق من الكود...
-              </>
-            ) : (
-              <>
-                <ShieldCheck className="h-4 w-4" />
-                تأكيد الكود ودخول لوحة الإدارة
-              </>
-            )}
-          </Button>
-
-          <div className="flex items-center justify-between pt-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setStep("password")}
-              className="text-primary font-bold hover:underline flex items-center gap-1"
-            >
-              <Lock className="h-3 w-3" />
-              أو الدخول بكلمة المرور
-            </button>
-
-            {countdown > 0 ? (
-              <span className="text-muted-foreground text-[11px]">
-                إعادة الإرسال بعد ({countdown} ث)
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSendOtp}
-                disabled={loading}
-                className="text-primary font-bold hover:underline flex items-center gap-1"
-              >
-                <RefreshCw className="h-3 w-3" />
-                إرسال رسالة جديدة
-              </button>
-            )}
-          </div>
         </form>
       )}
     </div>
@@ -390,8 +431,8 @@ export function AdminAuthModal({ open, onOpenChange, onSuccess }: AdminAuthModal
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden border-primary/20 bg-card">
         <DialogHeader className="sr-only">
-          <DialogTitle>تسجيل دخول الإدارة</DialogTitle>
-          <DialogDescription>أدخل كود التحقق المرسل للبريد</DialogDescription>
+          <DialogTitle>تسجيل دخول الإدارة بكود الإيميل</DialogTitle>
+          <DialogDescription>أدخل كود التحقق المرسل إلى highsupply2025@gmail.com</DialogDescription>
         </DialogHeader>
         <AdminAuthCard onSuccess={handleSuccess} />
       </DialogContent>

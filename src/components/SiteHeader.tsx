@@ -300,7 +300,7 @@ export function SiteHeader() {
                 <Button
                   asChild
                   variant="outline"
-                  className="hidden md:inline-flex rounded-full px-4 sm:px-5 font-bold shadow-xs text-xs sm:text-sm border-primary/30 hover:border-primary hover:bg-primary/5 transition-all"
+                  className="rounded-full px-3 sm:px-5 font-bold shadow-xs text-xs sm:text-sm border-primary/30 hover:border-primary hover:bg-primary/5 transition-all"
                 >
                   <Link to="/register">{t("إنشاء حساب", "Sign Up")}</Link>
                 </Button>

@@ -1,0 +1,196 @@
+// Administrative state management for site control, approvals, and AI production
+
+export interface SiteBanner {
+  id: string;
+  title: string;
+  subtitle: string;
+  badge: string;
+  linkText: string;
+  linkUrl: string;
+  active: boolean;
+  color: string;
+}
+
+export interface BookDiscount {
+  bookId: string;
+  discountPercent: number; // e.g. 20 for 20% off
+  originalPriceDigital?: number;
+  originalPricePhysical?: number;
+  badgeText?: string; // e.g. "عرض خاص", "خصم 25%"
+  endsAt?: string;
+}
+
+export interface AccountApproval {
+  userId: string;
+  role: "author" | "publisher";
+  name: string;
+  email: string;
+  status: "pending" | "approved" | "rejected";
+  appliedAt: string;
+  approvedAt?: string;
+  notes?: string;
+}
+
+const CATEGORIES_KEY = "unibook_admin_categories";
+const DISCOUNTS_KEY = "unibook_admin_discounts";
+const APPROVALS_KEY = "unibook_admin_approvals";
+const BANNERS_KEY = "unibook_admin_banners";
+const MARQUEE_KEY = "unibook_admin_marquee";
+
+const DEFAULT_CATEGORIES = [
+  "روايات",
+  "تطوير الذات",
+  "علوم",
+  "شعر",
+  "تاريخ",
+  "أعمال",
+  "فلسفة وفكر",
+  "دراسات إسلامية",
+  "لغات وترجمة",
+  "كتب أكاديمية",
+];
+
+const DEFAULT_BANNERS: SiteBanner[] = [
+  {
+    id: "banner-1",
+    title: "موسم القراءة والكتب الحصرية من دار عبيد",
+    subtitle: "خصومات حصرية حتى 30% على كافة الإصدارات الورقية مع شحن فوري لكافة الدول.",
+    badge: "عرض خاص",
+    linkText: "تصفح العروض الآن",
+    linkUrl: "/books",
+    active: true,
+    color: "from-amber-600 to-primary",
+  },
+];
+
+// Helper for safe localStorage access
+function getStorageItem<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const item = window.localStorage.getItem(key);
+    return item ? JSON.parse(item) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function setStorageItem<T>(key: string, value: T): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+    window.dispatchEvent(new Event("unibook_admin_update"));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+// 1. Categories Management
+export function getAdminCategories(): string[] {
+  return getStorageItem<string[]>(CATEGORIES_KEY, DEFAULT_CATEGORIES);
+}
+
+export function addAdminCategory(category: string): string[] {
+  const cat = category.trim();
+  if (!cat) return getAdminCategories();
+  const current = getAdminCategories();
+  if (current.includes(cat)) return current;
+  const updated = [...current, cat];
+  setStorageItem(CATEGORIES_KEY, updated);
+  return updated;
+}
+
+export function removeAdminCategory(category: string): string[] {
+  const current = getAdminCategories();
+  const updated = current.filter((c) => c !== category);
+  setStorageItem(CATEGORIES_KEY, updated);
+  return updated;
+}
+
+// 2. Book Discounts & Offers
+export function getAdminDiscounts(): Record<string, BookDiscount> {
+  return getStorageItem<Record<string, BookDiscount>>(DISCOUNTS_KEY, {});
+}
+
+export function setBookDiscount(discount: BookDiscount): void {
+  const current = getAdminDiscounts();
+  current[discount.bookId] = discount;
+  setStorageItem(DISCOUNTS_KEY, current);
+}
+
+export function removeBookDiscount(bookId: string): void {
+  const current = getAdminDiscounts();
+  delete current[bookId];
+  setStorageItem(DISCOUNTS_KEY, current);
+}
+
+// 3. Author & Publisher Approvals
+export function getAccountApprovals(): AccountApproval[] {
+  return getStorageItem<AccountApproval[]>(APPROVALS_KEY, [
+    {
+      userId: "demo-author-1",
+      role: "author",
+      name: "د. إبراهيم الفقي",
+      email: "ibrahim@unibook.online",
+      status: "approved",
+      appliedAt: "2026-11-01T10:00:00Z",
+      approvedAt: "2026-11-01T11:00:00Z",
+      notes: "مؤلف وباحث معتمد في العلوم الإنسانية",
+    },
+    {
+      userId: "demo-publisher-1",
+      role: "publisher",
+      name: "دار عبيد للنشر والتوزيع",
+      email: "darobaid@unigates.online",
+      status: "approved",
+      appliedAt: "2026-10-15T09:00:00Z",
+      approvedAt: "2026-10-15T09:30:00Z",
+      notes: "المؤسسة الرئيسية الرسمية المعتمدة",
+    },
+  ]);
+}
+
+export function updateAccountApprovalStatus(
+  userId: string,
+  status: "approved" | "rejected" | "pending",
+  notes?: string
+): void {
+  const current = getAccountApprovals();
+  const index = current.findIndex((a) => a.userId === userId);
+  if (index >= 0) {
+    current[index].status = status;
+    if (notes) current[index].notes = notes;
+    if (status === "approved") current[index].approvedAt = new Date().toISOString();
+  } else {
+    current.push({
+      userId,
+      role: "author",
+      name: "مستخدم المنصة",
+      email: "user@example.com",
+      status,
+      appliedAt: new Date().toISOString(),
+      approvedAt: status === "approved" ? new Date().toISOString() : undefined,
+      notes,
+    });
+  }
+  setStorageItem(APPROVALS_KEY, current);
+}
+
+// 4. Site Banners & Content
+export function getAdminBanners(): SiteBanner[] {
+  return getStorageItem<SiteBanner[]>(BANNERS_KEY, DEFAULT_BANNERS);
+}
+
+export function setAdminBanners(banners: SiteBanner[]): void {
+  setStorageItem(BANNERS_KEY, banners);
+}
+
+export function getAdminMarqueeText(): string {
+  return getStorageItem<string>(
+    MARQUEE_KEY,
+    "دار عبيد للنشر والتوزيع والطباعة • منصة unibook العالمية • شحن ورقي لكافة الدول • قراءة رقمية فورية • استوديو نشر متكامل للمؤلفين • دعم 24/7"
+  );
+}
+
+export function setAdminMarqueeText(text: string): void {
+  setStorageItem(MARQUEE_KEY, text);
+}

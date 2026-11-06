@@ -137,6 +137,8 @@ function RootComponent() {
   const { isAppExperience } = useAppMode();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
+  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
+
   // Completely hide web footer in mobile app experience OR on specific account/checkout pages
   const hideFooter =
     isAppExperience ||
@@ -165,7 +167,7 @@ function RootComponent() {
         <CartProvider>
           <div className="flex min-h-screen flex-col">
             <SiteHeader />
-            <main className={`flex-1 ${isAppExperience ? "pb-24 sm:pb-28" : "pb-20 md:pb-0"} pb-safe`}>
+            <main className={`flex-1 ${isAppExperience && !isAuthPage ? "pb-24 sm:pb-28" : "pb-0"} pb-safe`}>
               <Outlet />
             </main>
             {!hideFooter && <SiteFooter />}

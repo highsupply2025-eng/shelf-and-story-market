@@ -2,37 +2,47 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Check, X, Wallet, ShieldCheck, Clock, AlertCircle, Save, RefreshCw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  Users,
+  PenLine,
+  Building2,
+  Sparkles,
+  SlidersHorizontal,
+  Wallet,
+  ShieldCheck,
+  Save,
+  Clock,
+  Layers,
+  Store,
+  BookOpen,
+  ShoppingBag,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { formatPrice } from "@/lib/cart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatLabel, type Book } from "@/components/BookCard";
-import { ProductionAdmin } from "@/components/ProductionAdmin";
+import { Badge } from "@/components/ui/badge";
 import { useLocale } from "@/lib/locale";
+import { AdminAuthCard, ADMIN_EMAIL } from "@/components/AdminAuthModal";
+import { AdminReadersPanel } from "@/components/admin/AdminReadersPanel";
+import { AdminAuthorsPanel } from "@/components/admin/AdminAuthorsPanel";
+import { AdminPublishersPanel } from "@/components/admin/AdminPublishersPanel";
+import { AdminProductionAI } from "@/components/admin/AdminProductionAI";
+import { AdminSiteControl } from "@/components/admin/AdminSiteControl";
 import {
-  getAllPlanRequests,
-  activatePlanRequest,
-  rejectPlanRequest,
   getAdminWalletNumber,
   setAdminWalletNumber,
-  type AuthorPlanRequest,
 } from "@/lib/author-plans";
-import { AdminAuthCard } from "@/components/AdminAuthModal";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { title: "الإدارة — unibook" },
-      { name: "description", content: "مراجعة الكتب والطلبات وباقات المؤلفين." },
-      { property: "og:title", content: "الإدارة — unibook" },
-      { property: "og:description", content: "مراجعة الكتب والطلبات وباقات المؤلفين." },
+      { title: "لوحة الإدارة العليا والتحكم الشامل — unibook" },
+      { name: "description", content: "التحكم الكامل بمنصة unibook: لوحة القارئ، المؤلف، دار النشر، مركز الإنتاج بالذكاء الاصطناعي، والتحكم بالموقع والمتجر." },
+      { property: "og:title", content: "لوحة الإدارة العليا — unibook" },
+      { property: "og:description", content: "التحكم الكامل بمنصة unibook: لوحة القارئ، المؤلف، دار النشر، ومركز الإنتاج بالذكاء الاصطناعي." },
     ],
   }),
   component: AdminPage,
@@ -40,41 +50,32 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 function AdminPage() {
   const { t } = useLocale();
-  const { isAdmin, loading } = useAuth();
+  const { isAdmin, session, loading } = useAuth();
   const qc = useQueryClient();
 
   const [walletNumberInput, setWalletNumberInput] = useState(() => getAdminWalletNumber());
 
-  const { data: pending = [] } = useQuery({
-    queryKey: ["admin-pending"],
-    enabled: isAdmin,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("books").select("*, publishers(store_name)").eq("status", "pending").order("created_at");
-      if (error) throw error;
-      return data as (Book & { publishers: { store_name: string } | null })[];
-    },
-  });
+  // Check admin identity specifically
+  const isSuperAdmin =
+    isAdmin || session?.user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase();
 
-  const { data: orders = [] } = useQuery({
-    queryKey: ["admin-orders"],
-    enabled: isAdmin,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(100);
-      if (error) throw error;
-      return data;
-    },
-  });
+  function handleSaveWallet() {
+    setAdminWalletNumber(walletNumberInput);
+    toast.success("تم حفظ رقم محفظة الإدارة المعتمدة بنجاح");
+  }
 
-  const { data: planRequests = [], refetch: refetchPlans } = useQuery<AuthorPlanRequest[]>({
-    queryKey: ["admin-plan-requests"],
-    enabled: isAdmin,
-    queryFn: () => getAllPlanRequests(),
-  });
-
-  if (loading) return null;
-  if (!isAdmin) {
+  if (loading) {
     return (
-      <div className="flex min-h-[75vh] items-center justify-center px-4 py-12">
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  // If not authenticated as Super Admin, show the high-security email code login card
+  if (!isSuperAdmin) {
+    return (
+      <div className="flex min-h-[75vh] items-center justify-center px-4 py-12" dir="rtl">
         <AdminAuthCard
           onSuccess={() => {
             qc.invalidateQueries();
@@ -84,255 +85,169 @@ function AdminPage() {
     );
   }
 
-  const pendingPlans = planRequests.filter((r) => r.status === "pending");
-
-  async function decide(id: string, approve: boolean) {
-    const reason = approve ? null : prompt("سبب الرفض؟") ?? "";
-    const { error } = await supabase.from("books").update({ status: approve ? "approved" : "rejected", rejection_reason: reason }).eq("id", id);
-    if (error) return void toast.error(error.message);
-    toast.success(approve ? "تم نشر الكتاب" : "تم رفض الكتاب");
-    qc.invalidateQueries();
-  }
-
-  function handleSaveWallet() {
-    setAdminWalletNumber(walletNumberInput);
-    toast.success("تم حفظ رقم محفظة الإدارة بنجاح");
-  }
-
-  async function handleActivatePlan(req: AuthorPlanRequest) {
-    const ok = await activatePlanRequest(req.id);
-    if (ok) {
-      toast.success(`تم تأكيد التحويل وتفعيل باقة (${req.planTitle}) للمؤلف ${req.authorName}!`);
-      qc.invalidateQueries({ queryKey: ["admin-plan-requests"] });
-    } else {
-      toast.error("حدث خطأ أثناء تفعيل الباقة");
-    }
-  }
-
-  async function handleRejectPlan(req: AuthorPlanRequest) {
-    const reason = prompt(`سبب رفض تفعيل الباقة للمؤلف (${req.authorName})؟`, "تعذر تأكيد استلام تحويل المحفظة");
-    if (reason === null) return;
-    const ok = await rejectPlanRequest(req.id, reason);
-    if (ok) {
-      toast.info(`تم رفض طلب التفعيل للمؤلف ${req.authorName}`);
-      qc.invalidateQueries({ queryKey: ["admin-plan-requests"] });
-    }
-  }
-
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
-      <h1 className="text-4xl font-bold">{t("لوحة الإدارة", "Management desk")}</h1>
-      <Tabs defaultValue="plans" className="mt-8">
-        <TabsList className="h-auto flex-wrap">
-          <TabsTrigger value="plans" className="gap-2 font-bold">
-            <Wallet className="h-4 w-4" />
-            {t("تفعيل باقات المؤلفين", "Author plans")}
-            {pendingPlans.length > 0 && (
-              <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs text-black font-extrabold animate-pulse">
-                {pendingPlans.length}
-              </span>
-            )}
+    <div className="mx-auto max-w-7xl px-4 py-8 md:py-12 pb-24 sm:pb-32 select-none" dir="rtl">
+      {/* Top Admin Identity & Overview Bar */}
+      <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-card via-card to-primary/5 p-6 shadow-sm mb-8">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-md">
+              <ShieldCheck className="h-7 w-7" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-foreground">
+                  لوحة الإدارة العليا والتحكم الشامل
+                </h1>
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 font-bold text-xs">
+                  unibook Admin Hub
+                </Badge>
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 font-medium">
+                مرحباً بك: <span className="font-mono text-foreground font-bold" dir="ltr">{session?.user?.email || ADMIN_EMAIL}</span> · إدارة القرّاء والمؤلفين ودور النشر ومركز الإنتاج بالذكاء الاصطناعي
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end md:self-auto">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+              جلسة إدارة نشطة ومؤمنة
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Multi-Panel Tabs */}
+      <Tabs defaultValue="production-ai" className="space-y-6">
+        <TabsList className="h-auto flex-wrap p-1.5 rounded-2xl bg-card border border-border/80 shadow-xs gap-1.5 w-full justify-start">
+          {/* 1. مركز الإنتاج بالذكاء الاصطناعي */}
+          <TabsTrigger
+            value="production-ai"
+            className="rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground shadow-xs cursor-pointer transition-all"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>مركز الإنتاج بالذكاء الاصطناعي</span>
           </TabsTrigger>
-          <TabsTrigger value="production">{t("المخطوطات والإنتاج والأرباح", "Production & royalties")}</TabsTrigger>
-          <TabsTrigger value="pending">{t("بانتظار المراجعة", "Pending review")} ({pending.length})</TabsTrigger>
-          <TabsTrigger value="orders">{t("الطلبات", "Orders")}</TabsTrigger>
+
+          {/* 2. التحكم بالموقع والمتجر */}
+          <TabsTrigger
+            value="site-control"
+            className="rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground shadow-xs cursor-pointer transition-all"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            <span>التحكم بالمتجر والأسعار والعروض</span>
+          </TabsTrigger>
+
+          {/* 3. لوحة القارئ */}
+          <TabsTrigger
+            value="readers"
+            className="rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground shadow-xs cursor-pointer transition-all"
+          >
+            <Users className="h-4 w-4" />
+            <span>لوحة القارئ</span>
+          </TabsTrigger>
+
+          {/* 4. لوحة المؤلف */}
+          <TabsTrigger
+            value="authors"
+            className="rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground shadow-xs cursor-pointer transition-all"
+          >
+            <PenLine className="h-4 w-4" />
+            <span>لوحة المؤلف (مراجعة واعتماد)</span>
+          </TabsTrigger>
+
+          {/* 5. لوحة دور النشر */}
+          <TabsTrigger
+            value="publishers"
+            className="rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground shadow-xs cursor-pointer transition-all"
+          >
+            <Building2 className="h-4 w-4" />
+            <span>لوحة دور النشر (مراجعة واعتماد)</span>
+          </TabsTrigger>
+
+          {/* 6. محفظة الإدارة */}
+          <TabsTrigger
+            value="wallet"
+            className="rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground shadow-xs cursor-pointer transition-all"
+          >
+            <Wallet className="h-4 w-4" />
+            <span>محفظة التحويلات</span>
+          </TabsTrigger>
         </TabsList>
 
-        {/* Tab 1: Author Plan Activations & Wallet config */}
-        <TabsContent value="plans" className="mt-6 space-y-8">
-          {/* Admin Wallet Settings */}
-          <div className="rounded-2xl border-2 border-primary/20 bg-card p-6 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* Tab Content 1: AI Production Center */}
+        <TabsContent value="production-ai" className="mt-4 focus-visible:outline-none">
+          <AdminProductionAI />
+        </TabsContent>
+
+        {/* Tab Content 2: Full Site & Store Control */}
+        <TabsContent value="site-control" className="mt-4 focus-visible:outline-none">
+          <AdminSiteControl />
+        </TabsContent>
+
+        {/* Tab Content 3: Readers Panel */}
+        <TabsContent value="readers" className="mt-4 focus-visible:outline-none">
+          <AdminReadersPanel />
+        </TabsContent>
+
+        {/* Tab Content 4: Authors Panel with Review & Approval */}
+        <TabsContent value="authors" className="mt-4 focus-visible:outline-none">
+          <AdminAuthorsPanel />
+        </TabsContent>
+
+        {/* Tab Content 5: Publishers Panel with Review & Approval */}
+        <TabsContent value="publishers" className="mt-4 focus-visible:outline-none">
+          <AdminPublishersPanel />
+        </TabsContent>
+
+        {/* Tab Content 6: Admin Wallet Configuration */}
+        <TabsContent value="wallet" className="mt-4 focus-visible:outline-none space-y-6">
+          <div className="rounded-3xl border-2 border-primary/20 bg-card p-6 sm:p-8 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border/60">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Wallet className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-bold">رقم محفظة الإدارة المعتمدة لاستقبال التحويلات</h2>
+                  <h2 className="font-display text-xl font-bold text-foreground">
+                    رقم محفظة الإدارة المعتمدة لاستقبال التحويلات
+                  </h2>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  هذا الرقم يظهر للمؤلفين في نافذة تحويل المحفظة لسداد رسوم باقات النشر (Vodafone Cash / InstaPay / STC Pay / المحافظ الإلكترونية).
+                  هذا الرقم يظهر تلقائياً للمؤلفين عند طلب الاشتراك في باقات النشر لسداد الرسوم (Vodafone Cash / InstaPay / STC Pay / المحافظ البنكية).
                 </p>
               </div>
+
               <div className="flex items-center gap-2">
                 <Input
                   dir="ltr"
-                  className="font-mono text-base font-bold w-48 text-center"
+                  className="font-mono text-base font-bold w-48 text-center h-11 rounded-xl bg-background/50"
                   value={walletNumberInput}
                   onChange={(e) => setWalletNumberInput(e.target.value)}
                   placeholder="010XXXXXXXX"
                 />
-                <Button onClick={handleSaveWallet} className="gap-2">
+                <Button onClick={handleSaveWallet} className="h-11 rounded-xl px-5 font-bold gap-2 cursor-pointer shadow-xs">
                   <Save className="h-4 w-4" /> حفظ الرقم
                 </Button>
               </div>
             </div>
-          </div>
 
-          {/* Plan Requests List */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold">طلبات تفعيل باقات النشر من المؤلفين</h3>
-                <p className="text-xs text-muted-foreground">
-                  إنشاء الحساب مجاني بالكامل، ولا يتم فتح مساحة المؤلف لنشر الكتب إلا بعد تحويل رسوم الباقة وتأكيد التفعيل من هذه اللوحة.
-                </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-xs">
+              <div className="p-4 rounded-2xl bg-muted/30 border border-border/70">
+                <span className="font-bold text-foreground block mb-1">المحافظ المصرية:</span>
+                <span className="text-muted-foreground">فودافون كاش، اتصالات كاش، أورنج كاش، وي باي، وانستا باي (InstaPay).</span>
               </div>
-              <Button variant="outline" size="sm" onClick={() => refetchPlans()} className="gap-1 text-xs">
-                <RefreshCw className="h-3.5 w-3.5" /> تحديث القائمة
-              </Button>
+              <div className="p-4 rounded-2xl bg-muted/30 border border-border/70">
+                <span className="font-bold text-foreground block mb-1">المحافظ الخليجية:</span>
+                <span className="text-muted-foreground">STC Pay، يور باي (UrPay)، مدى، والتحويل البنكي المباشر.</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-muted/30 border border-border/70">
+                <span className="font-bold text-foreground block mb-1">تأكيد فوري:</span>
+                <span className="text-muted-foreground">يصل الإشعار إلى لوحة المؤلفين لمراجعة رقم العملية وتفعيل الباقة فورياً.</span>
+              </div>
             </div>
-
-            {planRequests.length === 0 ? (
-              <p className="py-12 text-center text-muted-foreground border rounded-2xl bg-card">
-                لا توجد طلبات تفعيل باقات مسجلة حتى الآن.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {planRequests.map((req) => (
-                  <div
-                    key={req.id}
-                    className={`rounded-2xl border p-5 transition-all bg-card ${
-                      req.status === "pending"
-                        ? "border-amber-500/50 bg-amber-500/5 shadow-sm"
-                        : req.status === "active"
-                        ? "border-emerald-500/40 bg-emerald-500/5"
-                        : "border-border opacity-75"
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="space-y-2 flex-1 min-w-[280px]">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-base font-bold text-foreground">{req.authorName}</span>
-                          <span className="text-xs text-muted-foreground font-mono">({req.userEmail})</span>
-                          {req.status === "pending" && (
-                            <Badge variant="outline" className="bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40 gap-1 font-bold">
-                              <Clock className="h-3 w-3 animate-pulse" /> قيد انتظار تأكيد المحفظة
-                            </Badge>
-                          )}
-                          {req.status === "active" && (
-                            <Badge variant="outline" className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 gap-1 font-bold">
-                              <ShieldCheck className="h-3 w-3" /> باقة مفعّلة
-                            </Badge>
-                          )}
-                          {req.status === "rejected" && (
-                            <Badge variant="destructive" className="gap-1 font-bold">
-                              <AlertCircle className="h-3 w-3" /> تم رفض التحويل
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="grid gap-2 text-xs sm:grid-cols-2 md:grid-cols-4 rounded-xl border bg-background/60 p-3">
-                          <div>
-                            <span className="text-muted-foreground block">الباقة المطلوبة:</span>
-                            <span className="font-bold text-primary">{req.planTitle} ({req.booksCount} كتب)</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block">رسوم الباقة:</span>
-                            <span className="font-bold text-foreground">{req.priceDisplay}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block">محفظة المحوّل:</span>
-                            <span className="font-mono font-bold" dir="ltr">{req.walletSender}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block">رقم العملية / المرجع:</span>
-                            <span className="font-mono font-bold" dir="ltr">{req.reference}</span>
-                          </div>
-                        </div>
-
-                        {req.notes && (
-                          <p className="text-xs text-muted-foreground bg-muted/40 p-2 rounded-lg">
-                            <strong>ملاحظات المؤلف:</strong> {req.notes}
-                          </p>
-                        )}
-                        {req.rejectionReason && (
-                          <p className="text-xs text-destructive bg-destructive/10 p-2 rounded-lg">
-                            <strong>سبب الرفض:</strong> {req.rejectionReason}
-                          </p>
-                        )}
-                        <p className="text-[11px] text-muted-foreground">
-                          تاريخ الطلب: {new Date(req.requestedAt).toLocaleString("ar")}
-                          {req.activatedAt && ` · تاريخ التفعيل: ${new Date(req.activatedAt).toLocaleString("ar")}`}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 self-center">
-                        {req.status === "pending" && (
-                          <>
-                            <Button
-                              size="sm"
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1 rounded-xl"
-                              onClick={() => handleActivatePlan(req)}
-                            >
-                              <Check className="h-4 w-4" /> تأكيد التحويل وتفعيل الباقة
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-destructive border-destructive/40 hover:bg-destructive/10 rounded-xl gap-1"
-                              onClick={() => handleRejectPlan(req)}
-                            >
-                              <X className="h-4 w-4" /> رفض
-                            </Button>
-                          </>
-                        )}
-                        {req.status === "active" && (
-                          <div className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                            <ShieldCheck className="h-4 w-4" /> الحساب مفعّل كمؤلف
-                          </div>
-                        )}
-                        {req.status === "rejected" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-xl text-xs gap-1"
-                            onClick={() => handleActivatePlan(req)}
-                          >
-                            <Check className="h-3.5 w-3.5" /> إعادة التفعيل يدوياً
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="production" className="mt-6"><ProductionAdmin /></TabsContent>
-
-        <TabsContent value="pending" className="mt-6 space-y-3">
-          {pending.length === 0 && <p className="text-muted-foreground">{t("لا توجد كتب بانتظار المراجعة.", "No books awaiting review.")}</p>}
-          {pending.map((b) => (
-            <div key={b.id} className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card p-4">
-              {b.cover_url && <img src={b.cover_url} alt="" className="h-24 w-16 rounded object-cover" />}
-              <div className="min-w-60 flex-1">
-                <div className="font-display text-lg font-semibold">{b.title}</div>
-                <div className="text-sm text-muted-foreground">{b.author} · {b.publishers?.store_name} · {formatLabel[b.format]}</div>
-                <p className="mt-1 line-clamp-2 text-sm">{b.description}</p>
-                <div className="text-sm">رقمي: {formatPrice(b.price_digital)} · ورقي: {formatPrice(b.price_physical)}</div>
-              </div>
-              <Button size="sm" onClick={() => decide(b.id, true)}><Check className="me-1 h-4 w-4" /> {t("نشر", "Publish")}</Button>
-              <Button size="sm" variant="outline" onClick={() => decide(b.id, false)}><X className="me-1 h-4 w-4" /> {t("رفض", "Reject")}</Button>
-            </div>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="orders" className="mt-6">
-          <ul className="divide-y rounded-xl border bg-card">
-            {orders.map((o) => (
-              <li key={o.id} className="grid gap-1 p-4 text-sm md:grid-cols-4">
-                <span>#{o.id.slice(0, 8)}</span>
-                <span>{new Date(o.created_at).toLocaleString("ar")}</span>
-                <span>{o.shipping_name ? `${o.shipping_name} · ${o.shipping_phone}` : "رقمي فقط"}</span>
-                <span className="font-semibold md:text-end">{formatPrice(o.total)}</span>
-              </li>
-            ))}
-            {orders.length === 0 && <li className="p-4 text-muted-foreground">{t("لا توجد طلبات.", "No orders.")}</li>}
-          </ul>
         </TabsContent>
       </Tabs>
     </div>
   );
 }
-

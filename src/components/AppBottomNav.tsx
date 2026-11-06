@@ -25,6 +25,11 @@ export function AppBottomNav() {
   // If on desktop web without mobile/app mode, bottom nav is hidden
   if (!isAppExperience) return null;
 
+  // Do not render bottom nav on login or register pages (user requirement)
+  if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
+    return null;
+  }
+
   // Determine account destination
   const getAccountLink = () => {
     if (!session) return "/register";

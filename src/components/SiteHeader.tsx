@@ -280,10 +280,19 @@ export function SiteHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            /* دخول (Sign In Button when guest) */
-            <Button asChild className="rounded-full px-4 sm:px-6 font-extrabold shadow-xs text-xs sm:text-sm">
-              <Link to="/auth">{t("دخول", "Sign In")}</Link>
-            </Button>
+            /* دخول + إنشاء حساب (في الموقع فقط بجوار دخول) */
+            <div className="flex items-center gap-2">
+              <Button
+                asChild
+                variant="outline"
+                className="hidden md:inline-flex rounded-full px-4 sm:px-5 font-bold shadow-xs text-xs sm:text-sm border-primary/30 hover:border-primary hover:bg-primary/5 transition-all"
+              >
+                <Link to="/register">{t("إنشاء حساب", "Sign Up")}</Link>
+              </Button>
+              <Button asChild className="rounded-full px-4 sm:px-6 font-extrabold shadow-xs text-xs sm:text-sm">
+                <Link to="/login">{t("دخول", "Sign In")}</Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>

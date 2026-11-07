@@ -24,6 +24,7 @@ import {
   X,
   Loader2,
   Clock,
+  Link as LinkIcon,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { adminCreateBookServerFn } from "@/lib/admin-books.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,6 +94,8 @@ export function AdminSiteControl() {
   const [newShippingDays, setNewShippingDays] = useState("2 - 4 أيام عمل");
   const [newDigitalPdfFile, setNewDigitalPdfFile] = useState<File | null>(null);
 
+  const [coverInputMode, setCoverInputMode] = useState<"upload" | "url">("upload");
+
   function resetAddBookForm() {
     setNewTitle("");
     setNewAuthor("");
@@ -106,6 +110,7 @@ export function AdminSiteControl() {
     setNewCoverUrl("");
     setNewCoverFile(null);
     setNewCoverPreview(null);
+    setCoverInputMode("upload");
     setNewDescription("");
     setHasDiscount(false);
     setNewDiscountPercent("20");
@@ -119,11 +124,15 @@ export function AdminSiteControl() {
   async function handleCreateBook(e: React.FormEvent) {
     e.preventDefault();
     if (!newTitle.trim()) {
-      toast.error("يرجى إدخال عنوان الكتاب");
+      toast.error("يرجى إدخال عنوان الكتاب", {
+        description: "عنوان الكتاب إلزامي لعرضه وتوثيقه في المتجر.",
+      });
       return;
     }
     if (!newAuthor.trim()) {
-      toast.error("يرجى إدخال اسم المؤلف");
+      toast.error("يرجى إدخال اسم المؤلف", {
+        description: "اسم الكاتب أو المؤلف مطلوب للبحث وتصنيف الكتب.",
+      });
       return;
     }
 
@@ -131,7 +140,7 @@ export function AdminSiteControl() {
     try {
       let finalCoverUrl = newCoverUrl.trim();
 
-      // Upload cover file if provided
+      // 1. Upload cover file if provided
       if (newCoverFile) {
         try {
           const coverExt = newCoverFile.name.split(".").pop() || "jpg";
@@ -146,17 +155,18 @@ export function AdminSiteControl() {
               finalCoverUrl = pubData.publicUrl;
             }
           }
-        } catch {
-          // ignore cover upload error
+        } catch (uploadErr) {
+          console.warn("Cover upload notice:", uploadErr);
         }
       }
 
-      // Upload digital PDF if provided
+      // 2. Upload digital PDF if provided
       let filePath: string | null = null;
       if (newDigitalPdfFile) {
         try {
           const pdfExt = newDigitalPdfFile.name.split(".").pop() || "pdf";
-          const pdfPath = `admin-books/${crypto.randomUUID()}-${newDigitalPdfFile.name.replace(/[^\w.-]/g, "")}`;
+          const safeName = newDigitalPdfFile.name.replace(/[^\w.-]/g, "_");
+          const pdfPath = `admin-books/${crypto.randomUUID()}-${safeName}`;
           const { error: pdfErr } = await supabase.storage.from("book-files").upload(pdfPath, newDigitalPdfFile, {
             cacheControl: "3600",
             upsert: true,
@@ -164,12 +174,12 @@ export function AdminSiteControl() {
           if (!pdfErr) {
             filePath = pdfPath;
           }
-        } catch {
-          // ignore pdf upload error
+        } catch (pdfErr) {
+          console.warn("PDF upload notice:", pdfErr);
         }
       }
 
-      // Format description with metadata (year, pages, shipping)
+      // 3. Format description with metadata (year, pages, shipping)
       let fullDescription = newDescription.trim() || `كتاب ${newTitle} للمؤلف ${newAuthor}.`;
       const metaParts: string[] = [];
       if (newPublishYear) metaParts.push(`سنة الإصدار: ${newPublishYear}`);
@@ -200,14 +210,37 @@ export function AdminSiteControl() {
         featured: false,
       };
 
-      const { data: inserted, error: insertError } = await supabase
-        .from("books")
-        .insert(newBookRecord)
-        .select()
-        .single();
+      let inserted: any = null;
 
-      if (insertError) {
-        throw insertError;
+      // 4. Primary insert: Run via server function with Service Role (bypasses RLS)
+      try {
+        const srvRes = await adminCreateBookServerFn({ data: newBookRecord });
+        if (srvRes && srvRes.success && srvRes.book) {
+          inserted = srvRes.book;
+        } else if (srvRes && !srvRes.success) {
+          console.warn("ServerFn returned failure:", srvRes.error);
+        }
+      } catch (srvErr) {
+        console.warn("ServerFn invocation error:", srvErr);
+      }
+
+      // 5. Fallback: Direct client insert if server function is unreachable
+      if (!inserted) {
+        const { data: clientInserted, error: insertError } = await supabase
+          .from("books")
+          .insert(newBookRecord)
+          .select()
+          .single();
+
+        if (insertError) {
+          if (insertError.message?.includes("row-level security")) {
+            throw new Error(
+              "تم رفض الإضافة بسبب سياسة حماية قاعدة البيانات (RLS). يُرجى التأكد من تسجيل دخول الأدمن أو توفر صلاحيات السيرفر."
+            );
+          }
+          throw insertError;
+        }
+        inserted = clientInserted;
       }
 
       // Save category if new
@@ -228,13 +261,22 @@ export function AdminSiteControl() {
         });
       }
 
-      toast.success(`تمت إضافة كتاب (${newTitle}) ونشره بنجاح في المتجر!`);
+      // Rich, elegant Arabic Toast Notification
+      toast.success(`تم نشر كتاب "${newTitle}" بنجاح في متجر unibook! ✨`, {
+        description: `أصبح الكتاب متاحاً للشراء المباشر للجميع (${newFormat === "both" ? "رقمي وورقي" : newFormat === "digital" ? "رقمي فقط" : "ورقي فقط"}).`,
+        duration: 5000,
+      });
+
       resetAddBookForm();
       setIsAddBookOpen(false);
       refetchBooks();
       qc.invalidateQueries();
     } catch (err: any) {
-      toast.error(err?.message || "حدث خطأ أثناء إضافة الكتاب");
+      console.error("Book creation error:", err);
+      toast.error("تعذر إضافة ونشر الكتاب في المتجر", {
+        description: err?.message || "حدث خطأ غير متوقع، يرجى إعادة المحاولة.",
+        duration: 6000,
+      });
     } finally {
       setIsSubmittingBook(false);
     }
@@ -1007,90 +1049,199 @@ export function AdminSiteControl() {
 
             {/* 5. Book Cover & Digital PDF */}
             <div className="space-y-4 pt-2 border-t border-border/60">
-              <h4 className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
-                <ImageIcon className="h-4 w-4" />
-                <span>5. صورة الغلاف والملف الرقمي</span>
-              </h4>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h4 className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+                  <ImageIcon className="h-4 w-4" />
+                  <span>5. صورة الغلاف والملف الرقمي</span>
+                </h4>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Upload File */}
-                <div>
-                  <Label className="text-xs font-bold text-foreground block mb-1">
-                    رفع صورة الغلاف من جهازك:
-                  </Label>
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-border/80 hover:border-primary rounded-2xl p-4 cursor-pointer bg-muted/20 transition-colors text-center">
-                    <Upload className="h-6 w-6 text-primary mb-1" />
-                    <span className="text-xs font-semibold text-foreground">
-                      {newCoverFile ? newCoverFile.name : "اضغط لاختيار صورة الغلاف (PNG / JPG)"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground mt-0.5">
-                      يُفضل نسبة 2:3 كغلاف كتاب
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        setNewCoverFile(file);
-                        if (file) {
-                          setNewCoverPreview(URL.createObjectURL(file));
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
-
-                {/* Direct Image URL */}
-                <div>
-                  <Label className="text-xs font-bold text-foreground block mb-1">
-                    أو ضع رابط صورة الغلاف مباشرة (URL):
-                  </Label>
-                  <Input
-                    value={newCoverUrl}
-                    onChange={(e) => {
-                      setNewCoverUrl(e.target.value);
-                      if (e.target.value.startsWith("http")) {
-                        setNewCoverPreview(e.target.value);
-                      }
-                    }}
-                    placeholder="https://example.com/cover.jpg"
-                    className="h-10 rounded-xl bg-background/60 text-xs font-mono"
-                  />
-
-                  {/* Live Cover Preview */}
-                  {newCoverPreview && (
-                    <div className="mt-3 flex items-center gap-3 p-2.5 rounded-xl border border-border/80 bg-card">
-                      <img
-                        src={newCoverPreview}
-                        alt="معاينة الغلاف"
-                        className="h-16 w-12 rounded object-cover shadow-sm"
-                      />
-                      <div className="text-xs">
-                        <span className="font-bold text-foreground block">معاينة الغلاف المختار</span>
-                        <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> تم التحميل بنجاح
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                {/* Tabs switcher: File Upload vs Direct URL */}
+                <div className="inline-flex items-center rounded-xl bg-muted/60 p-1 border border-border/70 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setCoverInputMode("upload")}
+                    className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                      coverInputMode === "upload"
+                        ? "bg-card text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    رفع صورة من جهازك
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCoverInputMode("url")}
+                    className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                      coverInputMode === "url"
+                        ? "bg-card text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    رابط صورة (URL)
+                  </button>
                 </div>
               </div>
 
+              {coverInputMode === "upload" ? (
+                <div>
+                  {!newCoverFile && !newCoverPreview ? (
+                    <label className="flex flex-col items-center justify-center border-2 border-dashed border-border/80 hover:border-primary/80 rounded-2xl p-6 cursor-pointer bg-muted/15 hover:bg-muted/25 transition-all text-center group">
+                      <div className="h-11 w-11 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center mb-2.5 text-primary transition-colors">
+                        <Upload className="h-5 w-5" />
+                      </div>
+                      <span className="text-xs font-bold text-foreground">
+                        اضغط هنا لاختيار صورة غلاف الكتاب (PNG / JPG / WEBP)
+                      </span>
+                      <span className="text-[11px] text-muted-foreground mt-1">
+                        الأبعاد المثالية بنسبة 2:3 لتظهر بكامل رونقها في واجهة المتجر
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setNewCoverFile(file);
+                          if (file) {
+                            setNewCoverPreview(URL.createObjectURL(file));
+                          }
+                        }}
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        {newCoverPreview && (
+                          <img
+                            src={newCoverPreview}
+                            alt="معاينة الغلاف"
+                            className="h-16 w-12 rounded-lg object-cover shadow-sm shrink-0 border border-border/80 bg-background"
+                          />
+                        )}
+                        <div className="min-w-0 text-xs">
+                          <p
+                            className="font-bold text-foreground truncate max-w-[200px] sm:max-w-[360px]"
+                            title={newCoverFile?.name || "صورة الغلاف"}
+                            dir="ltr"
+                          >
+                            {newCoverFile ? newCoverFile.name : "صورة الغلاف المختارة"}
+                          </p>
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 mt-1">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                            {newCoverFile
+                              ? `${(newCoverFile.size / 1024).toFixed(0)} KB · تم تجهيز الغلاف بنجاح`
+                              : "تم التحميل بنجاح"}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setNewCoverFile(null);
+                          setNewCoverPreview(null);
+                        }}
+                        className="text-muted-foreground hover:text-destructive h-8 px-2.5 text-xs shrink-0 rounded-lg hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1 text-destructive" />
+                        إزالة
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs font-bold text-foreground block mb-1.5">
+                      رابط صورة الغلاف مباشرة (Image URL):
+                    </Label>
+                    <Input
+                      value={newCoverUrl}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewCoverUrl(val);
+                        if (val.startsWith("http")) {
+                          setNewCoverPreview(val);
+                        } else if (!val) {
+                          setNewCoverPreview(null);
+                        }
+                      }}
+                      placeholder="https://example.com/cover.jpg"
+                      className="h-10 rounded-xl bg-background/60 text-xs font-mono"
+                    />
+                  </div>
+
+                  {newCoverPreview && (
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl border border-border/80 bg-card">
+                      <img
+                        src={newCoverPreview}
+                        alt="معاينة"
+                        className="h-14 w-10 rounded-lg object-cover shadow-xs border shrink-0 bg-background"
+                      />
+                      <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1.5">
+                        <CheckCircle2 className="h-4 w-4" /> تم التعرف على رابط الصورة بنجاح
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Digital PDF file */}
               {newFormat !== "physical" && (
-                <div>
-                  <Label className="text-xs font-bold text-foreground block mb-1">
-                    رفع ملف الكتاب الرقمي PDF (للقراءة المحمية داخل الموقع والتطبيق):
+                <div className="pt-2 border-t border-border/40">
+                  <Label className="text-xs font-bold text-foreground block mb-1.5">
+                    ملف الكتاب الرقمي (PDF للقراءة المحمية داخل الموقع والتطبيق):
                   </Label>
-                  <Input
-                    type="file"
-                    accept=".pdf,.epub"
-                    onChange={(e) => setNewDigitalPdfFile(e.target.files?.[0] || null)}
-                    className="h-10 rounded-xl bg-background/60 file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary cursor-pointer"
-                  />
-                  <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                    يتم تخزين الكتاب وقراءته عبر القارئ المحمي فقط مع حظر التحميل والطباعة.
+                  {!newDigitalPdfFile ? (
+                    <label className="flex items-center justify-between border border-dashed border-border/80 hover:border-primary/80 rounded-xl p-3 cursor-pointer bg-muted/15 hover:bg-muted/25 transition-colors">
+                      <div className="flex items-center gap-2.5">
+                        <FileText className="h-5 w-5 text-primary shrink-0" />
+                        <span className="text-xs font-semibold text-foreground">
+                          اضغط لاختيار ملف الكتاب بصيغة PDF أو EPUB
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-bold text-primary bg-primary/10 px-3 py-1 rounded-lg shrink-0">
+                        اختيار ملف
+                      </span>
+                      <input
+                        type="file"
+                        accept=".pdf,.epub"
+                        className="hidden"
+                        onChange={(e) => setNewDigitalPdfFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center justify-between p-3 rounded-xl border border-primary/30 bg-primary/5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <FileText className="h-5 w-5 text-primary shrink-0" />
+                        <div className="min-w-0 text-xs">
+                          <p
+                            className="font-bold text-foreground truncate max-w-[220px] sm:max-w-[360px]"
+                            title={newDigitalPdfFile.name}
+                            dir="ltr"
+                          >
+                            {newDigitalPdfFile.name}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {(newDigitalPdfFile.size / (1024 * 1024)).toFixed(2)} MB · جاهز للتخزين المشفر
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setNewDigitalPdfFile(null)}
+                        className="text-muted-foreground hover:text-destructive h-8 px-2 text-xs shrink-0 rounded-lg hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1 text-destructive" />
+                        إلغاء
+                      </Button>
+                    </div>
+                  )}
+                  <span className="text-[10px] text-muted-foreground mt-1 block">
+                    يتم حفظ الملف في مساحة تخزين مشفرة مع حظر التحميل والطباعة لحماية حقوق الملكية الفكرية.
                   </span>
                 </div>
               )}

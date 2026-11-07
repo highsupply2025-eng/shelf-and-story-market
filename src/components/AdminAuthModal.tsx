@@ -13,6 +13,7 @@ import {
   EyeOff,
   Sparkles,
   Send,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,8 +53,33 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
         }
       }
     });
-    return () => sub.subscription.unsubscribe();
-  }, [navigate, refresh, onSuccess]);
+
+    // Also poll every 2.5s and listen to storage event when waiting in verify step
+    let interval: NodeJS.Timeout | null = null;
+    const checkActiveSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase()) {
+        toast.success("تم تأكيد دخول الإدارة بنجاح! جاري فتح لوحة التحكم...");
+        await refresh();
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          navigate({ to: "/admin" });
+        }
+      }
+    };
+
+    if (step === "verify") {
+      interval = setInterval(checkActiveSession, 2500);
+      window.addEventListener("storage", checkActiveSession);
+    }
+
+    return () => {
+      sub.subscription.unsubscribe();
+      if (interval) clearInterval(interval);
+      window.removeEventListener("storage", checkActiveSession);
+    };
+  }, [step, navigate, refresh, onSuccess]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -82,14 +108,14 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
       });
 
       if (error) {
-        toast.error(error.message || "تعذر إرسال كود التحقق. يرجى المحاولة بعد قليل.");
+        toast.error(error.message || "تعذر إرسال رسالة الدخول. يرجى المحاولة بعد قليل.");
       } else {
-        toast.success("تم إرسال كود التحقق بنجاح إلى: " + ADMIN_EMAIL);
+        toast.success("تم إرسال رابط الدخول وكود التحقق إلى: " + ADMIN_EMAIL);
         setStep("verify");
         setCountdown(60);
       }
     } catch (err: any) {
-      toast.error(err?.message || "حدث خطأ أثناء إرسال كود التحقق");
+      toast.error(err?.message || "حدث خطأ أثناء إرسال رسالة الدخول");
     } finally {
       setLoading(false);
     }
@@ -202,10 +228,10 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
         <div className="space-y-4">
           <div className="rounded-2xl border border-border/80 bg-muted/30 p-3.5 text-center space-y-1">
             <p className="text-xs font-bold text-foreground">
-              تسجيل الدخول محمي بكود سري مكون من 6 أرقام
+              تسجيل دخول الإدارة محمي برابط الدخول السريع أو كود 6 أرقام
             </p>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              انقر على الزر أدناه وسيصلك كود التحقق فوراً على بريدك الإلكتروني المعتمد <span className="font-mono font-bold text-foreground" dir="ltr">{ADMIN_EMAIL}</span>
+              انقر على الزر أدناه وسيصلك رابط الدخول السريع فوراً على بريدك الإلكتروني المعتمد <span className="font-mono font-bold text-foreground" dir="ltr">{ADMIN_EMAIL}</span>
             </p>
           </div>
 
@@ -218,24 +244,24 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
             {loading ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
-                جاري إرسال كود التحقق للبريد...
+                جاري إرسال رابط الدخول للبريد...
               </>
             ) : (
               <>
                 <Send className="h-4.5 w-4.5" />
-                إرسال كود التحقق السري إلى الإيميل
+                إرسال رابط الدخول وكود التحقق إلى الإيميل
               </>
             )}
           </Button>
 
-          {/* Quick jump if user already has a code */}
+          {/* Quick jump if user already received email */}
           <div className="pt-1 text-center">
             <button
               type="button"
               onClick={() => setStep("verify")}
               className="text-xs text-primary font-bold hover:underline cursor-pointer"
             >
-              وصلني كود التحقق بالفعل؟ (أدخل الكود الآن)
+              وصلتك الرسالة بالفعل؟ (المتابعة للتأكيد والدخول)
             </button>
           </div>
 
@@ -257,23 +283,64 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
         </div>
       )}
 
-      {/* STEP 2: VERIFY OTP CODE */}
+      {/* STEP 2: VERIFY OTP CODE OR CLICK DIRECT LINK */}
       {step === "verify" && (
-        <form onSubmit={handleVerifyOtp} className="space-y-5">
+        <form onSubmit={handleVerifyOtp} className="space-y-4">
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-center space-y-1">
             <div className="flex items-center justify-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-extrabold text-xs">
               <Sparkles className="h-4 w-4" />
-              <span>تم إرسال كود التحقق إلى بريدك الإلكتروني!</span>
+              <span>تم إرسال رسالة الدخول بنجاح إلى بريدك الإلكتروني!</span>
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              افتح بريدك <strong className="font-mono text-foreground">{ADMIN_EMAIL}</strong> (تفقد صندوق الوارد أو البريد غير الهام Spam)، ثم اكتب الكود المكون من 6 أرقام بالأسفل:
+              افتح بريدك <strong className="font-mono text-foreground">{ADMIN_EMAIL}</strong> (تفقد صندوق الوارد أو البريد غير الهام Spam).
             </p>
           </div>
 
-          {/* 6-Digit OTP Input */}
-          <div className="text-center py-2">
+          {/* Option 1: Direct Link (Fastest & 1-Click) */}
+          <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3.5 text-center space-y-2">
+            <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-primary">
+              <ExternalLink className="h-4 w-4 shrink-0" />
+              <span>طريقة الدخول الأسرع بنقرة واحدة (الرابط):</span>
+            </div>
+            <p className="text-[11px] text-foreground/85 leading-relaxed">
+              اضغط مباشرة على رابط أو زر <strong>(Log In / تسجيل الدخول)</strong> داخل الرسالة التي وصلتك على الإيميل، وسيتم فتح لوحة الإدارة تلقائياً فوراً دون الحاجة لكتابة أي كود!
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  const { data } = await supabase.auth.getSession();
+                  if (data?.session?.user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase()) {
+                    toast.success("تم التحقق بنجاح! جاري فتح لوحة الإدارة...");
+                    await refresh();
+                    if (onSuccess) onSuccess();
+                    else navigate({ to: "/admin" });
+                  } else {
+                    toast.info("يرجى النقر على الرابط في رسالة البريد الإلكتروني أولاً ثم الضغط هنا.");
+                  }
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="w-full h-10 text-xs font-bold rounded-xl gap-2 border-primary/40 text-primary hover:bg-primary/10 cursor-pointer shadow-xs"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              ضغطت على الرابط في الإيميل؟ افتح لوحة الإدارة الآن
+            </Button>
+          </div>
+
+          <div className="relative flex py-0.5 items-center">
+            <div className="flex-grow border-t border-border/70" />
+            <span className="flex-shrink mx-3 text-[11px] text-muted-foreground font-semibold">أو إدخال كود 6 أرقام</span>
+            <div className="flex-grow border-t border-border/70" />
+          </div>
+
+          {/* Option 2: 6-Digit OTP */}
+          <div className="text-center py-1">
             <label className="text-xs font-bold text-foreground block mb-2">
-              أدخل كود التحقق المكون من 6 أرقام:
+              إذا ظهر لك كود سداسي (6 أرقام) بالرسالة اكتبه هنا:
             </label>
             <div className="flex justify-center" dir="ltr">
               <InputOTP
@@ -291,12 +358,12 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
                 autoFocus
               >
                 <InputOTPGroup className="gap-2 sm:gap-2.5">
-                  <InputOTPSlot index={0} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
-                  <InputOTPSlot index={1} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
-                  <InputOTPSlot index={2} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
-                  <InputOTPSlot index={3} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
-                  <InputOTPSlot index={4} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
-                  <InputOTPSlot index={5} className="h-12 w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                  <InputOTPSlot index={0} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                  <InputOTPSlot index={1} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                  <InputOTPSlot index={2} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                  <InputOTPSlot index={3} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                  <InputOTPSlot index={4} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                  <InputOTPSlot index={5} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
                 </InputOTPGroup>
               </InputOTP>
             </div>
@@ -306,7 +373,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
             id="admin-verify-btn"
             type="submit"
             disabled={loading || otpCode.length < 6}
-            className="w-full h-12 text-sm font-extrabold rounded-2xl shadow-md gap-2 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer active:scale-[0.99]"
+            className="w-full h-11 text-sm font-extrabold rounded-2xl shadow-md gap-2 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer active:scale-[0.99]"
           >
             {loading ? (
               <>

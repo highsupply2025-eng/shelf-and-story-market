@@ -159,3 +159,32 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-float, .animate-marquee, .animate-rise { animation: none; }
 }
+
+/* ========================================================
+   Permanent Removal & Suppression of Lovable Badge & Floating Tags
+   ======================================================== */
+#lovable-badge,
+[id*="lovable-badge"],
+[class*="lovable-badge"],
+[data-lovable-badge],
+lovable-badge,
+a[href*="lovable.dev"],
+a[href*="gptengineer.app"],
+div:has(> a[href*="lovable.dev"]),
+div:has(> a[href*="gptengineer.app"]),
+iframe[src*="lovable.dev"],
+iframe[src*="gptengineer.app"],
+[data-component-name="LovableBadge"],
+[aria-label*="Lovable" i],
+[title*="Lovable" i] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  clip: rect(0, 0, 0, 0) !important;
+  z-index: -99999 !important;
+  transform: scale(0) !important;
+}

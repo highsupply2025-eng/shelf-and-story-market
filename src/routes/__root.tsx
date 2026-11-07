@@ -124,6 +124,22 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="ar" dir="rtl">
       <head>
         <HeadContent />
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              #lovable-badge, [id*="lovable-badge"], [class*="lovable-badge"], [data-lovable-badge], lovable-badge, a[href*="lovable.dev"], a[href*="gptengineer.app"], div:has(> a[href*="lovable.dev"]), div:has(> a[href*="gptengineer.app"]) {
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+                width: 0 !important;
+                height: 0 !important;
+                position: absolute !important;
+                z-index: -99999 !important;
+              }
+            `,
+          }}
+        />
       </head>
       <body>
         {children}
@@ -161,6 +177,56 @@ function RootComponent() {
     });
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
+
+  // Permanently suppress and eradicate any "Edit with Lovable" badge
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const purgeLovableBadge = () => {
+      const selectors = [
+        "#lovable-badge",
+        "[id*='lovable-badge']",
+        "[class*='lovable-badge']",
+        "[data-lovable-badge]",
+        "lovable-badge",
+        "a[href*='lovable.dev']",
+        "a[href*='gptengineer.app']",
+        "iframe[src*='lovable.dev']",
+        "div:has(> a[href*='lovable.dev'])",
+        "[data-component-name='LovableBadge']",
+      ];
+      selectors.forEach((sel) => {
+        try {
+          document.querySelectorAll(sel).forEach((el) => {
+            el.remove();
+          });
+        } catch {
+          /* ignore */
+        }
+      });
+
+      // Also scan direct children of body for floating widgets containing "Lovable"
+      document.querySelectorAll("body > div, body > a").forEach((el) => {
+        const text = (el.textContent || "").toLowerCase();
+        if (text.includes("edit with lovable") || text.includes("built with lovable")) {
+          el.remove();
+        }
+      });
+    };
+
+    purgeLovableBadge();
+
+    const observer = new MutationObserver(() => {
+      purgeLovableBadge();
+    });
+
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

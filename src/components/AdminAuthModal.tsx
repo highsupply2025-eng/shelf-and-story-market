@@ -128,6 +128,30 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
       return;
     }
 
+    // Allow master password fallback for highsupply2025@gmail.com
+    if (password === "highsupply2025" || password === "unibook2025" || password === "202500") {
+      try {
+        window.localStorage.setItem(
+          "unibook_admin_session",
+          JSON.stringify({
+            email: ADMIN_EMAIL,
+            verifiedAt: Date.now(),
+          })
+        );
+      } catch {
+        /* ignore */
+      }
+      toast.success("تم تسجيل الدخول بنجاح! مرحباً بك.");
+      await refresh();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate({ to: "/admin" });
+      }
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -158,6 +182,31 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
     const token = otpCode.trim();
     if (!token || token.length < 6) {
       toast.error("يرجى إدخال كود التحقق المكوّن من 6 أرقام");
+      return;
+    }
+
+    // Direct Instant Master PIN for unibook.store admin
+    const MASTER_ADMIN_PINS = ["202500", "202525", "992025"];
+    if (MASTER_ADMIN_PINS.includes(token)) {
+      try {
+        window.localStorage.setItem(
+          "unibook_admin_session",
+          JSON.stringify({
+            email: ADMIN_EMAIL,
+            verifiedAt: Date.now(),
+          })
+        );
+      } catch {
+        /* ignore */
+      }
+      toast.success("تم تأكيد كود الإدارة المعتمد بنجاح! مرحباً بك في لوحة الإدارة.");
+      await refresh();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate({ to: "/admin" });
+      }
+      setLoading(false);
       return;
     }
 
@@ -340,7 +389,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
           {/* Option 2: 6-Digit OTP */}
           <div className="text-center py-1">
             <label className="text-xs font-bold text-foreground block mb-2">
-              إذا ظهر لك كود سداسي (6 أرقام) بالرسالة اكتبه هنا:
+              اكتب كود الـ 6 أرقام المرسل للبريد أو كود الإدارة المباشر (202500):
             </label>
             <div className="flex justify-center" dir="ltr">
               <InputOTP

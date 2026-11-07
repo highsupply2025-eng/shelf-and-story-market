@@ -15,7 +15,25 @@ import {
   DollarSign,
   AlertCircle,
   Megaphone,
+  Upload,
+  Image as ImageIcon,
+  Truck,
+  Calendar,
+  FileText,
+  CheckCircle2,
+  X,
+  Loader2,
+  Clock,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -48,6 +66,179 @@ import type { Book } from "@/components/BookCard";
 export function AdminSiteControl() {
   const { t, price: formatMoney } = useLocale();
   const qc = useQueryClient();
+
+  // Add Book Dialog & Form State
+  const [isAddBookOpen, setIsAddBookOpen] = useState(false);
+  const [isSubmittingBook, setIsSubmittingBook] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newAuthor, setNewAuthor] = useState("");
+  const [newCategory, setNewCategory] = useState("روايات");
+  const [newCustomCategory, setNewCustomCategory] = useState("");
+  const [newFormat, setNewFormat] = useState<"both" | "digital" | "physical">("both");
+  const [newPriceDigital, setNewPriceDigital] = useState("");
+  const [newPricePhysical, setNewPricePhysical] = useState("");
+  const [newStock, setNewStock] = useState("50");
+  const [newPages, setNewPages] = useState("200");
+  const [newPublishYear, setNewPublishYear] = useState(new Date().getFullYear().toString());
+  const [newCoverUrl, setNewCoverUrl] = useState("");
+  const [newCoverFile, setNewCoverFile] = useState<File | null>(null);
+  const [newCoverPreview, setNewCoverPreview] = useState<string | null>(null);
+  const [newDescription, setNewDescription] = useState("");
+  const [hasDiscount, setHasDiscount] = useState(false);
+  const [newDiscountPercent, setNewDiscountPercent] = useState("20");
+  const [newDiscountBadge, setNewDiscountBadge] = useState("خصم 20%");
+  const [hasShipping, setHasShipping] = useState(true);
+  const [newShippingPrice, setNewShippingPrice] = useState("0");
+  const [newShippingDays, setNewShippingDays] = useState("2 - 4 أيام عمل");
+  const [newDigitalPdfFile, setNewDigitalPdfFile] = useState<File | null>(null);
+
+  function resetAddBookForm() {
+    setNewTitle("");
+    setNewAuthor("");
+    setNewCategory(categories[0] || "روايات");
+    setNewCustomCategory("");
+    setNewFormat("both");
+    setNewPriceDigital("");
+    setNewPricePhysical("");
+    setNewStock("50");
+    setNewPages("200");
+    setNewPublishYear(new Date().getFullYear().toString());
+    setNewCoverUrl("");
+    setNewCoverFile(null);
+    setNewCoverPreview(null);
+    setNewDescription("");
+    setHasDiscount(false);
+    setNewDiscountPercent("20");
+    setNewDiscountBadge("خصم 20%");
+    setHasShipping(true);
+    setNewShippingPrice("0");
+    setNewShippingDays("2 - 4 أيام عمل");
+    setNewDigitalPdfFile(null);
+  }
+
+  async function handleCreateBook(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newTitle.trim()) {
+      toast.error("يرجى إدخال عنوان الكتاب");
+      return;
+    }
+    if (!newAuthor.trim()) {
+      toast.error("يرجى إدخال اسم المؤلف");
+      return;
+    }
+
+    setIsSubmittingBook(true);
+    try {
+      let finalCoverUrl = newCoverUrl.trim();
+
+      // Upload cover file if provided
+      if (newCoverFile) {
+        try {
+          const coverExt = newCoverFile.name.split(".").pop() || "jpg";
+          const coverPath = `admin-covers/${crypto.randomUUID()}.${coverExt}`;
+          const { error: upErr } = await supabase.storage.from("covers").upload(coverPath, newCoverFile, {
+            cacheControl: "3600",
+            upsert: true,
+          });
+          if (!upErr) {
+            const { data: pubData } = supabase.storage.from("covers").getPublicUrl(coverPath);
+            if (pubData?.publicUrl) {
+              finalCoverUrl = pubData.publicUrl;
+            }
+          }
+        } catch {
+          // ignore cover upload error
+        }
+      }
+
+      // Upload digital PDF if provided
+      let filePath: string | null = null;
+      if (newDigitalPdfFile) {
+        try {
+          const pdfExt = newDigitalPdfFile.name.split(".").pop() || "pdf";
+          const pdfPath = `admin-books/${crypto.randomUUID()}-${newDigitalPdfFile.name.replace(/[^\w.-]/g, "")}`;
+          const { error: pdfErr } = await supabase.storage.from("book-files").upload(pdfPath, newDigitalPdfFile, {
+            cacheControl: "3600",
+            upsert: true,
+          });
+          if (!pdfErr) {
+            filePath = pdfPath;
+          }
+        } catch {
+          // ignore pdf upload error
+        }
+      }
+
+      // Format description with metadata (year, pages, shipping)
+      let fullDescription = newDescription.trim() || `كتاب ${newTitle} للمؤلف ${newAuthor}.`;
+      const metaParts: string[] = [];
+      if (newPublishYear) metaParts.push(`سنة الإصدار: ${newPublishYear}`);
+      if (newPages) metaParts.push(`عدد الصفحات: ${newPages} صفحة`);
+      if (hasShipping && newFormat !== "digital") {
+        const shipCost = Number(newShippingPrice) > 0 ? `${newShippingPrice} ر.س` : "شحن مجاني";
+        metaParts.push(`الشحن والتوصيل: متوفر (${shipCost} · ${newShippingDays})`);
+      }
+      if (metaParts.length > 0) {
+        fullDescription += `\n\n📌 تفاصيل ومواصفات الكتاب:\n• ${metaParts.join("\n• ")}`;
+      }
+
+      const categoryToUse = newCategory === "NEW" ? (newCustomCategory.trim() || "عام") : newCategory;
+
+      const newBookRecord = {
+        title: newTitle.trim(),
+        author: newAuthor.trim(),
+        category: categoryToUse,
+        format: newFormat,
+        price_digital: newFormat !== "physical" && newPriceDigital ? Number(newPriceDigital) : null,
+        price_physical: newFormat !== "digital" && newPricePhysical ? Number(newPricePhysical) : null,
+        stock: newFormat !== "digital" ? (Number(newStock) || 0) : 0,
+        pages: newPages ? Number(newPages) : null,
+        cover_url: finalCoverUrl || null,
+        file_path: filePath,
+        description: fullDescription,
+        status: "approved" as const,
+        featured: false,
+      };
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("books")
+        .insert(newBookRecord)
+        .select()
+        .single();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      // Save category if new
+      if (newCategory === "NEW" && newCustomCategory.trim()) {
+        const updated = addAdminCategory(newCustomCategory.trim());
+        setCategories(updated);
+      }
+
+      // Save discount if enabled
+      if (hasDiscount && inserted?.id) {
+        const pct = Number(newDiscountPercent) || 20;
+        setBookDiscount({
+          bookId: inserted.id,
+          discountPercent: pct,
+          badgeText: newDiscountBadge.trim() || `خصم ${pct}%`,
+          originalPriceDigital: inserted.price_digital ? Number(inserted.price_digital) : undefined,
+          originalPricePhysical: inserted.price_physical ? Number(inserted.price_physical) : undefined,
+        });
+      }
+
+      toast.success(`تمت إضافة كتاب (${newTitle}) ونشره بنجاح في المتجر!`);
+      resetAddBookForm();
+      setIsAddBookOpen(false);
+      refetchBooks();
+      qc.invalidateQueries();
+    } catch (err: any) {
+      toast.error(err?.message || "حدث خطأ أثناء إضافة الكتاب");
+    } finally {
+      setIsSubmittingBook(false);
+    }
+  }
 
   // Search & Edit state for books
   const [bookSearch, setBookSearch] = useState("");
@@ -218,7 +409,7 @@ export function AdminSiteControl() {
     <div className="space-y-10" dir="rtl">
       {/* SECTION 1: Books & Pricing Full Control */}
       <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm space-y-5">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-4 border-b border-border/60">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 pb-4 border-b border-border/60">
           <div>
             <div className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-primary" />
@@ -227,18 +418,32 @@ export function AdminSiteControl() {
               </h3>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              تعديل أسعار النسخ الرقمية والورقية فورياً، عمل عروض وخصومات، أو حذف الكتب بنقرة واحدة.
+              إضافة كتب جديدة للمتجر بالكامل، تعديل أسعار النسخ، عمل عروض وخصومات، أو حذف الكتب بنقرة واحدة.
             </p>
           </div>
 
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={bookSearch}
-              onChange={(e) => setBookSearch(e.target.value)}
-              placeholder="ابحث بالعنوان أو الكاتب أو القسم..."
-              className="ps-9 h-10 rounded-xl text-xs bg-background/50"
-            />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <Button
+              type="button"
+              onClick={() => {
+                resetAddBookForm();
+                setIsAddBookOpen(true);
+              }}
+              className="h-10 rounded-xl text-xs sm:text-sm font-extrabold gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md cursor-pointer shrink-0"
+            >
+              <Plus className="h-4 w-4" />
+              <span>إضافة كتاب جديد للمتجر</span>
+            </Button>
+
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={bookSearch}
+                onChange={(e) => setBookSearch(e.target.value)}
+                placeholder="ابحث بالعنوان أو الكاتب أو القسم..."
+                className="ps-9 h-10 rounded-xl text-xs bg-background/50"
+              />
+            </div>
           </div>
         </div>
 
@@ -488,6 +693,456 @@ export function AdminSiteControl() {
           </div>
         </div>
       </div>
+
+      {/* Modal: Add New Book to Store */}
+      <Dialog open={isAddBookOpen} onOpenChange={setIsAddBookOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 sm:p-8" dir="rtl">
+          <DialogHeader className="pb-3 border-b border-border/70">
+            <DialogTitle className="font-display text-2xl font-extrabold flex items-center gap-2.5 text-foreground">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              <span>إضافة كتاب جديد إلى متجر unibook</span>
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              أدخل كافة تفاصيل الكتاب والعنوان والأسعار والغلاف ومواصفات الشحن لنشره فوراً في المتجر والتطبيق.
+            </p>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateBook} className="space-y-6 pt-3 text-xs sm:text-sm">
+            {/* 1. Basic Info: Title & Author */}
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+                <FileText className="h-4 w-4" />
+                <span>1. البيانات الأساسية للكتاب</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-bold text-foreground block mb-1">
+                    عنوان الكتاب <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    required
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="مثال: رحلة إلى أسرار الكون..."
+                    className="h-10 rounded-xl bg-background/60"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-bold text-foreground block mb-1">
+                    اسم المؤلف <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    required
+                    value={newAuthor}
+                    onChange={(e) => setNewAuthor(e.target.value)}
+                    placeholder="اسم الكاتب أو المؤلف..."
+                    className="h-10 rounded-xl bg-background/60"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-xs font-bold text-foreground block mb-1">
+                    تصنيف / قسم الكتاب
+                  </Label>
+                  <Select value={newCategory} onValueChange={setNewCategory}>
+                    <SelectTrigger className="h-10 rounded-xl bg-background/60">
+                      <SelectValue placeholder="اختر القسم..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                      <SelectItem value="NEW">+ كتابة قسم جديد...</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {newCategory === "NEW" && (
+                    <Input
+                      value={newCustomCategory}
+                      onChange={(e) => setNewCustomCategory(e.target.value)}
+                      placeholder="اكتب اسم القسم الجديد..."
+                      className="h-9 rounded-xl mt-2 text-xs"
+                      autoFocus
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <Label className="text-xs font-bold text-foreground block mb-1">
+                    سنة الإصدار
+                  </Label>
+                  <div className="relative">
+                    <Calendar className="absolute start-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      value={newPublishYear}
+                      onChange={(e) => setNewPublishYear(e.target.value)}
+                      placeholder="مثلاً: 2026"
+                      className="ps-9 h-10 rounded-xl bg-background/60 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-bold text-foreground block mb-1">
+                    عدد الصفحات
+                  </Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={newPages}
+                    onChange={(e) => setNewPages(e.target.value)}
+                    placeholder="مثلاً: 280"
+                    className="h-10 rounded-xl bg-background/60 font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Format & Pricing */}
+            <div className="space-y-4 pt-2 border-t border-border/60">
+              <h4 className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+                <DollarSign className="h-4 w-4" />
+                <span>2. صيغة الكتاب والتسعير</span>
+              </h4>
+
+              <div>
+                <Label className="text-xs font-bold text-foreground block mb-1.5">
+                  نوع وصيغة التوفر في المتجر:
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewFormat("both")}
+                    className={`h-11 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+                      newFormat === "both"
+                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                        : "bg-muted/40 hover:bg-muted text-foreground border-border/80"
+                    }`}
+                  >
+                    رقمي وورقي معاً
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewFormat("physical")}
+                    className={`h-11 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+                      newFormat === "physical"
+                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                        : "bg-muted/40 hover:bg-muted text-foreground border-border/80"
+                    }`}
+                  >
+                    ورقي مطبوع فقط
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewFormat("digital")}
+                    className={`h-11 rounded-xl font-bold text-xs border transition-all cursor-pointer ${
+                      newFormat === "digital"
+                        ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                        : "bg-muted/40 hover:bg-muted text-foreground border-border/80"
+                    }`}
+                  >
+                    نسخة رقمية فقط
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {newFormat !== "physical" && (
+                  <div>
+                    <Label className="text-xs font-bold text-foreground block mb-1">
+                      سعر النسخة الرقمية (ر.س)
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={newPriceDigital}
+                      onChange={(e) => setNewPriceDigital(e.target.value)}
+                      placeholder="مثال: 35"
+                      className="h-10 rounded-xl bg-background/60 font-mono font-bold"
+                    />
+                  </div>
+                )}
+
+                {newFormat !== "digital" && (
+                  <>
+                    <div>
+                      <Label className="text-xs font-bold text-foreground block mb-1">
+                        سعر النسخة الورقية (ر.س)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newPricePhysical}
+                        onChange={(e) => setNewPricePhysical(e.target.value)}
+                        placeholder="مثال: 75"
+                        className="h-10 rounded-xl bg-background/60 font-mono font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs font-bold text-foreground block mb-1">
+                        المخزون المتوفر (نسخة)
+                      </Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={newStock}
+                        onChange={(e) => setNewStock(e.target.value)}
+                        placeholder="مثال: 50"
+                        className="h-10 rounded-xl bg-background/60 font-mono"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Shipping Details */}
+            {newFormat !== "digital" && (
+              <div className="space-y-3 pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+                    <Truck className="h-4 w-4" />
+                    <span>3. الشحن والتوصيل للنسخة الورقية</span>
+                  </h4>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">شحن متاح</span>
+                    <Switch checked={hasShipping} onCheckedChange={setHasShipping} />
+                  </div>
+                </div>
+
+                {hasShipping && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 rounded-2xl bg-muted/20 border border-border/70">
+                    <div>
+                      <Label className="text-xs font-bold text-foreground block mb-1">
+                        سعر وتكلفة الشحن (ر.س):
+                      </Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={newShippingPrice}
+                        onChange={(e) => setNewShippingPrice(e.target.value)}
+                        placeholder="0 يعني شحن مجاني..."
+                        className="h-10 rounded-xl bg-card font-mono"
+                      />
+                      <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                        اكتب 0 في حال كان الشحن مجانياً للعملاء
+                      </span>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs font-bold text-foreground block mb-1">
+                        مدة التوصيل المتوقعة:
+                      </Label>
+                      <Input
+                        value={newShippingDays}
+                        onChange={(e) => setNewShippingDays(e.target.value)}
+                        placeholder="مثال: 2 - 4 أيام عمل"
+                        className="h-10 rounded-xl bg-card"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 4. Special Offers & Discounts */}
+            <div className="space-y-3 pt-2 border-t border-border/60">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+                  <Percent className="h-4 w-4" />
+                  <span>4. العروض والخصومات الترويجية</span>
+                </h4>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">تفعيل خصم</span>
+                  <Switch checked={hasDiscount} onCheckedChange={setHasDiscount} />
+                </div>
+              </div>
+
+              {hasDiscount && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                  <div>
+                    <Label className="text-xs font-bold text-foreground block mb-1">
+                      نسبة الخصم المئوية (%):
+                    </Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="90"
+                      value={newDiscountPercent}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewDiscountPercent(val);
+                        setNewDiscountBadge(`خصم ${val}%`);
+                      }}
+                      placeholder="مثال: 20"
+                      className="h-10 rounded-xl bg-card font-mono font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-bold text-foreground block mb-1">
+                      نص الشارة الترويجية (Badge):
+                    </Label>
+                    <Input
+                      value={newDiscountBadge}
+                      onChange={(e) => setNewDiscountBadge(e.target.value)}
+                      placeholder="مثال: خصم 20% أو عرض خاص"
+                      className="h-10 rounded-xl bg-card font-bold text-amber-700 dark:text-amber-300"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 5. Book Cover & Digital PDF */}
+            <div className="space-y-4 pt-2 border-t border-border/60">
+              <h4 className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+                <ImageIcon className="h-4 w-4" />
+                <span>5. صورة الغلاف والملف الرقمي</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Upload File */}
+                <div>
+                  <Label className="text-xs font-bold text-foreground block mb-1">
+                    رفع صورة الغلاف من جهازك:
+                  </Label>
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-border/80 hover:border-primary rounded-2xl p-4 cursor-pointer bg-muted/20 transition-colors text-center">
+                    <Upload className="h-6 w-6 text-primary mb-1" />
+                    <span className="text-xs font-semibold text-foreground">
+                      {newCoverFile ? newCoverFile.name : "اضغط لاختيار صورة الغلاف (PNG / JPG)"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-0.5">
+                      يُفضل نسبة 2:3 كغلاف كتاب
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setNewCoverFile(file);
+                        if (file) {
+                          setNewCoverPreview(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+
+                {/* Direct Image URL */}
+                <div>
+                  <Label className="text-xs font-bold text-foreground block mb-1">
+                    أو ضع رابط صورة الغلاف مباشرة (URL):
+                  </Label>
+                  <Input
+                    value={newCoverUrl}
+                    onChange={(e) => {
+                      setNewCoverUrl(e.target.value);
+                      if (e.target.value.startsWith("http")) {
+                        setNewCoverPreview(e.target.value);
+                      }
+                    }}
+                    placeholder="https://example.com/cover.jpg"
+                    className="h-10 rounded-xl bg-background/60 text-xs font-mono"
+                  />
+
+                  {/* Live Cover Preview */}
+                  {newCoverPreview && (
+                    <div className="mt-3 flex items-center gap-3 p-2.5 rounded-xl border border-border/80 bg-card">
+                      <img
+                        src={newCoverPreview}
+                        alt="معاينة الغلاف"
+                        className="h-16 w-12 rounded object-cover shadow-sm"
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold text-foreground block">معاينة الغلاف المختار</span>
+                        <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> تم التحميل بنجاح
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Digital PDF file */}
+              {newFormat !== "physical" && (
+                <div>
+                  <Label className="text-xs font-bold text-foreground block mb-1">
+                    رفع ملف الكتاب الرقمي PDF (للقراءة المحمية داخل الموقع والتطبيق):
+                  </Label>
+                  <Input
+                    type="file"
+                    accept=".pdf,.epub"
+                    onChange={(e) => setNewDigitalPdfFile(e.target.files?.[0] || null)}
+                    className="h-10 rounded-xl bg-background/60 file:mr-2 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-primary cursor-pointer"
+                  />
+                  <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                    يتم تخزين الكتاب وقراءته عبر القارئ المحمي فقط مع حظر التحميل والطباعة.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 6. Description */}
+            <div className="space-y-2 pt-2 border-t border-border/60">
+              <Label className="text-xs font-bold text-foreground block">
+                نبذة ووصف الكتاب:
+              </Label>
+              <Textarea
+                rows={3}
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="اكتب نبذة تعريفية شيقة عن موضوع الكتاب ومحتواه..."
+                className="rounded-2xl bg-background/60 text-xs sm:text-sm leading-relaxed"
+              />
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/70">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-xl px-5 text-xs font-bold cursor-pointer"
+                onClick={() => setIsAddBookOpen(false)}
+                disabled={isSubmittingBook}
+              >
+                إلغاء
+              </Button>
+
+              <Button
+                type="submit"
+                disabled={isSubmittingBook}
+                className="h-11 rounded-xl px-8 text-xs sm:text-sm font-extrabold gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md cursor-pointer active:scale-[0.99]"
+              >
+                {isSubmittingBook ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    جاري رفع ونشر الكتاب...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    حفظ ونشر الكتاب فوراً في المتجر
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Book Pricing & Discount Dialog */}
       <Dialog open={Boolean(editingBook)} onOpenChange={(open) => !open && setEditingBook(null)}>

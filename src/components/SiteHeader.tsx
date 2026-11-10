@@ -48,10 +48,20 @@ export function SiteHeader() {
   const qc = useQueryClient();
 
   async function signOut() {
-    await qc.cancelQueries();
-    qc.clear();
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    try {
+      await qc.cancelQueries();
+      qc.clear();
+      await supabase.auth.signOut();
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("unibook_admin_session");
+      }
+    } catch (err) {
+      console.warn("Sign out notice:", err);
+    }
+    toast.success(t("تم تسجيل الخروج بنجاح", "Logged out successfully"));
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   }
 
   const [logoClicks, setLogoClicks] = useState(0);

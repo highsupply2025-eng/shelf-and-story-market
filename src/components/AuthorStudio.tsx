@@ -39,6 +39,25 @@ export function AuthorStudio(){
 
  if(loading||(uid&&planLoading))return <p className="p-12 text-center text-muted-foreground">{l.t("جارٍ التحقق من باقة المؤلف والحساب…","Verifying author plan & account…")}</p>;
 
+  if (!session) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-20 text-center space-y-4">
+        <h2 className="text-2xl font-bold">{l.t("مساحة المؤلفين", "Author Studio")}</h2>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {l.t("يجب تسجيل الدخول بحسابك أولاً للوصول إلى مساحة المؤلف وإدارة مخطوطاتك.", "Please sign in to access the author studio and manage your manuscripts.")}
+        </p>
+        <div className="pt-2 flex justify-center gap-3">
+          <Button asChild className="rounded-xl">
+            <Link to="/login">{l.t("تسجيل الدخول", "Sign In")}</Link>
+          </Button>
+          <Button variant="outline" asChild className="rounded-xl">
+            <Link to="/register">{l.t("إنشاء حساب مؤلف", "Register")}</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
  const isPlanActive = planRequest?.status === "active";
 
  if(!isPlanActive){

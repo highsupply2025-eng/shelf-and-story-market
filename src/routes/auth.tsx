@@ -1,7 +1,15 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>) => search,
+  beforeLoad: ({ search }) => {
+    const mode = search?.["mode"];
+    if (mode === "up" || mode === "register" || mode === "signup") {
+      throw redirect({ to: "/register" });
+    }
+    throw redirect({ to: "/login" });
+  },
   component: AuthRedirect,
 });
 
@@ -13,9 +21,9 @@ function AuthRedirect() {
       const params = new URLSearchParams(window.location.search);
       const mode = params.get("mode");
       if (mode === "up" || mode === "register" || mode === "signup") {
-        navigate({ to: "/register", replace: true });
+        window.location.replace("/register");
       } else {
-        navigate({ to: "/login", replace: true });
+        window.location.replace("/login");
       }
     }
   }, [navigate]);

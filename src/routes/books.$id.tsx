@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { BookCover, formatLabel, type Book } from "@/components/BookCard";
 import { useCart } from "@/lib/cart";
+import { ProtectedBookReader } from "@/components/ProtectedBookReader";
 
 export const Route = createFileRoute("/books/$id")({
   head: () => ({
@@ -46,6 +47,7 @@ function BookPage() {
   });
 
   const [fmt, setFmt] = useState<"digital" | "physical" | null>(null);
+  const [isSampleReaderOpen, setIsSampleReaderOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -110,6 +112,16 @@ function BookPage() {
           <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-border/80 bg-card p-3 sm:p-4">
             <BookCover book={book} className="w-full aspect-[2/3] object-cover rounded-2xl shadow-book" />
           </div>
+
+          {/* Free 10-Page Sample Banner Under Cover */}
+          <button
+            type="button"
+            onClick={() => setIsSampleReaderOpen(true)}
+            className="w-full mt-3.5 flex items-center justify-center gap-2 p-3 rounded-2xl bg-gradient-to-r from-amber-500/15 via-primary/10 to-amber-500/15 hover:from-amber-500/25 hover:to-primary/20 border border-amber-500/35 text-amber-900 dark:text-amber-200 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-[0.99] group"
+          >
+            <BookOpen className="h-4 w-4 text-amber-600 transition-transform group-hover:scale-110" />
+            <span>{t("قراءة عينة مجانية (أول 10 صفحات)", "Read Free Sample (First 10 Pages)")}</span>
+          </button>
 
           {/* Quick Perks under cover on tablet/desktop */}
           <div className="mt-4 hidden md:flex flex-col gap-2 p-3.5 rounded-2xl bg-muted/40 border border-border/60 text-xs">
@@ -193,6 +205,18 @@ function BookPage() {
 
           {/* Action Buttons */}
           <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Free Sample (10 Pages) Preview CTA */}
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              onClick={() => setIsSampleReaderOpen(true)}
+              className="h-12 rounded-2xl font-extrabold text-xs sm:text-sm border-2 border-primary/50 text-primary hover:bg-primary/10 gap-2 cursor-pointer shadow-xs active:scale-[0.99] flex-1 sm:flex-initial sm:px-6"
+            >
+              <Sparkles className="h-4.5 w-4.5 text-amber-500 animate-pulse" />
+              <span>{t("تصفح الفهرس والمقدمة (10 صفحات مجاناً)", "Explore Index & Sample (10 Pages Free)")}</span>
+            </Button>
+
             <Button
               size="lg"
               className="h-12 rounded-2xl font-extrabold text-sm shadow-md hover:shadow-lg transition-transform active:scale-[0.99] flex-1 sm:flex-initial sm:px-10 gap-2 cursor-pointer"
@@ -236,6 +260,29 @@ function BookPage() {
           </div>
         </div>
       </div>
+      {/* 10-Page Protected Free Sample Reader Modal */}
+      {isSampleReaderOpen && (
+        <ProtectedBookReader
+          book={book}
+          open={isSampleReaderOpen}
+          isFreeSample={true}
+          maxFreePages={10}
+          onClose={() => setIsSampleReaderOpen(false)}
+          onBuy={() => {
+            setIsSampleReaderOpen(false);
+            if (opt) {
+              cart.add({
+                book_id: book.id,
+                format: opt.key,
+                title: book.title,
+                cover_url: book.cover_url,
+                price: opt.price,
+              });
+              toast.success(t("أُضيف الكتاب إلى سلة مشترياتك بنجاح", "Added to cart successfully"));
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -848,10 +848,36 @@ export function AdminSiteControl() {
 
             {/* 2. Format & Pricing */}
             <div className="space-y-4 pt-2 border-t border-border/60">
-              <h4 className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
-                <DollarSign className="h-4 w-4" />
-                <span>2. صيغة الكتاب والتسعير</span>
-              </h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+                  <DollarSign className="h-4 w-4" />
+                  <span>2. صيغة الكتاب والتسعير</span>
+                </h4>
+                <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/15 font-bold text-[10px] gap-1 py-0.5 px-2">
+                  <Sparkles className="h-3 w-3" />
+                  عينة 10 صفحات مجاناً مفعلة
+                </Badge>
+              </div>
+
+              {/* Free 10-Page Preview Feature Banner */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-amber-500/10 via-primary/5 to-amber-500/10 border border-amber-500/25 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-600 shrink-0">
+                    <BookOpen className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-foreground block">
+                      العينة المجانية (أول 10 صفحات) مفعلة تلقائياً
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      يتاح لأي قارئ في المتجر تصفح الفهرس والمقدمة ومحتويات الكتاب حتى الصفحة 10 مجاناً لتشجيعه على الشراء.
+                    </span>
+                  </div>
+                </div>
+                <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10 font-bold text-[10px] shrink-0">
+                  متاح للجميع ✓
+                </Badge>
+              </div>
 
               <div>
                 <Label className="text-xs font-bold text-foreground block mb-1.5">

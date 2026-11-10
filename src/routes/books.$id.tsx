@@ -1,6 +1,6 @@
 import { useLocale } from "@/lib/locale";
 import { useAuth } from "@/lib/auth";
-import { Heart, BookOpen, Package, FileText, ArrowRight, ArrowLeft, ShieldCheck, Truck, Sparkles } from "lucide-react";
+import { Heart, BookOpen, Package, FileText, ArrowRight, ArrowLeft, ShieldCheck, Truck, Sparkles, Tag } from "lucide-react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { BookCover, formatLabel, type Book } from "@/components/BookCard";
 import { useCart } from "@/lib/cart";
 import { ProtectedBookReader } from "@/components/ProtectedBookReader";
+import { getBookDiscount, getLocalBooks } from "@/lib/book-helpers";
 
 export const Route = createFileRoute("/books/$id")({
   head: () => ({
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/books/$id")({
 function BookPage() {
   const { id } = Route.useParams();
   const cart = useCart();
-  const { t, price: money, language } = useLocale();
+  const { t, price: money, language, currency } = useLocale();
   const { session } = useAuth();
 
   const BackIcon = language === "ar" ? ArrowRight : ArrowLeft;
@@ -36,13 +37,21 @@ function BookPage() {
   const { data: book, isLoading } = useQuery({
     queryKey: ["book", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("books")
-        .select("*, publishers(store_name)")
-        .eq("id", id)
-        .maybeSingle();
-      if (error) throw error;
-      return data as (Book & { publishers: { store_name: string } | null }) | null;
+      try {
+        const { data, error } = await supabase
+          .from("books")
+          .select("*, publishers(store_name)")
+          .eq("id", id)
+          .maybeSingle();
+        if (data) {
+          return data as (Book & { publishers: { store_name: string } | null }) | null;
+        }
+      } catch (err) {
+        console.warn("Remote book fetch notice:", err);
+      }
+      // Local fallback
+      const local = getLocalBooks().find((b) => b.id === id);
+      return (local || null) as (Book & { publishers: { store_name: string } | null }) | null;
     },
   });
 
@@ -72,22 +81,26 @@ function BookPage() {
     );
   }
 
+  const discount = book ? getBookDiscount(book) : { hasDiscount: false, percent: 0, badgeText: "", apply: (p: any) => p };
+
   const options = [
     book.format !== "physical" && book.price_digital != null && {
       key: "digital" as const,
       label: t("نسخة رقمية فورية", "Digital edition"),
       icon: FileText,
-      price: Number(book.price_digital),
+      rawPrice: Number(book.price_digital),
+      price: discount.hasDiscount ? Number(discount.apply(Number(book.price_digital))) : Number(book.price_digital),
       note: t("ملف رقمي عالي الدقة يتاح فوراً", "Instant digital file"),
     },
     book.format !== "digital" && book.price_physical != null && {
       key: "physical" as const,
       label: t("نسخة مطبوعة ورقية", "Print edition"),
       icon: Package,
-      price: Number(book.price_physical),
+      rawPrice: Number(book.price_physical),
+      price: discount.hasDiscount ? Number(discount.apply(Number(book.price_physical))) : Number(book.price_physical),
       note: book.stock > 0 ? `${t("متوفر بالمستودع:", "In stock:")} ${book.stock}` : t("نفدت الكمية مؤقتاً", "Out of stock"),
     },
-  ].filter(Boolean) as { key: "digital" | "physical"; label: string; icon: typeof FileText; price: number; note: string }[];
+  ].filter(Boolean) as { key: "digital" | "physical"; label: string; icon: typeof FileText; rawPrice: number; price: number; note: string }[];
 
   const selected = fmt ?? options[0]?.key;
   const opt = options.find((o) => o.key === selected);
@@ -138,6 +151,13 @@ function BookPage() {
 
         {/* Book Information & Purchase Controls */}
         <div className="animate-rise flex-1 min-w-0" style={{ animationDelay: "100ms" }}>
+          {discount.hasDiscount && (
+            <div className="mb-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-gradient-to-r from-rose-500/15 via-amber-500/15 to-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 font-extrabold text-xs shadow-xs">
+              <Sparkles className="h-4 w-4 text-amber-500 animate-spin" />
+              <span>{t(`🔥 عرض خاص: ${discount.badgeText} لفترة محدودة!`, `🔥 Special Offer: ${discount.badgeText} for a limited time!`)}</span>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="text-xs font-bold px-3 py-1 rounded-full bg-primary/10 text-primary">
               {book.category}
@@ -145,6 +165,11 @@ function BookPage() {
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
               {formatLabel[book.format] || book.format}
             </span>
+            {discount.hasDiscount && (
+              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                {discount.badgeText}
+              </span>
+            )}
           </div>
 
           <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-extrabold text-foreground leading-tight">
@@ -190,11 +215,27 @@ function BookPage() {
                       : "border-border/80 bg-card hover:border-primary/40"
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <div className="flex items-center justify-between mb-2 gap-2">
+                    <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary shrink-0">
                       <o.icon className="h-4.5 w-4.5" />
                     </span>
-                    <span className="text-xl font-extrabold text-primary font-mono">{money(o.price)}</span>
+                    <div className="text-end">
+                      <div className="flex items-center gap-2 justify-end">
+                        {discount.hasDiscount && (
+                          <span className="text-xs text-muted-foreground line-through font-mono">
+                            {money(o.rawPrice)}
+                          </span>
+                        )}
+                        <span className={`text-xl font-extrabold font-mono ${discount.hasDiscount ? "text-rose-600 dark:text-rose-400" : "text-primary"}`}>
+                          {money(o.price)}
+                        </span>
+                      </div>
+                      {currency !== "SAR" && (
+                        <span className="text-[11px] text-muted-foreground font-medium block mt-0.5">
+                          ({o.price} ر.س)
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="font-bold text-sm text-foreground">{o.label}</div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">{o.note}</div>

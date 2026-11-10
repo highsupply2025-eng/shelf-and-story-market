@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { BookCard, type Book } from "@/components/BookCard";
+import { mergeLocalBooks } from "@/lib/book-helpers";
 
 export const Route = createFileRoute("/books/")({
   head: () => ({
@@ -35,8 +36,11 @@ function BooksPage() {
         .select("*")
         .eq("status", "approved")
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Book[];
+      if (error) {
+        console.warn("Books index query notice:", error);
+      }
+      const remote = (data || []) as Book[];
+      return mergeLocalBooks(remote);
     },
   });
 

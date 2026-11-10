@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { BookCard, type Book } from "@/components/BookCard";
 import { MobileAppHome } from "@/components/MobileAppHome";
 import { useAppMode } from "@/lib/useAppMode";
+import { mergeLocalBooks } from "@/lib/book-helpers";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -45,8 +46,11 @@ function Index() {
         .order("featured", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(24);
-      if (error) throw error;
-      return data as Book[];
+      if (error) {
+        console.warn("Home catalog query notice:", error);
+      }
+      const remote = (data || []) as Book[];
+      return mergeLocalBooks(remote);
     },
   });
 

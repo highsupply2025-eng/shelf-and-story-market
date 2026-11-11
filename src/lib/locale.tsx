@@ -88,7 +88,7 @@ function detectGeoFromTimezone(): Preferences {
   }
 }
 
-const defaultCountry = countries[0];
+const defaultCountry = countries[0]!;
 
 const Ctx = createContext<LocaleState>({
   language: "ar",

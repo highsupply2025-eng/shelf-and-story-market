@@ -36,30 +36,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accountType, setAccountType] = useState<UserRoleType>("reader");
 
   async function loadFlags(s: Session | null) {
-    let hasLocalAdminSession = false;
-    if (typeof window !== "undefined") {
-      try {
-        const stored = JSON.parse(window.localStorage.getItem("unibook_admin_session") || "null");
-        if (
-          stored?.email?.toLowerCase().trim() === "highsupply2025@gmail.com" &&
-          Date.now() - stored.verifiedAt < 14 * 24 * 60 * 60 * 1000
-        ) {
-          hasLocalAdminSession = true;
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-
-    if (hasLocalAdminSession) {
-      setIsAdmin(true);
-      setIsPublisher(false);
-      setIsAuthor(false);
-      setIsReader(false);
-      setAccountType("admin");
-      return;
-    }
-
     if (!s) {
       setIsAdmin(false);
       setIsPublisher(false);

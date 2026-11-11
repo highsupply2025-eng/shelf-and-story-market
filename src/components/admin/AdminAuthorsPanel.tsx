@@ -219,7 +219,7 @@ export function AdminAuthorsPanel() {
                   </div>
                   <div>
                     <span className="text-muted-foreground block text-[11px]">التاريخ:</span>
-                    <span className="text-muted-foreground font-mono">{new Date(req.createdAt).toLocaleDateString("ar-EG")}</span>
+                    <span className="text-muted-foreground font-mono">{new Date(req.requestedAt).toLocaleDateString("ar-EG")}</span>
                   </div>
                 </div>
 

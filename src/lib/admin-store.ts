@@ -14,8 +14,8 @@ export interface SiteBanner {
 export interface BookDiscount {
   bookId: string;
   discountPercent: number; // e.g. 20 for 20% off
-  originalPriceDigital?: number;
-  originalPricePhysical?: number;
+  originalPriceDigital?: number | undefined;
+  originalPricePhysical?: number | undefined;
   badgeText?: string; // e.g. "عرض خاص", "خصم 25%"
   endsAt?: string;
 }
@@ -27,8 +27,8 @@ export interface AccountApproval {
   email: string;
   status: "pending" | "approved" | "rejected";
   appliedAt: string;
-  approvedAt?: string;
-  notes?: string;
+  approvedAt?: string | undefined;
+  notes?: string | undefined;
 }
 
 const CATEGORIES_KEY = "unibook_admin_categories";
@@ -161,10 +161,11 @@ export function updateAccountApprovalStatus(
 ): void {
   const current = getAccountApprovals();
   const index = current.findIndex((a) => a.userId === userId);
-  if (index >= 0) {
-    current[index].status = status;
-    if (notes) current[index].notes = notes;
-    if (status === "approved") current[index].approvedAt = new Date().toISOString();
+  const existing = index >= 0 ? current[index] : undefined;
+  if (existing) {
+    existing.status = status;
+    if (notes) existing.notes = notes;
+    if (status === "approved") existing.approvedAt = new Date().toISOString();
   } else {
     current.push({
       userId,

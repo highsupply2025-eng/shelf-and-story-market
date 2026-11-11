@@ -28,13 +28,13 @@ export function getBookDiscount(book: { id?: string; title?: string; description
   const stored = book.id ? discounts[book.id] : undefined;
 
   let percent = stored ? stored.discountPercent : 0;
-  let badgeText = stored ? stored.badgeText : "";
+  let badgeText = stored?.badgeText ?? "";
 
   // Check description metadata [DISCOUNT:20:خصم 20%] or default for newly added book
   if (!percent && book.description) {
     const match = book.description.match(/\[DISCOUNT:(\d+):?([^\]]*)\]/i);
     if (match) {
-      percent = parseInt(match[1], 10) || 0;
+      percent = parseInt(match[1] ?? "0", 10) || 0;
       badgeText = match[2]?.trim() || `خصم ${percent}%`;
     }
   }

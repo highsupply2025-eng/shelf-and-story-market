@@ -16,3 +16,4 @@
 - Shared locale context owns language, country and display currency; exchange rates are public server-function reads and converted display amounts never alter order settlement prices.
 
 - Native apps are Capacitor shells (android/, ios/) loading the published site and built by .github/workflows/build-mobile.yml; never ship an unsigned iOS bundle as an IPA.
+- Admin access is decided only by the database `has_role` check (server functions use requireSupabaseAuth + has_role); never add client-side PINs, master passwords or localStorage admin flags — they ship in the public bundle.

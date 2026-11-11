@@ -103,7 +103,7 @@ export function AdminProductionAI() {
     },
   });
 
-  const selectedCoverStyle = COVER_STYLES.find((s) => s.id === coverStyleId) || COVER_STYLES[0];
+  const selectedCoverStyle = COVER_STYLES.find((s) => s.id === coverStyleId) ?? COVER_STYLES[0]!;
 
   // 1. AI Cover Generation Logic
   function handleGenerateAICover() {

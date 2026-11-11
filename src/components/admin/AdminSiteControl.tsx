@@ -727,7 +727,7 @@ export function AdminSiteControl() {
                       value={b.title}
                       onChange={(e) => {
                         const copy = [...banners];
-                        copy[idx].title = e.target.value;
+                        copy[idx] = { ...copy[idx]!, title: e.target.value };
                         setBanners(copy);
                       }}
                       className="h-9 rounded-xl text-xs mt-0.5 bg-card"
@@ -739,7 +739,7 @@ export function AdminSiteControl() {
                       value={b.badge}
                       onChange={(e) => {
                         const copy = [...banners];
-                        copy[idx].badge = e.target.value;
+                        copy[idx] = { ...copy[idx]!, badge: e.target.value };
                         setBanners(copy);
                       }}
                       className="h-9 rounded-xl text-xs mt-0.5 bg-card"
@@ -753,7 +753,7 @@ export function AdminSiteControl() {
                     value={b.subtitle}
                     onChange={(e) => {
                       const copy = [...banners];
-                      copy[idx].subtitle = e.target.value;
+                      copy[idx] = { ...copy[idx]!, subtitle: e.target.value };
                       setBanners(copy);
                     }}
                     className="h-9 rounded-xl text-xs mt-0.5 bg-card"

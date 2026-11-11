@@ -66,8 +66,7 @@ export function AdminReadersPanel() {
 
   // Map orders by buyer_id
   const ordersByBuyer = orders.reduce((acc: Record<string, any[]>, order) => {
-    acc[order.buyer_id] = acc[order.buyer_id] || [];
-    acc[order.buyer_id].push(order);
+    (acc[order.buyer_id] ??= []).push(order);
     return acc;
   }, {});
 
@@ -286,7 +285,7 @@ export function AdminReadersPanel() {
                   </p>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
-                    {ordersByBuyer[selectedReader.id].map((o: any) => (
+                    {(ordersByBuyer[selectedReader.id] ?? []).map((o: any) => (
                       <div key={o.id} className="p-3 rounded-xl border border-border/80 bg-card flex justify-between items-center text-xs">
                         <div>
                           <span className="font-mono font-bold text-foreground">طلب #{o.id.slice(0, 8)}</span>

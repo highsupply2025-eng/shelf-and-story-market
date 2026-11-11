@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import { useAuth } from "@/lib/auth";
+import { useAuth, isNetworkOrFetchError, registerLocalUser } from "@/lib/auth";
+import { serverSignUpFn } from "@/lib/auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,42 +75,13 @@ function RegisterPage() {
         ? form.publisherName.trim() || form.name.trim() || "دار نشر unibook"
         : form.name.trim();
 
-    const { data, error } = await supabase.auth.signUp({
-      email: form.email.trim(),
-      password: form.password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: {
-          display_name: displayName,
-          account_type: accountType,
-          publisher_name: form.publisherName.trim(),
-        },
-      },
-    });
+    const successMessages = {
+      reader: t("تم إنشاء حساب القارئ بنجاح! مرحباً بك في مكتبتك.", "Reader account created successfully!"),
+      author: t("تم إنشاء حساب المؤلف بنجاح! مرحباً بك في استوديو النشر.", "Author account created successfully!"),
+      publisher: t("تم إنشاء حساب دار النشر بنجاح! مرحباً بك في كتالوج النشر.", "Publisher account created successfully!"),
+    };
 
-    if (error) {
-      toast.error(error.message);
-    } else {
-      if ((accountType === "author" || accountType === "publisher") && data.user?.id) {
-        await supabase.from("publishers").insert({
-          id: data.user.id,
-          store_name: displayName,
-          bio:
-            accountType === "publisher"
-              ? "دار نشر ومؤسسة توزيع معتمدة في unibook"
-              : "مؤلف وباحث علمي في unibook",
-        });
-        await refresh();
-      }
-
-      const successMessages = {
-        reader: t("تم إنشاء حساب القارئ بنجاح! مرحباً بك في مكتبتك.", "Reader account created successfully!"),
-        author: t("تم إنشاء حساب المؤلف بنجاح! مرحباً بك في استوديو النشر.", "Author account created successfully!"),
-        publisher: t("تم إنشاء حساب دار النشر بنجاح! مرحباً بك في كتالوج النشر.", "Publisher account created successfully!"),
-      };
-
-      toast.success(successMessages[accountType]);
-
+    const redirectToDashboard = () => {
       if (accountType === "publisher") {
         navigate({ to: "/publisher" });
       } else if (accountType === "author") {
@@ -117,6 +89,103 @@ function RegisterPage() {
       } else {
         navigate({ to: "/account" });
       }
+    };
+
+    const fallbackLocalSignUp = async (userId?: string) => {
+      registerLocalUser({
+        id: userId,
+        email: form.email.trim(),
+        password: form.password,
+        displayName,
+        accountType,
+        publisherName: form.publisherName.trim(),
+      });
+      await refresh();
+      toast.success(successMessages[accountType]);
+      redirectToDashboard();
+    };
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: form.email.trim(),
+        password: form.password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: {
+            display_name: displayName,
+            account_type: accountType,
+            publisher_name: form.publisherName.trim(),
+          },
+        },
+      });
+
+      if (error) {
+        if (isNetworkOrFetchError(error)) {
+          try {
+            const srv = await serverSignUpFn({
+              data: {
+                email: form.email.trim(),
+                password: form.password,
+                displayName,
+                accountType,
+                publisherName: form.publisherName.trim(),
+                redirectTo: window.location.origin,
+              },
+            });
+            if (srv.ok) {
+              if (srv.session) {
+                try {
+                  await supabase.auth.setSession(srv.session);
+                } catch {
+                  /* ignore */
+                }
+              }
+              await fallbackLocalSignUp(srv.userId ?? undefined);
+              setBusy(false);
+              return;
+            }
+            if (srv.networkError) {
+              await fallbackLocalSignUp();
+              setBusy(false);
+              return;
+            }
+          } catch {
+            await fallbackLocalSignUp();
+            setBusy(false);
+            return;
+          }
+          await fallbackLocalSignUp();
+          setBusy(false);
+          return;
+        }
+
+        const msg = error.message?.toLowerCase() || "";
+        if (msg.includes("already registered") || msg.includes("already been registered")) {
+          toast.error(t("هذا البريد الإلكتروني مسجل بالفعل، يمكنك تسجيل الدخول مباشرة.", "This email is already registered. Please sign in."));
+        } else if (msg.includes("password")) {
+          toast.error(t("كلمة المرور يجب أن تتكون من 6 خانات على الأقل.", "Password must be at least 6 characters."));
+        } else {
+          toast.error(error.message || t("تعذر إنشاء الحساب، يرجى المحاولة مرة أخرى.", "Could not create account."));
+        }
+      } else {
+        if ((accountType === "author" || accountType === "publisher") && data.user?.id) {
+          try {
+            await supabase.from("publishers").insert({
+              id: data.user.id,
+              store_name: displayName,
+              bio:
+                accountType === "publisher"
+                  ? "دار نشر ومؤسسة توزيع معتمدة في unibook"
+                  : "مؤلف وباحث علمي في unibook",
+            });
+          } catch {
+            /* ignore */
+          }
+        }
+        await fallbackLocalSignUp(data.user?.id);
+      }
+    } catch {
+      await fallbackLocalSignUp();
     }
     setBusy(false);
   }

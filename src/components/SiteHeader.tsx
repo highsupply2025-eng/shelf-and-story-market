@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useAuth } from "@/lib/auth";
+import { useAuth, clearLocalSession } from "@/lib/auth";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -49,13 +49,11 @@ export function SiteHeader() {
   const qc = useQueryClient();
 
   async function signOut() {
+    clearLocalSession();
     try {
       await qc.cancelQueries();
       qc.clear();
       await supabase.auth.signOut();
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem("unibook_admin_session");
-      }
     } catch (err) {
       console.warn("Sign out notice:", err);
     }

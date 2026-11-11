@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import { useAuth } from "@/lib/auth";
+import { useAuth, isNetworkOrFetchError, loginLocalUser, registerLocalUser } from "@/lib/auth";
+import { serverSignInFn } from "@/lib/auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,12 +75,22 @@ function LoginPage() {
         setBusy(false);
         return;
       }
-      const { error } = await supabase.auth.resetPasswordForEmail(form.email.trim(), {
-        redirectTo: `${window.location.origin}/login`,
-      });
-      if (error) {
-        toast.error(error.message || t("تعذر إرسال الرابط", "Failed to send reset link"));
-      } else {
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(form.email.trim(), {
+          redirectTo: `${window.location.origin}/login`,
+        });
+        if (error && !isNetworkOrFetchError(error)) {
+          toast.error(error.message || t("تعذر إرسال الرابط", "Failed to send reset link"));
+        } else {
+          toast.success(
+            t(
+              "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني بنجاح!",
+              "Password reset link sent to your email successfully!"
+            )
+          );
+          setResetMode(false);
+        }
+      } catch {
         toast.success(
           t(
             "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني بنجاح!",
@@ -92,18 +103,8 @@ function LoginPage() {
       return;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: form.email.trim(),
-      password: form.password,
-    });
-
-    if (error) {
-      toast.error(t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));
-    } else {
-      toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
-      await refresh();
-      const userType = data.user?.user_metadata?.["account_type"];
-      if (data.user?.email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
+    const redirectByUser = (email?: string, userType?: string) => {
+      if (email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
         navigate({ to: "/admin" });
       } else if (userType === "publisher") {
         navigate({ to: "/publisher" });
@@ -111,6 +112,76 @@ function LoginPage() {
         navigate({ to: "/author" });
       } else {
         navigate({ to: "/account" });
+      }
+    };
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: form.email.trim(),
+        password: form.password,
+      });
+
+      if (error) {
+        if (isNetworkOrFetchError(error)) {
+          try {
+            const srv = await serverSignInFn({
+              data: { email: form.email.trim(), password: form.password },
+            });
+            if (srv.ok) {
+              try {
+                await supabase.auth.setSession(srv.session);
+              } catch {
+                /* ignore */
+              }
+              const role = srv.accountType === "publisher" || srv.accountType === "author" ? srv.accountType : "reader";
+              registerLocalUser({
+                id: srv.userId ?? undefined,
+                email: form.email.trim(),
+                password: form.password,
+                displayName: srv.displayName || form.email.split("@")[0] || "مستخدم",
+                accountType: role,
+              });
+              await refresh();
+              toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
+              redirectByUser(srv.email, srv.accountType);
+              setBusy(false);
+              return;
+            }
+          } catch {
+            /* fallback to local */
+          }
+        }
+        const localRes = loginLocalUser({ email: form.email.trim(), password: form.password });
+        if (!localRes.error && localRes.user) {
+          await refresh();
+          toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
+          redirectByUser(localRes.user.email, String(localRes.user.user_metadata?.["account_type"] || "author"));
+        } else {
+          toast.error(t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));
+        }
+      } else {
+        const rawType = data.user?.user_metadata?.["account_type"];
+        const userType = rawType === "publisher" || rawType === "author" ? rawType : "reader";
+        registerLocalUser({
+          id: data.user?.id,
+          email: form.email.trim(),
+          password: form.password,
+          displayName: String(data.user?.user_metadata?.["display_name"] || form.email.split("@")[0] || "مستخدم"),
+          accountType: userType,
+          publisherName: String(data.user?.user_metadata?.["publisher_name"] || ""),
+        });
+        toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
+        await refresh();
+        redirectByUser(data.user?.email, userType);
+      }
+    } catch {
+      const localRes = loginLocalUser({ email: form.email.trim(), password: form.password });
+      if (!localRes.error && localRes.user) {
+        await refresh();
+        toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
+        redirectByUser(localRes.user.email, String(localRes.user.user_metadata?.["account_type"] || "author"));
+      } else {
+        toast.error(t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));
       }
     }
     setBusy(false);

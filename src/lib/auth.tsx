@@ -1,8 +1,217 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 export type UserRoleType = "reader" | "author" | "publisher" | "admin";
+
+const LOCAL_USERS_KEY = "unibook_local_users";
+const LOCAL_SESSION_KEY = "unibook_local_session";
+const AUTH_EVENT = "unibook-auth-changed";
+
+export interface LocalUserRecord {
+  id: string;
+  email: string;
+  password?: string;
+  displayName: string;
+  accountType: "reader" | "author" | "publisher";
+  publisherName?: string;
+  authorCode: string;
+  createdAt: string;
+}
+
+export function isNetworkOrFetchError(err: unknown): boolean {
+  if (!err) return false;
+  const msg =
+    typeof err === "string"
+      ? err
+      : err instanceof Error
+        ? `${err.name} ${err.message}`
+        : typeof (err as { message?: string; name?: string })?.message === "string"
+          ? `${(err as { name?: string }).name || ""} ${(err as { message: string }).message}`
+          : String(err);
+  const lower = msg.toLowerCase();
+  return (
+    lower.includes("failed to fetch") ||
+    lower.includes("fetch failed") ||
+    lower.includes("networkerror") ||
+    lower.includes("network request failed") ||
+    lower.includes("load failed") ||
+    lower.includes("enotfound") ||
+    lower.includes("authretryablefetcherror") ||
+    lower.includes("err_name_not_resolved")
+  );
+}
+
+function getLocalUsers(): LocalUserRecord[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(LOCAL_USERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalUsers(users: LocalUserRecord[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+  } catch {
+    /* ignore */
+  }
+}
+
+function deterministicIdFromEmail(email: string): string {
+  let h1 = 0xdeadbeef ^ email.length;
+  let h2 = 0x41c6ce57 ^ email.length;
+  for (let i = 0; i < email.length; i++) {
+    const ch = email.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const hex1 = (h1 >>> 0).toString(16).padStart(8, "0");
+  const hex2 = (h2 >>> 0).toString(16).padStart(8, "0");
+  return `${hex1}-${hex2.slice(0, 4)}-4${hex2.slice(5, 8)}-a${hex1.slice(1, 4)}-${hex1}${hex2.slice(0, 4)}`;
+}
+
+function buildSessionFromRecord(rec: LocalUserRecord): Session {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const user: User = {
+    id: rec.id,
+    aud: "authenticated",
+    role: "authenticated",
+    email: rec.email,
+    email_confirmed_at: rec.createdAt,
+    created_at: rec.createdAt,
+    updated_at: rec.createdAt,
+    app_metadata: { provider: "email", providers: ["email"] },
+    user_metadata: {
+      display_name: rec.displayName,
+      account_type: rec.accountType,
+      publisher_name: rec.publisherName || "",
+      author_code: rec.authorCode,
+    },
+  };
+  return {
+    access_token: `local_token_${rec.id}`,
+    refresh_token: `local_refresh_${rec.id}`,
+    expires_in: 86400 * 30,
+    expires_at: nowSec + 86400 * 30,
+    token_type: "bearer",
+    user,
+  };
+}
+
+export function getLocalSession(): Session | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LOCAL_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Session;
+    if (parsed && parsed.user && parsed.user.id) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearLocalSession(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LOCAL_SESSION_KEY);
+    window.dispatchEvent(new Event(AUTH_EVENT));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function registerLocalUser(params: {
+  id?: string | undefined;
+  email: string;
+  password?: string | undefined;
+  displayName: string;
+  accountType: "reader" | "author" | "publisher";
+  publisherName?: string | undefined;
+}): { session: Session; user: User; record: LocalUserRecord } {
+  const normalizedEmail = params.email.trim().toLowerCase();
+  const users = getLocalUsers();
+  const existingIdx = users.findIndex((u) => u.email.toLowerCase() === normalizedEmail);
+  const existing = existingIdx >= 0 ? users[existingIdx] : undefined;
+
+  const id = params.id || existing?.id || deterministicIdFromEmail(normalizedEmail);
+  const authorCode = existing?.authorCode || `UB-${id.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
+
+  const record: LocalUserRecord = {
+    id,
+    email: normalizedEmail,
+    password: params.password ?? existing?.password ?? "",
+    displayName: params.displayName.trim() || existing?.displayName || normalizedEmail.split("@")[0] || "مستخدم unibook",
+    accountType: params.accountType,
+    publisherName: params.publisherName?.trim() || existing?.publisherName || "",
+    authorCode,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+  };
+
+  if (existingIdx >= 0) {
+    users[existingIdx] = record;
+  } else {
+    users.push(record);
+  }
+  saveLocalUsers(users);
+
+  const session = buildSessionFromRecord(record);
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
+      window.dispatchEvent(new Event(AUTH_EVENT));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return { session, user: session.user, record };
+}
+
+export function loginLocalUser(params: {
+  email: string;
+  password?: string | undefined;
+}): { session: Session | null; user: User | null; error: string | null } {
+  const normalizedEmail = params.email.trim().toLowerCase();
+  const users = getLocalUsers();
+  const existing = users.find((u) => u.email.toLowerCase() === normalizedEmail);
+
+  if (existing) {
+    if (existing.password && params.password && existing.password !== params.password) {
+      return {
+        session: null,
+        user: null,
+        error: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+      };
+    }
+    const session = buildSessionFromRecord(existing);
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
+        window.dispatchEvent(new Event(AUTH_EVENT));
+      } catch {
+        /* ignore */
+      }
+    }
+    return { session, user: session.user, error: null };
+  }
+
+  const { session, user } = registerLocalUser({
+    email: normalizedEmail,
+    password: params.password,
+    displayName: normalizedEmail.split("@")[0] || "مؤلف unibook",
+    accountType: "author",
+  });
+  return { session, user, error: null };
+}
 
 type AuthState = {
   session: Session | null;
@@ -27,7 +236,7 @@ const Ctx = createContext<AuthState>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(() => getLocalSession());
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isPublisher, setIsPublisher] = useState(false);
@@ -36,7 +245,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accountType, setAccountType] = useState<UserRoleType>("reader");
 
   async function loadFlags(s: Session | null) {
-    if (!s) {
+    const activeSession = s ?? getLocalSession();
+    if (!activeSession) {
       setIsAdmin(false);
       setIsPublisher(false);
       setIsAuthor(false);
@@ -44,14 +254,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccountType("reader");
       return;
     }
-    const isSpecialAdminEmail = s.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com";
-    const [{ data: roles }, { data: pub }] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", s.user.id),
-      supabase.from("publishers").select("id, store_name").eq("id", s.user.id).maybeSingle(),
-    ]);
+
+    const isLocalToken = activeSession.access_token?.startsWith("local_token_");
+    const isSpecialAdminEmail =
+      !isLocalToken && activeSession.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com";
+    const metaType = activeSession.user.user_metadata?.["account_type"] as UserRoleType | undefined;
+
+    let roles: { role: string }[] | null = null;
+    let pub: { id: string; store_name: string } | null = null;
+
+    if (!isLocalToken) {
+      try {
+        const [rolesRes, pubRes] = await Promise.all([
+          supabase.from("user_roles").select("role").eq("user_id", activeSession.user.id),
+          supabase.from("publishers").select("id, store_name").eq("id", activeSession.user.id).maybeSingle(),
+        ]);
+        roles = rolesRes.data;
+        pub = pubRes.data;
+      } catch {
+        /* fallback to user_metadata when offline */
+      }
+    }
 
     const admin = isSpecialAdminEmail || !!roles?.some((r) => r.role === "admin");
-    const metaType = s.user.user_metadata?.["account_type"] as UserRoleType | undefined;
 
     let role: UserRoleType = "reader";
     if (admin) {
@@ -74,10 +299,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    const syncFromLocal = () => {
+      const local = getLocalSession();
+      setSession((prev) => {
+        if (local) return local;
+        if (prev?.access_token?.startsWith("local_token_")) return null;
+        return prev;
+      });
+      loadFlags(local);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener(AUTH_EVENT, syncFromLocal);
+    }
+
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-      setTimeout(() => loadFlags(s), 0);
-      // Admin magic-link sign-in: always land on the admin dashboard
+      const effective = s ?? getLocalSession();
+      setSession(effective);
+      setTimeout(() => loadFlags(effective), 0);
       if (s && typeof window !== "undefined") {
         try {
           const pending = Number(window.localStorage.getItem("admin_login_pending") || 0);
@@ -93,12 +332,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     });
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session);
-      await loadFlags(data.session);
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
+
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        const effective = data?.session ?? getLocalSession();
+        setSession(effective);
+        await loadFlags(effective);
+        setLoading(false);
+      })
+      .catch(async () => {
+        const effective = getLocalSession();
+        setSession(effective);
+        await loadFlags(effective);
+        setLoading(false);
+      });
+
+    return () => {
+      sub.subscription.unsubscribe();
+      if (typeof window !== "undefined") {
+        window.removeEventListener(AUTH_EVENT, syncFromLocal);
+      }
+    };
   }, []);
 
   return (
@@ -111,7 +366,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthor,
         isReader,
         accountType,
-        refresh: () => loadFlags(session),
+        refresh: async () => {
+          const effective = session ?? getLocalSession();
+          if (effective !== session) setSession(effective);
+          await loadFlags(effective);
+        },
       }}
     >
       {children}

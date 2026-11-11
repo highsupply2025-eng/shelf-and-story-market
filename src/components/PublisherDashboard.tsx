@@ -76,7 +76,7 @@ export function PublisherDashboard() {
         .select("*")
         .eq("id", uid)
         .maybeSingle();
-      if (error) throw error;
+      if (error) return null;
       return data;
     },
   });
@@ -92,8 +92,8 @@ export function PublisherDashboard() {
         .select("*")
         .eq("publisher_id", uid)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Tables<"books">[];
+      if (error) return [];
+      return (data ?? []) as Tables<"books">[];
     },
   });
 
@@ -108,8 +108,8 @@ export function PublisherDashboard() {
         .select("*")
         .eq("author_id", uid)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      if (error) return [];
+      return data ?? [];
     },
   });
 

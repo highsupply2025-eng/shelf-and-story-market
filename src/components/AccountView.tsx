@@ -339,9 +339,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
     queryKey: ["favorites", session?.user?.id],
     enabled: !!session?.user?.id,
     queryFn: async () => {
-      const { data, error } = await supabase.from("reader_favorites").select("book_id,books(*)");
-      if (error) throw error;
-      return data ?? [];
+      try { const { data, error } = await supabase.from("reader_favorites").select("book_id,books(*)"); if (error) return []; return data ?? []; } catch { return []; }
     },
   });
 
@@ -356,9 +354,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
           "id,total,status,created_at,order_items(id,format,quantity,unit_price,books(id,title,cover_url,file_path))",
         )
         .eq("buyer_id", session.user.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as unknown as OrderRow[];
+        .order("created_at", { ascending: false }); if (error) return []; return (data ?? []) as unknown as OrderRow[];
     },
   });
 

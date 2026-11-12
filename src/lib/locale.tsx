@@ -104,17 +104,18 @@ const Ctx = createContext<LocaleState>({
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
-  const [prefs, setPrefs] = useState<Preferences>(() => {
-    // 1. Initial synchronous state from storage or timezone
-    if (typeof window !== "undefined") {
-      try {
-        const saved = JSON.parse(localStorage.getItem("rafoof-locale") || "null");
-        if (saved) return saved;
-      } catch {}
-      return detectGeoFromTimezone();
+  // Server and first client render share the same default so hydration matches;
+  // saved or timezone-based preferences are applied right after mount.
+  const [prefs, setPrefs] = useState<Preferences>({ language: "ar", country: "EG", currency: "EGP" });
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("rafoof-locale") || "null") as Preferences | null;
+      setPrefs(saved ?? detectGeoFromTimezone());
+    } catch {
+      setPrefs(detectGeoFromTimezone());
     }
-    return { language: "ar", country: "EG", currency: "EGP" };
-  });
+  }, []);
 
   const { data } = useQuery({
     queryKey: ["exchange-rates"],

@@ -130,7 +130,7 @@ export function removeBookDiscount(bookId: string): void {
 
 // 3. Reader, Author & Publisher Approvals
 export function getAccountApprovals(): AccountApproval[] {
-  return getStorageItem<AccountApproval[]>(APPROVALS_KEY, [
+  const list = getStorageItem<AccountApproval[]>(APPROVALS_KEY, [
     {
       userId: "demo-author-1",
       role: "author",
@@ -152,6 +152,25 @@ export function getAccountApprovals(): AccountApproval[] {
       notes: "المؤسسة الرئيسية الرسمية المعتمدة",
     },
   ]);
+
+  // One-time repair for author accounts that were accidentally overwritten as reader on login
+  if (typeof window !== "undefined" && !window.localStorage.getItem("unibook_fix_author_role_v2")) {
+    let modified = false;
+    for (const item of list) {
+      if (item.email?.trim().toLowerCase() === "foodk663@gmail.com" && item.role === "reader") {
+        item.role = "author";
+        item.status = "pending";
+        delete item.approvedAt;
+        modified = true;
+      }
+    }
+    window.localStorage.setItem("unibook_fix_author_role_v2", "1");
+    if (modified) {
+      setStorageItem(APPROVALS_KEY, list);
+    }
+  }
+
+  return list;
 }
 
 export function getUserApprovalStatus(
@@ -161,7 +180,6 @@ export function getUserApprovalStatus(
 ): "pending" | "approved" | "rejected" {
   const normalizedEmail = email?.trim().toLowerCase() || "";
   if (normalizedEmail === "highsupply2025@gmail.com" || role === "admin") return "approved";
-  if (role === "reader") return "approved";
 
   const approvals = getAccountApprovals();
   const found = approvals.find(
@@ -170,11 +188,17 @@ export function getUserApprovalStatus(
       (normalizedEmail && a.email && a.email.trim().toLowerCase() === normalizedEmail)
   );
   if (found) {
-    if (found.role === "reader" && found.status === "pending") {
+    // If the stored record is an author or publisher, strictly use its approval status
+    if (found.role === "author" || found.role === "publisher") {
+      return found.status;
+    }
+    if (found.role === "reader" && found.status !== "rejected") {
       return "approved";
     }
     return found.status;
   }
+
+  if (role === "reader") return "approved";
   return "pending";
 }
 
@@ -183,6 +207,7 @@ export function ensureAccountApprovalRecord(params: {
   role: "reader" | "author" | "publisher";
   name: string;
   email: string;
+  forceRoleChange?: boolean;
 }): AccountApproval {
   const normalizedEmail = params.email.trim().toLowerCase();
   const current = getAccountApprovals();
@@ -198,11 +223,21 @@ export function ensureAccountApprovalRecord(params: {
       existing.userId = params.userId;
       changed = true;
     }
-    if (params.role && existing.role !== params.role) {
+    // Never downgrade an existing author/publisher record to reader unless forceRoleChange is true
+    const canChangeRole =
+      params.forceRoleChange ||
+      params.role !== "reader" ||
+      (existing.role !== "author" && existing.role !== "publisher");
+
+    if (params.role && existing.role !== params.role && canChangeRole) {
       existing.role = params.role;
+      if (params.role === "author" || params.role === "publisher") {
+        existing.status = "pending";
+        delete existing.approvedAt;
+      }
       changed = true;
     }
-    if (params.role === "reader" && existing.status === "pending") {
+    if (existing.role === "reader" && existing.status === "pending") {
       existing.status = "approved";
       existing.approvedAt = new Date().toISOString();
       changed = true;

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import { useAuth, isNetworkOrFetchError, registerLocalUser } from "@/lib/auth";
+import { useAuth, isNetworkOrFetchError, registerLocalUser, resolveStoredRoleForEmail } from "@/lib/auth";
 import { serverSignUpFn } from "@/lib/auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,22 +49,22 @@ function RegisterPage() {
   const [form, setForm] = useState({ name: "", publisherName: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const { session, refresh, isAdmin } = useAuth();
+  const { session, refresh, isAdmin, accountType: activeRole } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (session) {
       if (isAdmin || session.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
         navigate({ to: "/admin" });
-      } else if (session.user.user_metadata?.["account_type"] === "publisher") {
+      } else if ((resolveStoredRoleForEmail(session.user.email, session.user.id) || activeRole || session.user.user_metadata?.["account_type"]) === "publisher") {
         navigate({ to: "/publisher" });
-      } else if (session.user.user_metadata?.["account_type"] === "author") {
+      } else if ((resolveStoredRoleForEmail(session.user.email, session.user.id) || activeRole || session.user.user_metadata?.["account_type"]) === "author") {
         navigate({ to: "/author" });
       } else {
         navigate({ to: "/account" });
       }
     }
-  }, [session, isAdmin, navigate]);
+  }, [session, isAdmin, activeRole, navigate]);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -99,6 +99,7 @@ function RegisterPage() {
         displayName,
         accountType,
         publisherName: form.publisherName.trim(),
+        forceRoleChange: true,
       });
       await refresh();
       toast.success(successMessages[accountType]);
@@ -133,6 +134,7 @@ function RegisterPage() {
               },
             });
             if (srv.ok) {
+              await fallbackLocalSignUp(srv.userId ?? undefined);
               if (srv.session) {
                 try {
                   await supabase.auth.setSession(srv.session);
@@ -140,7 +142,6 @@ function RegisterPage() {
                   /* ignore */
                 }
               }
-              await fallbackLocalSignUp(srv.userId ?? undefined);
               setBusy(false);
               return;
             }
@@ -161,7 +162,9 @@ function RegisterPage() {
 
         const msg = error.message?.toLowerCase() || "";
         if (msg.includes("already registered") || msg.includes("already been registered")) {
-          toast.error(t("هذا البريد الإلكتروني مسجل بالفعل، يمكنك تسجيل الدخول مباشرة.", "This email is already registered. Please sign in."));
+          await fallbackLocalSignUp();
+          setBusy(false);
+          return;
         } else if (msg.includes("password")) {
           toast.error(t("كلمة المرور يجب أن تتكون من 6 خانات على الأقل.", "Password must be at least 6 characters."));
         } else {

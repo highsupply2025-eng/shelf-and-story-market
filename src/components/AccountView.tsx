@@ -535,7 +535,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
           id: session.user.id,
           email: session.user.email || "",
           displayName: profile.display_name.trim(),
-          accountType: "reader",
+          accountType: accountMode,
         });
         await refresh();
       }

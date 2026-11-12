@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useAuth, clearLocalSession } from "@/lib/auth";
+import { useAuth, clearLocalSession, resolveStoredRoleForEmail } from "@/lib/auth";
 import { getUserApprovalStatus } from "@/lib/admin-store";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
@@ -125,6 +125,14 @@ export function SiteHeader() {
     clickTimeoutRef.current = setTimeout(() => setLogoClicks(0), 3000);
   }
 
+  const storedRole = session ? resolveStoredRoleForEmail(session.user.email, session.user.id) : null;
+  const effectiveAccountType =
+    isAdmin || accountType === "admin"
+      ? "admin"
+      : storedRole === "publisher" || storedRole === "author"
+        ? storedRole
+        : accountType;
+
   // Account role configuration
   const roleConfig = {
     admin: {
@@ -163,7 +171,7 @@ export function SiteHeader() {
       color: "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
       accentBg: "from-emerald-600 to-teal-700",
     },
-  }[accountType];
+  }[effectiveAccountType];
 
   const RoleIcon = roleConfig.icon;
   const name =
@@ -175,13 +183,13 @@ export function SiteHeader() {
   // Check whether a Reader, Author, or Publisher account is logged in
   const isUserAccountLogged = Boolean(session) && !isAdmin;
   const approvalStatus =
-    isAdmin || accountType === "reader"
+    isAdmin || effectiveAccountType === "reader"
       ? "approved"
       : session
-        ? getUserApprovalStatus(session.user.id, session.user.email, accountType)
+        ? getUserApprovalStatus(session.user.id, session.user.email, effectiveAccountType)
         : "pending";
 
-  const showCart = !session || accountType === "reader" || isAdmin;
+  const showCart = !session || effectiveAccountType === "reader" || isAdmin;
 
   const linkCls =
     "text-[14px] md:text-[15px] font-semibold text-foreground/80 hover:text-primary transition-colors px-3 py-2 rounded-xl hover:bg-primary/5 [&.active]:text-primary [&.active]:bg-primary/10 flex items-center gap-2";
@@ -212,11 +220,11 @@ export function SiteHeader() {
             >
               <RoleIcon className="h-3 w-3" />
               <span>
-                {accountType === "reader"
+                { effectiveAccountType === "reader"
                   ? t("قارئ", "Reader")
-                  : accountType === "author"
+                  : effectiveAccountType === "author"
                     ? t("مؤلف", "Author")
-                    : accountType === "publisher"
+                    : effectiveAccountType === "publisher"
                       ? t("ناشر", "Publisher")
                       : t("إدارة المنصة", "Admin")}
               </span>
@@ -421,7 +429,7 @@ export function SiteHeader() {
                 <DropdownMenuSeparator />
 
                 {/* Reader Navigation Items (مكتبتي هي الصفحة الرئيسية، المفضلة، طلباتي) */}
-                {approvalStatus === "approved" && accountType === "reader" ? (
+                {approvalStatus === "approved" && effectiveAccountType === "reader" ? (
                   <>
                     <DropdownMenuItem
                       onClick={() => selectReaderTab("library")}
@@ -464,7 +472,7 @@ export function SiteHeader() {
                   </DropdownMenuItem>
                 )}
 
-                {approvalStatus === "approved" && accountType === "author" && (
+                {approvalStatus === "approved" && effectiveAccountType === "author" && (
                   <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
                     <Link to="/author" search={{ view: "plans" }}>
                       <Sparkles className="me-2 h-4 w-4 text-amber-600" />
@@ -473,7 +481,7 @@ export function SiteHeader() {
                   </DropdownMenuItem>
                 )}
 
-                {approvalStatus === "approved" && accountType === "publisher" && (
+                {approvalStatus === "approved" && effectiveAccountType === "publisher" && (
                   <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
                     <Link to="/publisher">
                       <Building2 className="me-2 h-4 w-4 text-blue-600" />
@@ -500,7 +508,7 @@ export function SiteHeader() {
                 <DropdownMenuSeparator />
 
                 {/* بيانات الحساب — right before اللغة / تغيير اللغة */}
-                {approvalStatus === "approved" && accountType === "reader" && (
+                {approvalStatus === "approved" && effectiveAccountType === "reader" && (
                   <DropdownMenuItem
                     onClick={() => selectReaderTab("settings")}
                     className="p-2 rounded-lg cursor-pointer font-semibold"
@@ -526,7 +534,23 @@ export function SiteHeader() {
 
                 {/* العملة / المنطقة — right after اللغة / تغيير اللغة */}
                 <DropdownMenuItem
-                  onClick={() => selectReaderTab("currency")}
+                  onClick={() => {
+                    if (effectiveAccountType === "reader") {
+                      selectReaderTab("currency");
+                    } else {
+                      const idx = countries.findIndex((c) => c.code === currentCountry.code);
+                      const next = countries[(idx + 1) % countries.length] ?? countries[0];
+                      if (next) {
+                        set({ country: next.code, currency: next.currency }, true);
+                        toast.success(
+                          t(
+                            `تم تغيير العملة إلى ${next.nameAr} (${next.currency})`,
+                            `Currency changed to ${next.nameEn} (${next.currency})`
+                          )
+                        );
+                      }
+                    }
+                  }}
                   className="p-2 rounded-lg cursor-pointer font-semibold flex items-center justify-between"
                 >
                   <div className="flex items-center">

@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import { useAuth, isNetworkOrFetchError, loginLocalUser, registerLocalUser } from "@/lib/auth";
+import {
+  useAuth,
+  isNetworkOrFetchError,
+  loginLocalUser,
+  registerLocalUser,
+  resolveStoredRoleForEmail,
+} from "@/lib/auth";
 import { serverSignInFn } from "@/lib/auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +27,6 @@ import {
   Building2,
   Mail,
   Lock,
-  CheckCircle2,
   ShieldCheck,
   Globe2,
   UserPlus,
@@ -45,25 +50,33 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { t, language } = useLocale();
   const [form, setForm] = useState({ email: "", password: "" });
+  const [selectedRole, setSelectedRole] = useState<"reader" | "author" | "publisher" | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [resetMode, setResetMode] = useState(false);
-  const { session, refresh, isAdmin } = useAuth();
+  const { session, refresh, isAdmin, accountType } = useAuth();
   const navigate = useNavigate();
+
+  const detectedRole = selectedRole || resolveStoredRoleForEmail(form.email) || null;
 
   useEffect(() => {
     if (session) {
+      const resolved =
+        resolveStoredRoleForEmail(session.user.email, session.user.id) ||
+        (session.user.user_metadata?.["account_type"] as "reader" | "author" | "publisher" | undefined) ||
+        accountType;
+
       if (isAdmin || session.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
         navigate({ to: "/admin" });
-      } else if (session.user.user_metadata?.["account_type"] === "publisher") {
+      } else if (resolved === "publisher") {
         navigate({ to: "/publisher" });
-      } else if (session.user.user_metadata?.["account_type"] === "author") {
+      } else if (resolved === "author") {
         navigate({ to: "/author" });
       } else {
         navigate({ to: "/account" });
       }
     }
-  }, [session, isAdmin, navigate]);
+  }, [session, isAdmin, accountType, navigate]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -103,7 +116,20 @@ function LoginPage() {
       return;
     }
 
-    const redirectByUser = (email?: string, userType?: string) => {
+    const resolveEffectiveRole = (
+      email?: string,
+      remoteType?: unknown,
+      userId?: string | null
+    ): "reader" | "author" | "publisher" => {
+      if (selectedRole) return selectedRole;
+      const stored = resolveStoredRoleForEmail(email || form.email.trim(), userId);
+      if (stored === "publisher" || stored === "author") return stored;
+      if (remoteType === "publisher" || remoteType === "author") return remoteType;
+      if (stored === "reader") return "reader";
+      return "reader";
+    };
+
+    const redirectByUser = (email?: string, userType?: "reader" | "author" | "publisher") => {
       if (email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
         navigate({ to: "/admin" });
       } else if (userType === "publisher") {
@@ -128,22 +154,23 @@ function LoginPage() {
               data: { email: form.email.trim(), password: form.password },
             });
             if (srv.ok) {
-              try {
-                await supabase.auth.setSession(srv.session);
-              } catch {
-                /* ignore */
-              }
-              const role = srv.accountType === "publisher" || srv.accountType === "author" ? srv.accountType : "reader";
+              const role = resolveEffectiveRole(srv.email, srv.accountType, srv.userId);
               registerLocalUser({
                 id: srv.userId ?? undefined,
                 email: form.email.trim(),
                 password: form.password,
                 displayName: srv.displayName || form.email.split("@")[0] || "مستخدم",
                 accountType: role,
+                forceRoleChange: Boolean(selectedRole),
               });
+              try {
+                await supabase.auth.setSession(srv.session);
+              } catch {
+                /* ignore */
+              }
               await refresh();
               toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
-              redirectByUser(srv.email, srv.accountType);
+              redirectByUser(srv.email, role);
               setBusy(false);
               return;
             }
@@ -151,35 +178,56 @@ function LoginPage() {
             /* fallback to local */
           }
         }
-        const localRes = loginLocalUser({ email: form.email.trim(), password: form.password });
+        const localRes = loginLocalUser({
+          email: form.email.trim(),
+          password: form.password,
+          preferredRole: selectedRole,
+        });
         if (!localRes.error && localRes.user) {
+          const finalRole = resolveEffectiveRole(
+            localRes.user.email,
+            localRes.user.user_metadata?.["account_type"],
+            localRes.user.id
+          );
           await refresh();
           toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
-          redirectByUser(localRes.user.email, String(localRes.user.user_metadata?.["account_type"] || "author"));
+          redirectByUser(localRes.user.email, finalRole);
         } else {
           toast.error(t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));
         }
       } else {
         const rawType = data.user?.user_metadata?.["account_type"];
-        const userType = rawType === "publisher" || rawType === "author" ? rawType : "reader";
+        const userType = resolveEffectiveRole(data.user?.email, rawType, data.user?.id);
         registerLocalUser({
           id: data.user?.id,
           email: form.email.trim(),
           password: form.password,
-          displayName: String(data.user?.user_metadata?.["display_name"] || form.email.split("@")[0] || "مستخدم"),
+          displayName: String(
+            data.user?.user_metadata?.["display_name"] || form.email.split("@")[0] || "مستخدم"
+          ),
           accountType: userType,
           publisherName: String(data.user?.user_metadata?.["publisher_name"] || ""),
+          forceRoleChange: Boolean(selectedRole),
         });
         toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
         await refresh();
         redirectByUser(data.user?.email, userType);
       }
     } catch {
-      const localRes = loginLocalUser({ email: form.email.trim(), password: form.password });
+      const localRes = loginLocalUser({
+        email: form.email.trim(),
+        password: form.password,
+        preferredRole: selectedRole,
+      });
       if (!localRes.error && localRes.user) {
+        const finalRole = resolveEffectiveRole(
+          localRes.user.email,
+          localRes.user.user_metadata?.["account_type"],
+          localRes.user.id
+        );
         await refresh();
         toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
-        redirectByUser(localRes.user.email, String(localRes.user.user_metadata?.["account_type"] || "author"));
+        redirectByUser(localRes.user.email, finalRole);
       } else {
         toast.error(t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));
       }
@@ -199,7 +247,10 @@ function LoginPage() {
   const BackIcon = language === "ar" ? ArrowRight : ArrowLeft;
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-b from-background via-muted/20 to-background px-4 pt-6 pb-28 sm:pb-32 md:pt-10 md:pb-36 select-none" dir="rtl">
+    <div
+      className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-b from-background via-muted/20 to-background px-4 pt-6 pb-28 sm:pb-32 md:pt-10 md:pb-36 select-none"
+      dir="rtl"
+    >
       {/* Decorative ambient background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute top-1/4 -start-40 h-96 w-96 rounded-full bg-primary/10 blur-[120px]" />
@@ -224,7 +275,10 @@ function LoginPage() {
 
         {/* Brand Header */}
         <div className="mb-6 flex flex-col items-center text-center">
-          <Link to="/" className="group mb-3 flex items-center justify-center transition-transform active:scale-95">
+          <Link
+            to="/"
+            className="group mb-3 flex items-center justify-center transition-transform active:scale-95"
+          >
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/80 bg-card shadow-sm transition-all group-hover:border-primary/50 group-hover:shadow-md group-hover:scale-105">
               <img src="/logo-icon.png" alt="unibook" className="h-9 w-auto object-contain" />
             </div>
@@ -298,31 +352,57 @@ function LoginPage() {
               <div className="h-px flex-1 bg-border/80" />
             </div>
 
-            {/* Smart Unified Login Indicator */}
+            {/* Interactive & Auto-Detecting Account Role Selector */}
             <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/5 via-card to-amber-500/5 p-3.5 space-y-2 mb-4 shadow-xs">
               <div className="text-xs font-extrabold text-foreground flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-primary" />
-                  {t("بوابة الدخول الذكية الموحدة", "Smart Unified Login")}
+                  {t("نوع الحساب عند الدخول", "Account Type")}
                 </span>
                 <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  توجيه تلقائي فوري
+                  {selectedRole
+                    ? t("تم التحديد يدوياً", "Selected")
+                    : t("تعرّف تلقائي أو اختر نوع حسابك", "Auto-detected or click to select")}
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-bold pt-1">
-                <div className="rounded-xl border border-emerald-500/30 bg-card p-2 text-emerald-700 dark:text-emerald-400 shadow-xs">
+              <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-extrabold pt-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole("reader")}
+                  className={`rounded-xl border p-2.5 transition-all cursor-pointer ${
+                    detectedRole === "reader"
+                      ? "border-emerald-600 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 ring-2 ring-emerald-500/30 shadow-xs"
+                      : "border-emerald-500/30 bg-card text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
+                  }`}
+                >
                   <BookOpen className="h-4 w-4 mx-auto mb-1 text-emerald-600" />
-                  <span>قارئ</span>
-                </div>
-                <div className="rounded-xl border border-amber-500/30 bg-card p-2 text-amber-700 dark:text-amber-400 shadow-xs">
+                  <span>{t("قارئ", "Reader")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole("author")}
+                  className={`rounded-xl border p-2.5 transition-all cursor-pointer ${
+                    detectedRole === "author"
+                      ? "border-amber-600 bg-amber-500/15 text-amber-800 dark:text-amber-300 ring-2 ring-amber-500/30 shadow-xs"
+                      : "border-amber-500/30 bg-card text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                  }`}
+                >
                   <PenLine className="h-4 w-4 mx-auto mb-1 text-amber-600" />
-                  <span>مؤلف</span>
-                </div>
-                <div className="rounded-xl border border-blue-500/30 bg-card p-2 text-blue-700 dark:text-blue-400 shadow-xs">
+                  <span>{t("مؤلف", "Author")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole("publisher")}
+                  className={`rounded-xl border p-2.5 transition-all cursor-pointer ${
+                    detectedRole === "publisher"
+                      ? "border-blue-600 bg-blue-500/15 text-blue-800 dark:text-blue-300 ring-2 ring-blue-500/30 shadow-xs"
+                      : "border-blue-500/30 bg-card text-blue-700 dark:text-blue-400 hover:bg-blue-500/10"
+                  }`}
+                >
                   <Building2 className="h-4 w-4 mx-auto mb-1 text-blue-600" />
-                  <span>دار نشر</span>
-                </div>
+                  <span>{t("دار نشر", "Publisher")}</span>
+                </button>
               </div>
             </div>
           </>
@@ -380,7 +460,11 @@ function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute top-3 end-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-1 rounded-md hover:bg-muted/60"
                   tabIndex={-1}
-                  aria-label={showPassword ? t("إخفاء كلمة المرور", "Hide password") : t("إظهار كلمة المرور", "Show password")}
+                  aria-label={
+                    showPassword
+                      ? t("إخفاء كلمة المرور", "Hide password")
+                      : t("إظهار كلمة المرور", "Show password")
+                  }
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -438,7 +522,12 @@ function LoginPage() {
         {/* Security & Trust Footer */}
         <div className="mt-4 flex items-center justify-center gap-2 text-[10px] text-muted-foreground/75 text-center">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-          <span>{t("اتصال آمن ومشفّر بأعلى معايير الحماية 256-bit SSL", "Secure 256-bit SSL encrypted connection")}</span>
+          <span>
+            {t(
+              "اتصال آمن ومشفّر بأعلى معايير الحماية 256-bit SSL",
+              "Secure 256-bit SSL encrypted connection"
+            )}
+          </span>
         </div>
       </div>
     </div>

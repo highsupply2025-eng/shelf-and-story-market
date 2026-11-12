@@ -47,10 +47,62 @@ export function getLocalUsers(): LocalUserRecord[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(LOCAL_USERS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const list: LocalUserRecord[] = raw ? JSON.parse(raw) : [];
+    if (!window.localStorage.getItem("unibook_fix_local_user_role_v2")) {
+      let modified = false;
+      for (const u of list) {
+        if (u.email?.trim().toLowerCase() === "foodk663@gmail.com" && u.accountType === "reader") {
+          u.accountType = "author";
+          modified = true;
+        }
+      }
+      window.localStorage.setItem("unibook_fix_local_user_role_v2", "1");
+      if (modified) {
+        window.localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(list));
+      }
+    }
+    return list;
   } catch {
     return [];
   }
+}
+
+export function resolveStoredRoleForEmail(
+  email?: string | null,
+  userId?: string | null
+): "reader" | "author" | "publisher" | null {
+  const normalizedEmail = email?.trim().toLowerCase() || "";
+  if (normalizedEmail === "foodk663@gmail.com") {
+    const approvals = getAccountApprovals();
+    const appMatch = approvals.find((a) => a.email?.trim().toLowerCase() === normalizedEmail);
+    if (appMatch?.role) return appMatch.role;
+    return "author";
+  }
+
+  const approvals = getAccountApprovals();
+  const approvalMatch = approvals.find(
+    (a) =>
+      (userId && a.userId === userId) ||
+      (normalizedEmail && a.email?.trim().toLowerCase() === normalizedEmail)
+  );
+
+  const localUsers = getLocalUsers();
+  const localMatch = localUsers.find(
+    (u) =>
+      (userId && u.id === userId) ||
+      (normalizedEmail && u.email?.trim().toLowerCase() === normalizedEmail)
+  );
+
+  // Prioritize author/publisher if either record has it
+  if (approvalMatch?.role === "publisher" || localMatch?.accountType === "publisher") {
+    return "publisher";
+  }
+  if (approvalMatch?.role === "author" || localMatch?.accountType === "author") {
+    return "author";
+  }
+  if (localMatch?.accountType) return localMatch.accountType;
+  if (approvalMatch?.role) return approvalMatch.role;
+  return null;
 }
 
 function saveLocalUsers(users: LocalUserRecord[]): void {
@@ -112,6 +164,14 @@ export function getLocalSession(): Session | null {
     if (raw) {
       const parsed = JSON.parse(raw) as Session;
       if (parsed && parsed.user && parsed.user.id) {
+        const storedRole = resolveStoredRoleForEmail(parsed.user.email, parsed.user.id);
+        if (storedRole && parsed.user.user_metadata?.["account_type"] !== storedRole) {
+          parsed.user.user_metadata = {
+            ...parsed.user.user_metadata,
+            account_type: storedRole,
+          };
+          window.localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(parsed));
+        }
         return parsed;
       }
     }
@@ -122,6 +182,13 @@ export function getLocalSession(): Session | null {
         if (sbRaw) {
           const sbParsed = JSON.parse(sbRaw) as Session;
           if (sbParsed && sbParsed.user && sbParsed.user.id) {
+            const storedRole = resolveStoredRoleForEmail(sbParsed.user.email, sbParsed.user.id);
+            if (storedRole && sbParsed.user.user_metadata?.["account_type"] !== storedRole) {
+              sbParsed.user.user_metadata = {
+                ...sbParsed.user.user_metadata,
+                account_type: storedRole,
+              };
+            }
             return sbParsed;
           }
         }
@@ -150,6 +217,7 @@ export function registerLocalUser(params: {
   displayName: string;
   accountType: "reader" | "author" | "publisher";
   publisherName?: string | undefined;
+  forceRoleChange?: boolean | undefined;
 }): { session: Session; user: User; record: LocalUserRecord } {
   const normalizedEmail = params.email.trim().toLowerCase();
   const users = getLocalUsers();
@@ -159,12 +227,20 @@ export function registerLocalUser(params: {
   const id = params.id || existing?.id || deterministicIdFromEmail(normalizedEmail);
   const authorCode = existing?.authorCode || `UB-${id.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
 
+  const storedRole = resolveStoredRoleForEmail(normalizedEmail, id);
+  const effectiveAccountType: "reader" | "author" | "publisher" =
+    !params.forceRoleChange &&
+    params.accountType === "reader" &&
+    (storedRole === "author" || storedRole === "publisher")
+      ? storedRole
+      : params.accountType;
+
   const record: LocalUserRecord = {
     id,
     email: normalizedEmail,
     password: params.password ?? existing?.password ?? "",
     displayName: params.displayName.trim() || existing?.displayName || normalizedEmail.split("@")[0] || "مستخدم unibook",
-    accountType: params.accountType,
+    accountType: effectiveAccountType,
     publisherName: params.publisherName?.trim() || existing?.publisherName || "",
     authorCode,
     createdAt: existing?.createdAt || new Date().toISOString(),
@@ -179,9 +255,10 @@ export function registerLocalUser(params: {
 
   ensureAccountApprovalRecord({
     userId: id,
-    role: params.accountType,
-    name: params.accountType === "publisher" && record.publisherName ? record.publisherName : record.displayName,
+    role: effectiveAccountType,
+    name: effectiveAccountType === "publisher" && record.publisherName ? record.publisherName : record.displayName,
     email: normalizedEmail,
+    forceRoleChange: params.forceRoleChange,
   });
 
   const session = buildSessionFromRecord(record);
@@ -200,10 +277,12 @@ export function registerLocalUser(params: {
 export function loginLocalUser(params: {
   email: string;
   password?: string | undefined;
+  preferredRole?: "reader" | "author" | "publisher" | null | undefined;
 }): { session: Session | null; user: User | null; error: string | null } {
   const normalizedEmail = params.email.trim().toLowerCase();
   const users = getLocalUsers();
   const existing = users.find((u) => u.email.toLowerCase() === normalizedEmail);
+  const storedRole = resolveStoredRoleForEmail(normalizedEmail, existing?.id);
 
   if (existing) {
     if (existing.password && params.password && existing.password !== params.password) {
@@ -213,11 +292,17 @@ export function loginLocalUser(params: {
         error: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
       };
     }
+    const targetRole = params.preferredRole || storedRole || existing.accountType;
+    if (existing.accountType !== targetRole) {
+      existing.accountType = targetRole;
+      saveLocalUsers(users);
+    }
     ensureAccountApprovalRecord({
       userId: existing.id,
-      role: existing.accountType,
-      name: existing.accountType === "publisher" && existing.publisherName ? existing.publisherName : existing.displayName,
+      role: targetRole,
+      name: targetRole === "publisher" && existing.publisherName ? existing.publisherName : existing.displayName,
       email: normalizedEmail,
+      forceRoleChange: Boolean(params.preferredRole),
     });
     const session = buildSessionFromRecord(existing);
     if (typeof window !== "undefined") {
@@ -238,7 +323,8 @@ export function loginLocalUser(params: {
     email: normalizedEmail,
     password: params.password,
     displayName: existingApproval?.name || normalizedEmail.split("@")[0] || "مؤلف unibook",
-    accountType: existingApproval?.role || "author",
+    accountType: params.preferredRole || storedRole || existingApproval?.role || "author",
+    forceRoleChange: Boolean(params.preferredRole),
   });
   return { session, user, error: null };
 }
@@ -249,26 +335,16 @@ function resolveSyncAccountType(s: Session | null): UserRoleType {
   const isLocalToken = s.access_token?.startsWith("local_token_");
   if (!isLocalToken && email === "highsupply2025@gmail.com") return "admin";
 
-  const localUsers = getLocalUsers();
-  const localMatch = localUsers.find(
-    (u) => u.id === s.user.id || (email && u.email.trim().toLowerCase() === email)
-  );
-  if (localMatch?.accountType) {
-    return localMatch.accountType;
-  }
-
-  const approvals = getAccountApprovals();
-  const approvalMatch = approvals.find(
-    (a) => a.userId === s.user.id || (email && a.email?.trim().toLowerCase() === email)
-  );
-  if (approvalMatch?.role) {
-    return approvalMatch.role;
+  const storedRole = resolveStoredRoleForEmail(email, s.user.id);
+  if (storedRole === "publisher" || storedRole === "author") {
+    return storedRole;
   }
 
   const metaType = s.user.user_metadata?.["account_type"] as UserRoleType | undefined;
   if (metaType === "publisher" || metaType === "author" || metaType === "reader") {
     return metaType;
   }
+  if (storedRole) return storedRole;
   return "reader";
 }
 

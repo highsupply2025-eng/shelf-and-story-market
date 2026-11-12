@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, clearLocalSession, registerLocalUser, type UserRoleType } from "@/lib/auth";
+import { useAuth, clearLocalSession, resolveStoredRoleForEmail, type UserRoleType } from "@/lib/auth";
 import {
   ensureAccountApprovalRecord,
   getUserApprovalStatus,
@@ -66,13 +66,21 @@ const META: Record<
  * dashboard (admins may view all) and gates access until Admin approves the account.
  */
 export function DashboardShell({ role, children }: { role: Exclude<UserRoleType, "admin">; children: ReactNode }) {
-  const { accountType, loading, session, refresh } = useAuth();
+  const { accountType, loading, session } = useAuth();
   const l = useLocale();
   const navigate = useNavigate();
   const [, setTick] = useState(0);
 
+  const storedRole = session ? resolveStoredRoleForEmail(session.user.email, session.user.id) : null;
+  const effectiveRole: UserRoleType =
+    accountType === "admin"
+      ? "admin"
+      : storedRole === "publisher" || storedRole === "author"
+        ? storedRole
+        : accountType;
+
   useEffect(() => {
-    if (session && accountType !== "admin") {
+    if (session && effectiveRole !== "admin") {
       const displayName =
         (session.user.user_metadata?.["display_name"] as string | undefined) ||
         (session.user.user_metadata?.["full_name"] as string | undefined) ||
@@ -80,12 +88,12 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
         "مستخدم unibook";
       ensureAccountApprovalRecord({
         userId: session.user.id,
-        role: accountType,
+        role: effectiveRole,
         name: displayName,
         email: session.user.email || "",
       });
     }
-  }, [session, accountType]);
+  }, [session, effectiveRole]);
 
   useEffect(() => {
     const onUpdate = () => setTick((n) => n + 1);
@@ -101,15 +109,15 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
     return <p className="p-16 text-center text-muted-foreground">{l.t("جارٍ التحميل…", "Loading…")}</p>;
   }
 
-  if (accountType !== "admin" && accountType !== role) {
-    return <Navigate to={ROLE_HOME[accountType]} replace />;
+  if (effectiveRole !== "admin" && effectiveRole !== role) {
+    return <Navigate to={ROLE_HOME[effectiveRole]} replace />;
   }
 
   const m = META[role];
   const Icon = m.icon;
 
   const approvalStatus =
-    accountType === "admin" || role === "reader" || accountType === "reader"
+    effectiveRole === "admin" || (role === "reader" && effectiveRole === "reader")
       ? "approved"
       : getUserApprovalStatus(session?.user.id, session?.user.email, role);
 
@@ -147,27 +155,9 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
     }
   }
 
-  async function handleSwitchPendingRole(nextRole: "reader" | "author" | "publisher") {
-    if (!session || nextRole === role) return;
-    registerLocalUser({
-      id: session.user.id,
-      email: session.user.email || "",
-      displayName,
-      accountType: nextRole,
-    });
-    await refresh();
-    toast.success(
-      l.t(
-        `تم تحديث نوع طلب الحساب إلى (${META[nextRole].badgeAr}) وهو الآن تحت المراجعة`,
-        `Account application updated to ${META[nextRole].badgeEn}`
-      )
-    );
-    navigate({ to: ROLE_HOME[nextRole] });
-  }
-
   function handleCheckStatus() {
     setTick((n) => n + 1);
-    const current = getUserApprovalStatus(session?.user.id, session?.user.email);
+    const current = getUserApprovalStatus(session?.user.id, session?.user.email, role);
     if (current === "approved") {
       toast.success(l.t("تمت الموافقة على حسابك! أهلاً بك.", "Your account has been approved!"));
     } else if (current === "rejected") {
@@ -258,36 +248,6 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
                     : l.t("تحت المراجعة (بانتظار موافقة الأدمن)", "Under Review (Pending Admin Approval)")}
                 </span>
               </div>
-
-              {/* Allow user to switch pending role if they registered with wrong role */}
-              {approvalStatus === "pending" && (
-                <div className="pt-2 border-t border-border/60">
-                  <span className="text-[11px] text-muted-foreground block mb-2">
-                    {l.t("تأكيد أو تعديل نوع الحساب المطلوب مراجعته:", "Confirm or change requested account type:")}
-                  </span>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(["reader", "author", "publisher"] as const).map((r) => {
-                      const RIcon = META[r].icon;
-                      const active = role === r;
-                      return (
-                        <button
-                          key={r}
-                          type="button"
-                          onClick={() => handleSwitchPendingRole(r)}
-                          className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 px-2 text-xs font-bold transition-all cursor-pointer ${
-                            active
-                              ? "border-primary bg-primary text-primary-foreground shadow-xs"
-                              : "border-border/70 bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                          }`}
-                        >
-                          <RIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{l.t(META[r].badgeAr.replace("حساب ", ""), META[r].badgeEn)}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Action Buttons */}

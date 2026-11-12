@@ -43,14 +43,11 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { t, language } = useLocale();
   const [form, setForm] = useState({ email: "", password: "" });
-  const [selectedRole, setSelectedRole] = useState<"reader" | "author" | "publisher" | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const { session, refresh, isAdmin, accountType } = useAuth();
   const navigate = useNavigate();
-
-  const detectedRole = selectedRole;
 
   useEffect(() => {
     if (session) {
@@ -262,59 +259,6 @@ function LoginPage() {
               <div className="h-px flex-1 bg-border/80" />
             </div>
 
-            {/* Interactive & Auto-Detecting Account Role Selector */}
-            <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/5 via-card to-amber-500/5 p-3.5 space-y-2 mb-4 shadow-xs">
-              <div className="text-xs font-extrabold text-foreground flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-primary" />
-                  {t("نوع الحساب عند الدخول", "Account Type")}
-                </span>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  {selectedRole
-                    ? t("تم التحديد يدوياً", "Selected")
-                    : t("تعرّف تلقائي أو اختر نوع حسابك", "Auto-detected or click to select")}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-extrabold pt-1">
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole("reader")}
-                  className={`rounded-xl border p-2.5 transition-all cursor-pointer ${
-                    detectedRole === "reader"
-                      ? "border-emerald-600 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 ring-2 ring-emerald-500/30 shadow-xs"
-                      : "border-emerald-500/30 bg-card text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
-                  }`}
-                >
-                  <BookOpen className="h-4 w-4 mx-auto mb-1 text-emerald-600" />
-                  <span>{t("قارئ", "Reader")}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole("author")}
-                  className={`rounded-xl border p-2.5 transition-all cursor-pointer ${
-                    detectedRole === "author"
-                      ? "border-amber-600 bg-amber-500/15 text-amber-800 dark:text-amber-300 ring-2 ring-amber-500/30 shadow-xs"
-                      : "border-amber-500/30 bg-card text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
-                  }`}
-                >
-                  <PenLine className="h-4 w-4 mx-auto mb-1 text-amber-600" />
-                  <span>{t("مؤلف", "Author")}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole("publisher")}
-                  className={`rounded-xl border p-2.5 transition-all cursor-pointer ${
-                    detectedRole === "publisher"
-                      ? "border-blue-600 bg-blue-500/15 text-blue-800 dark:text-blue-300 ring-2 ring-blue-500/30 shadow-xs"
-                      : "border-blue-500/30 bg-card text-blue-700 dark:text-blue-400 hover:bg-blue-500/10"
-                  }`}
-                >
-                  <Building2 className="h-4 w-4 mx-auto mb-1 text-blue-600" />
-                  <span>{t("دار نشر", "Publisher")}</span>
-                </button>
-              </div>
-            </div>
           </>
         )}
 

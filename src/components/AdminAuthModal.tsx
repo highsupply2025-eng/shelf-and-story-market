@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, loginLocalAdmin, isNetworkOrFetchError } from "@/lib/auth";
+import { useAuth, isNetworkOrFetchError } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -40,110 +40,54 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
-  async function enterAdminDirectly() {
-    loginLocalAdmin();
+  // Admin access is decided by the database role check after a real sign-in.
+  async function finishSignIn() {
     await refresh();
-    toast.success("تم تسجيل دخول الإدارة العليا بنجاح! جاري فتح لوحة التحكم...");
-    if (onSuccess) {
-      onSuccess();
-    } else {
-      navigate({ to: "/admin" });
-    }
+    toast.success("تم التحقق من الدخول، جاري الإرسال...");
+    if (onSuccess) onSuccess();
+    else navigate({ to: "/admin" });
   }
 
-  // Automatically detect when admin verifies session or magic link
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase()) {
-        loginLocalAdmin();
-        toast.success("تم تأكيد دخول الإدارة بنجاح! جاري فتح لوحة التحكم...");
-        await refresh();
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          navigate({ to: "/admin" });
-        }
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user?.email?.toLowerCase().trim() === ADMIN_EMAIL) {
+        void finishSignIn();
       }
     });
-
-    // Also poll every 2.5s and listen to storage event when waiting in verify step
-    let interval: NodeJS.Timeout | null = null;
-    const checkActiveSession = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (data?.session?.user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase()) {
-          loginLocalAdmin();
-          toast.success("تم تأكيد دخول الإدارة بنجاح! جاري فتح لوحة التحكم...");
-          await refresh();
-          if (onSuccess) {
-            onSuccess();
-          } else {
-            navigate({ to: "/admin" });
-          }
-        }
-      } catch {
-        /* ignore */
-      }
-    };
-
-    if (step === "verify") {
-      interval = setInterval(checkActiveSession, 2500);
-      window.addEventListener("storage", checkActiveSession);
-    }
-
-    return () => {
-      sub.subscription.unsubscribe();
-      if (interval) clearInterval(interval);
-      window.removeEventListener("storage", checkActiveSession);
-    };
-  }, [step, navigate, refresh, onSuccess]);
+    return () => sub.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (countdown > 0) timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(timer);
   }, [countdown]);
+
+  function showError(error: { message?: string } | null | undefined, fallback: string) {
+    if (isNetworkOrFetchError(error)) {
+      toast.error("الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد قليل.");
+    } else {
+      toast.error(error?.message || fallback);
+    }
+  }
 
   async function handleSendOtp() {
     setLoading(true);
     try {
-      const redirectUrl = `${window.location.origin}/admin`;
-      try {
-        window.localStorage.setItem("admin_login_pending", String(Date.now()));
-      } catch {
-        /* ignore */
-      }
-
-      const timeoutPromise = new Promise<{ error: { message: string } }>((resolve) =>
-        setTimeout(() => resolve({ error: { message: "Failed to fetch" } }), 2500)
-      );
-
-      const { error } = await Promise.race([
-        supabase.auth.signInWithOtp({
-          email: ADMIN_EMAIL,
-          options: {
-            emailRedirectTo: redirectUrl,
-            shouldCreateUser: true,
-          },
-        }),
-        timeoutPromise,
-      ]);
-
+      const { error } = await supabase.auth.signInWithOtp({
+        email: ADMIN_EMAIL,
+        options: { emailRedirectTo: `${window.location.origin}/admin`, shouldCreateUser: false },
+      });
       if (error) {
-        if (isNetworkOrFetchError(error) || error.message?.toLowerCase().includes("rate") || error.message?.toLowerCase().includes("security")) {
-          await enterAdminDirectly();
-          return;
-        }
-        await enterAdminDirectly();
+        showError(error, "تعذر إرسال رسالة الدخول");
       } else {
-        toast.success("تم إرسال رابط الدخول وكود التحقق إلى: " + ADMIN_EMAIL);
+        toast.success("تم إرسال رسالة الدخول إلى: " + ADMIN_EMAIL);
         setStep("verify");
         setCountdown(60);
       }
-    } catch {
-      await enterAdminDirectly();
+    } catch (err) {
+      showError(err as Error, "تعذر إرسال رسالة الدخول");
     } finally {
       setLoading(false);
     }
@@ -155,25 +99,12 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
       toast.error("يرجى كتابة كلمة المرور");
       return;
     }
-
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: ADMIN_EMAIL,
-        password: password,
-      });
-
-      if (error) {
-        if (isNetworkOrFetchError(error)) {
-          await enterAdminDirectly();
-          return;
-        }
-        await enterAdminDirectly();
-      } else {
-        await enterAdminDirectly();
-      }
-    } catch {
-      await enterAdminDirectly();
+      const { error } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password });
+      if (error) showError(error, "كلمة المرور غير صحيحة");
+    } catch (err) {
+      showError(err as Error, "تعذر تسجيل الدخول");
     } finally {
       setLoading(false);
     }
@@ -186,22 +117,12 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
       toast.error("يرجى إدخال كود التحقق المكوّن من 6 أرقام");
       return;
     }
-
     setLoading(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: ADMIN_EMAIL,
-        token: token,
-        type: "email",
-      });
-
-      if (error) {
-        await enterAdminDirectly();
-      } else {
-        await enterAdminDirectly();
-      }
-    } catch {
-      await enterAdminDirectly();
+      const { error } = await supabase.auth.verifyOtp({ email: ADMIN_EMAIL, token, type: "email" });
+      if (error) showError(error, "الكود غير صحيح أو منتهي الصلاحية");
+    } catch (err) {
+      showError(err as Error, "تعذر التحقق من الكود");
     } finally {
       setLoading(false);
     }
@@ -248,25 +169,14 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
         <div className="space-y-3.5">
           <Button
             type="button"
-            onClick={enterAdminDirectly}
-            disabled={loading}
-            className="w-full h-13 text-sm font-extrabold rounded-2xl shadow-md gap-2.5 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer active:scale-[0.99]"
-          >
-            <ShieldCheck className="h-5 w-5" />
-            فتح لوحة الإدارة العليا مباشرة
-          </Button>
-
-          <Button
-            type="button"
-            variant="outline"
             onClick={handleSendOtp}
             disabled={loading}
-            className="w-full h-11 text-xs font-extrabold rounded-2xl gap-2 border-primary/30 text-primary hover:bg-primary/5 cursor-pointer"
+            className="w-full h-12 text-sm font-extrabold rounded-2xl gap-2 shadow-md cursor-pointer"
           >
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                جاري فتح لوحة الإدارة...
+                جاري الإرسال...
               </>
             ) : (
               <>
@@ -314,30 +224,13 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
               <span>تم إرسال رسالة الدخول بنجاح إلى بريدك الإلكتروني!</span>
             </div>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              افتح بريدك <strong className="font-mono text-foreground">{ADMIN_EMAIL}</strong> (تفقد صندوق الوارد أو البريد غير الهام Spam).
+              اضغط الرابط في الرسالة من نفس المتصفح، أو افتح بريدك <strong className="font-mono text-foreground">{ADMIN_EMAIL}</strong> (تفقد صندوق الوارد أو البريد غير الهام Spam).
             </p>
-          </div>
-
-          {/* Option 1: Direct Link (Fastest & 1-Click) */}
-          <div className="rounded-2xl border border-primary/25 bg-primary/5 p-3.5 text-center space-y-2">
-            <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-primary">
-              <ExternalLink className="h-4 w-4 shrink-0" />
-              <span>طريقة الدخول الأسرع بنقرة واحدة:</span>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={enterAdminDirectly}
-              className="w-full h-10 text-xs font-bold rounded-xl gap-2 border-primary/40 text-primary hover:bg-primary/10 cursor-pointer shadow-xs"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              فتح لوحة الإدارة الآن
-            </Button>
           </div>
 
           <div className="relative flex py-0.5 items-center">
             <div className="flex-grow border-t border-border/70" />
-            <span className="flex-shrink mx-3 text-[11px] text-muted-foreground font-semibold">أو إدخال كود 6 أرقام</span>
+            <span className="flex-shrink mx-3 text-[11px] text-muted-foreground font-semibold">أو أدخل الكود</span>
             <div className="flex-grow border-t border-border/70" />
           </div>
 

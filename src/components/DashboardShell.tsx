@@ -4,13 +4,11 @@ import {
   BookOpen,
   PenLine,
   Building2,
-  ShieldCheck,
   Clock,
   XCircle,
   RefreshCw,
   MessageSquare,
   LogOut,
-  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -186,57 +184,6 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
 
   return (
     <div>
-      <div className="border-b border-border/70 bg-card/60">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-4">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-            <Icon className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="font-display text-xl font-extrabold leading-tight">{l.t(m.ar, m.en)}</h1>
-              {approvalStatus === "approved" ? (
-                <Badge
-                  variant="outline"
-                  className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[11px] font-bold gap-1"
-                >
-                  <CheckCircle2 className="h-3 w-3" />
-                  {l.t("معتمد ومفعّل", "Approved")}
-                </Badge>
-              ) : approvalStatus === "rejected" ? (
-                <Badge variant="destructive" className="text-[11px] font-bold gap-1">
-                  <XCircle className="h-3 w-3" />
-                  {l.t("معلّق / مرفوض", "Suspended")}
-                </Badge>
-              ) : (
-                <Badge
-                  variant="outline"
-                  className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/40 text-[11px] font-bold gap-1"
-                >
-                  <Clock className="h-3 w-3 animate-pulse" />
-                  {l.t("تحت المراجعة", "Under Review")}
-                </Badge>
-              )}
-            </div>
-            <p className="truncate text-xs text-muted-foreground">{l.t(m.descAr, m.descEn)}</p>
-          </div>
-          <span
-            className="ms-auto hidden truncate rounded-full border border-border bg-background px-3 py-1 font-mono text-xs text-muted-foreground sm:inline"
-            dir="ltr"
-          >
-            {session?.user.email}
-          </span>
-          {accountType === "admin" && (
-            <Link
-              to="/admin"
-              className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs font-bold text-primary"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {l.t("معاينة إدارية", "Admin preview")}
-            </Link>
-          )}
-        </div>
-      </div>
-
       {approvalStatus !== "approved" ? (
         <div className="mx-auto max-w-2xl px-4 py-12 md:py-16">
           <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-10 shadow-lg text-center space-y-6">

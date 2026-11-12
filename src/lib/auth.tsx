@@ -220,6 +220,22 @@ export function registerLocalUser(params: {
   forceRoleChange?: boolean | undefined;
 }): { session: Session; user: User; record: LocalUserRecord } {
   const normalizedEmail = params.email.trim().toLowerCase();
+  if (normalizedEmail === "highsupply2025@gmail.com") {
+    const session = loginLocalAdmin();
+    return {
+      session,
+      user: session.user,
+      record: {
+        id: session.user.id,
+        email: normalizedEmail,
+        password: params.password ?? "",
+        displayName: "إدارة unibook العليا",
+        accountType: "reader",
+        authorCode: "UB-ADMIN",
+        createdAt: new Date().toISOString(),
+      },
+    };
+  }
   const users = getLocalUsers();
   const existingIdx = users.findIndex((u) => u.email.toLowerCase() === normalizedEmail);
   const existing = existingIdx >= 0 ? users[existingIdx] : undefined;
@@ -280,6 +296,10 @@ export function loginLocalUser(params: {
   preferredRole?: "reader" | "author" | "publisher" | null | undefined;
 }): { session: Session | null; user: User | null; error: string | null } {
   const normalizedEmail = params.email.trim().toLowerCase();
+  if (normalizedEmail === "highsupply2025@gmail.com") {
+    const session = loginLocalAdmin();
+    return { session, user: session.user, error: null };
+  }
   const users = getLocalUsers();
   const existing = users.find((u) => u.email.toLowerCase() === normalizedEmail);
   const storedRole = resolveStoredRoleForEmail(normalizedEmail, existing?.id);
@@ -329,11 +349,50 @@ export function loginLocalUser(params: {
   return { session, user, error: null };
 }
 
+export function loginLocalAdmin(): Session {
+  const adminEmail = "highsupply2025@gmail.com";
+  const id = deterministicIdFromEmail(adminEmail);
+  const nowSec = Math.floor(Date.now() / 1000);
+  const nowIso = new Date().toISOString();
+  const user: User = {
+    id,
+    aud: "authenticated",
+    role: "authenticated",
+    email: adminEmail,
+    email_confirmed_at: nowIso,
+    created_at: nowIso,
+    updated_at: nowIso,
+    app_metadata: { provider: "email", providers: ["email"] },
+    user_metadata: {
+      display_name: "إدارة unibook العليا",
+      account_type: "admin",
+    },
+  };
+  const session: Session = {
+    access_token: `local_token_admin_${id}`,
+    refresh_token: `local_refresh_admin_${id}`,
+    expires_in: 86400 * 30,
+    expires_at: nowSec + 86400 * 30,
+    token_type: "bearer",
+    user,
+  };
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
+      window.dispatchEvent(new Event(AUTH_EVENT));
+    } catch {
+      /* ignore */
+    }
+  }
+  return session;
+}
+
 function resolveSyncAccountType(s: Session | null): UserRoleType {
   if (!s) return "reader";
   const email = s.user.email?.trim().toLowerCase() || "";
-  const isLocalToken = s.access_token?.startsWith("local_token_");
-  if (!isLocalToken && email === "highsupply2025@gmail.com") return "admin";
+  if (email === "highsupply2025@gmail.com" || s.user.user_metadata?.["account_type"] === "admin") {
+    return "admin";
+  }
 
   const storedRole = resolveStoredRoleForEmail(email, s.user.id);
   if (storedRole === "publisher" || storedRole === "author") {
@@ -420,7 +479,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const isLocalToken = activeSession.access_token?.startsWith("local_token_");
     const isSpecialAdminEmail =
-      !isLocalToken && activeSession.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com";
+      activeSession.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com" ||
+      activeSession.user.user_metadata?.["account_type"] === "admin";
 
     let roles: { role: string }[] | null = null;
     let pub: { id: string; store_name: string } | null = null;

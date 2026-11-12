@@ -8,10 +8,10 @@ export const Route = createFileRoute("/_authenticated")({
     if (location.pathname.startsWith("/admin")) return;
     if (getLocalSession()?.user) return;
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session?.user) return;
-      const { data } = await supabase.auth.getUser();
-      if (data.user) return;
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+      const sessionRes = await Promise.race([supabase.auth.getSession(), timeout]);
+      if (sessionRes && sessionRes.data.session?.user) return;
+      if (getLocalSession()?.user) return;
     } catch {
       if (getLocalSession()?.user) return;
     }

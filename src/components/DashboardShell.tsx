@@ -97,7 +97,7 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
     };
   }, []);
 
-  if (loading) {
+  if (loading && !session) {
     return <p className="p-16 text-center text-muted-foreground">{l.t("جارٍ التحميل…", "Loading…")}</p>;
   }
 

@@ -109,10 +109,23 @@ export function getLocalSession(): Session | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(LOCAL_SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Session;
-    if (parsed && parsed.user && parsed.user.id) {
-      return parsed;
+    if (raw) {
+      const parsed = JSON.parse(raw) as Session;
+      if (parsed && parsed.user && parsed.user.id) {
+        return parsed;
+      }
+    }
+    // Also check cached Supabase auth token in localStorage for instant 0ms hydration
+    for (const k of Object.keys(window.localStorage)) {
+      if (k.startsWith("sb-") && k.endsWith("-auth-token")) {
+        const sbRaw = window.localStorage.getItem(k);
+        if (sbRaw) {
+          const sbParsed = JSON.parse(sbRaw) as Session;
+          if (sbParsed && sbParsed.user && sbParsed.user.id) {
+            return sbParsed;
+          }
+        }
+      }
     }
     return null;
   } catch {
@@ -283,8 +296,10 @@ const Ctx = createContext<AuthState>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(() => getLocalSession());
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState<boolean>(() => !getLocalSession());
+  const [isAdmin, setIsAdmin] = useState(
+    () => resolveSyncAccountType(getLocalSession()) === "admin"
+  );
   const [isPublisher, setIsPublisher] = useState(() => resolveSyncAccountType(getLocalSession()) === "publisher");
   const [isAuthor, setIsAuthor] = useState(() => resolveSyncAccountType(getLocalSession()) === "author");
   const [isReader, setIsReader] = useState(() => resolveSyncAccountType(getLocalSession()) === "reader");
@@ -319,6 +334,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: displayName,
         email: activeSession.user.email || "",
       });
+    } else {
+      setIsAdmin(true);
+      setIsPublisher(false);
+      setIsAuthor(false);
+      setIsReader(false);
+      setAccountType("admin");
     }
 
     const isLocalToken = activeSession.access_token?.startsWith("local_token_");
@@ -330,12 +351,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!isLocalToken) {
       try {
-        const [rolesRes, pubRes] = await Promise.all([
-          supabase.from("user_roles").select("role").eq("user_id", activeSession.user.id),
-          supabase.from("publishers").select("id, store_name").eq("id", activeSession.user.id).maybeSingle(),
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
+        const res = await Promise.race([
+          Promise.all([
+            supabase.from("user_roles").select("role").eq("user_id", activeSession.user.id),
+            supabase.from("publishers").select("id, store_name").eq("id", activeSession.user.id).maybeSingle(),
+          ]),
+          timeoutPromise,
         ]);
-        roles = rolesRes.data;
-        pub = pubRes.data;
+        if (res) {
+          roles = res[0].data;
+          pub = res[1].data;
+        }
       } catch {
         /* fallback to user_metadata when offline */
       }
@@ -361,6 +388,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    const initialLocal = getLocalSession();
+    if (initialLocal) {
+      setSession(initialLocal);
+      setLoading(false);
+      loadFlags(initialLocal);
+    }
+
+    const fallbackTimer = setTimeout(() => {
+      setLoading(false);
+    }, 1200);
+
     const syncFromLocal = () => {
       const local = getLocalSession();
       setSession((prev) => {
@@ -368,6 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (prev?.access_token?.startsWith("local_token_")) return null;
         return prev;
       });
+      setLoading(false);
       loadFlags(local);
     };
 
@@ -378,6 +417,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       const effective = s ?? getLocalSession();
       setSession(effective);
+      setLoading(false);
       setTimeout(() => loadFlags(effective), 0);
       if (s && typeof window !== "undefined") {
         try {
@@ -397,20 +437,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth
       .getSession()
-      .then(async ({ data }) => {
+      .then(({ data }) => {
         const effective = data?.session ?? getLocalSession();
         setSession(effective);
-        await loadFlags(effective);
         setLoading(false);
+        loadFlags(effective);
       })
-      .catch(async () => {
+      .catch(() => {
         const effective = getLocalSession();
         setSession(effective);
-        await loadFlags(effective);
         setLoading(false);
+        loadFlags(effective);
       });
 
     return () => {
+      clearTimeout(fallbackTimer);
       sub.subscription.unsubscribe();
       if (typeof window !== "undefined") {
         window.removeEventListener(AUTH_EVENT, syncFromLocal);

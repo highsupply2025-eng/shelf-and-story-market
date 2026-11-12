@@ -601,7 +601,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
   }, [accountMode]);
 
   // Dynamic Hero Header info per Reader page
-  const readerHeroMeta: Record<string, { badge: string; title: string; desc: string; icon: typeof BookOpen }> = {
+  const heroPages: Record<string, { badge: string; title: string; desc: string; icon: typeof BookOpen }> = {
     library: {
       badge: l.t("مكتبتي الرقمية · الصفحة الرئيسية", "My Digital Library · Home"),
       title: l.t("أهلاً بك في مكتبتك الرقمية", "Welcome to Your Digital Library"),
@@ -647,7 +647,8 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
       ),
       icon: Coins,
     },
-  }[(tab as keyof typeof readerHeroMeta) || "library"] || {
+  };
+  const readerHeroMeta = heroPages[tab || "library"] ?? {
     badge: l.t("مساحة القارئ", "Reader Studio"),
     title: l.t("أهلاً بك في مكتبتك", "Welcome to your library"),
     desc: "",

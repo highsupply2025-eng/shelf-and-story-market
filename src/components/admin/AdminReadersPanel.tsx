@@ -1,27 +1,33 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users,
   Search,
   ShoppingBag,
-  MapPin,
-  Phone,
-  Mail,
-  Calendar,
   ShieldCheck,
   Eye,
   CheckCircle2,
+  XCircle,
+  Clock,
   Package,
 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getLocalUsers } from "@/lib/auth";
+import {
+  getAccountApprovals,
+  getUserApprovalStatus,
+  updateAccountApprovalStatus,
+} from "@/lib/admin-store";
 import { useLocale } from "@/lib/locale";
 
 interface ReaderProfile {
   id: string;
+  email?: string;
   display_name: string | null;
   shipping_name: string | null;
   shipping_phone: string | null;
@@ -34,18 +40,34 @@ interface ReaderProfile {
 export function AdminReadersPanel() {
   const { t, price: formatMoney } = useLocale();
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterTab, setFilterTab] = useState<"all" | "pending" | "approved">("all");
   const [selectedReader, setSelectedReader] = useState<ReaderProfile | null>(null);
+  const [, setTick] = useState(0);
 
-  // Fetch all reader profiles
-  const { data: readers = [], isLoading } = useQuery<ReaderProfile[]>({
+  useEffect(() => {
+    const onUpdate = () => setTick((n) => n + 1);
+    window.addEventListener("unibook_admin_update", onUpdate);
+    window.addEventListener("storage", onUpdate);
+    return () => {
+      window.removeEventListener("unibook_admin_update", onUpdate);
+      window.removeEventListener("storage", onUpdate);
+    };
+  }, []);
+
+  // Fetch all reader profiles from Supabase (fallback gracefully if offline)
+  const { data: remoteReaders = [], isLoading, refetch: refetchReaders } = useQuery<ReaderProfile[]>({
     queryKey: ["admin-all-readers"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data || []) as ReaderProfile[];
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) return [];
+        return (data || []) as ReaderProfile[];
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -53,14 +75,88 @@ export function AdminReadersPanel() {
   const { data: orders = [] } = useQuery({
     queryKey: ["admin-all-orders-summary"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("orders").select("*");
-      if (error) throw error;
-      return data || [];
+      try {
+        const { data, error } = await supabase.from("orders").select("*");
+        if (error) return [];
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
+  // Merge remote profiles with locally registered readers & approval records
+  const localReaders = getLocalUsers().filter((u) => u.accountType === "reader");
+  const approvalReaders = getAccountApprovals().filter((a) => a.role === "reader");
+
+  const mergedMap = new Map<string, ReaderProfile>();
+  for (const r of remoteReaders) {
+    mergedMap.set(r.id, { ...r });
+  }
+  for (const lr of localReaders) {
+    const existing = mergedMap.get(lr.id);
+    mergedMap.set(lr.id, {
+      id: lr.id,
+      email: lr.email,
+      display_name: lr.displayName || existing?.display_name || "قارئ unibook",
+      shipping_name: existing?.shipping_name ?? null,
+      shipping_phone: existing?.shipping_phone ?? null,
+      shipping_address: existing?.shipping_address ?? null,
+      country: existing?.country || "SA",
+      currency: existing?.currency || "SAR",
+      created_at: existing?.created_at || lr.createdAt,
+    });
+  }
+  for (const ar of approvalReaders) {
+    if (!mergedMap.has(ar.userId)) {
+      mergedMap.set(ar.userId, {
+        id: ar.userId,
+        email: ar.email,
+        display_name: ar.name || "قارئ unibook",
+        shipping_name: null,
+        shipping_phone: null,
+        shipping_address: null,
+        country: "SA",
+        currency: "SAR",
+        created_at: ar.appliedAt,
+      });
+    } else {
+      const item = mergedMap.get(ar.userId)!;
+      if (!item.email && ar.email) item.email = ar.email;
+      if (!item.display_name && ar.name) item.display_name = ar.name;
+    }
+  }
+
+  const readers = Array.from(mergedMap.values()).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  function handleSetReaderStatus(
+    reader: ReaderProfile,
+    status: "approved" | "rejected" | "pending"
+  ) {
+    const rName = reader.display_name || reader.shipping_name || "قارئ unibook";
+    updateAccountApprovalStatus(reader.id, status, undefined, {
+      role: "reader",
+      name: rName,
+      email: reader.email || "",
+    });
+    setTick((n) => n + 1);
+    toast.success(
+      status === "approved"
+        ? `تمت الموافقة وتفعيل حساب القارئ (${rName}) بنجاح`
+        : status === "rejected"
+          ? `تم تعليق/رفض حساب القارئ (${rName})`
+          : `تم تعيين حساب القارئ (${rName}) تحت المراجعة`
+    );
+    refetchReaders();
+  }
+
   // Calculate stats
   const totalReadersCount = readers.length;
+  const pendingReadersCount = readers.filter(
+    (r) => getUserApprovalStatus(r.id, r.email) === "pending"
+  ).length;
   const totalOrdersCount = orders.length;
   const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
 
@@ -71,10 +167,15 @@ export function AdminReadersPanel() {
   }, {});
 
   const filteredReaders = readers.filter((r) => {
+    const status = getUserApprovalStatus(r.id, r.email);
+    if (filterTab === "pending" && status !== "pending") return false;
+    if (filterTab === "approved" && status !== "approved") return false;
+
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
     return (
       (r.display_name && r.display_name.toLowerCase().includes(q)) ||
+      (r.email && r.email.toLowerCase().includes(q)) ||
       (r.shipping_name && r.shipping_name.toLowerCase().includes(q)) ||
       (r.shipping_phone && r.shipping_phone.includes(q)) ||
       (r.shipping_address && r.shipping_address.toLowerCase().includes(q)) ||
@@ -90,7 +191,11 @@ export function AdminReadersPanel() {
           <div>
             <p className="text-xs font-bold text-muted-foreground">{t("إجمالي القرّاء المسجلين", "Total Readers")}</p>
             <p className="mt-2 text-3xl font-extrabold text-foreground font-mono">{totalReadersCount}</p>
-            <p className="text-[11px] text-emerald-600 mt-1 font-semibold">حسابات نشطة في المنصة</p>
+            <p className="text-[11px] text-amber-600 mt-1 font-semibold">
+              {pendingReadersCount > 0
+                ? `${pendingReadersCount} حساب بانتظار موافقة الأدمن`
+                : "جميع الحسابات تمت مراجعتها"}
+            </p>
           </div>
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-500/10 text-emerald-600">
             <Users className="h-6 w-6" />
@@ -120,24 +225,56 @@ export function AdminReadersPanel() {
         </div>
       </div>
 
-      {/* Control Bar: Search */}
+      {/* Control Bar: Search + Filter Tabs */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-border/80 shadow-xs">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute start-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t("ابحث باسم القارئ، الهاتف، العنوان، أو المعرّف...", "Search reader by name, phone, address...")}
+            placeholder={t("ابحث باسم القارئ، البريد، الهاتف، أو المعرّف...", "Search reader by name, email, phone...")}
             className="ps-10 h-10 rounded-xl text-xs sm:text-sm bg-background/50 border-border/70"
           />
         </div>
 
-        <Badge variant="outline" className="h-9 px-3 text-xs font-bold text-muted-foreground self-start sm:self-auto">
-          {filteredReaders.length} {t("قارئ معروض", "readers shown")}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFilterTab("all")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              filterTab === "all"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            الكل ({readers.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterTab("pending")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              filterTab === "pending"
+                ? "bg-amber-600 text-white"
+                : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+            }`}
+          >
+            تحت المراجعة ({pendingReadersCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterTab("approved")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              filterTab === "approved"
+                ? "bg-emerald-600 text-white"
+                : "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+            }`}
+          >
+            المعتمدون ({readers.filter((r) => getUserApprovalStatus(r.id, r.email) === "approved").length})
+          </button>
+        </div>
       </div>
 
-      {/* Readers Table / Cards */}
+      {/* Readers Table */}
       {isLoading ? (
         <div className="p-16 text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto" />
@@ -153,17 +290,19 @@ export function AdminReadersPanel() {
             <thead>
               <tr className="border-b border-border/70 bg-muted/40 text-muted-foreground font-bold text-[11px] sm:text-xs">
                 <th className="py-3 px-4 text-start">القارئ</th>
+                <th className="py-3 px-4 text-start">حالة الاعتماد</th>
                 <th className="py-3 px-4 text-start">الجوال والشحن</th>
                 <th className="py-3 px-4 text-start">الطلبات</th>
                 <th className="py-3 px-4 text-start">إجمالي الإنفاق</th>
                 <th className="py-3 px-4 text-start">تاريخ التسجيل</th>
-                <th className="py-3 px-4 text-center">الإجراءات</th>
+                <th className="py-3 px-4 text-center">إجراءات المراجعة والاعتماد</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
               {filteredReaders.map((r) => {
                 const readerOrders = ordersByBuyer[r.id] || [];
                 const spent = readerOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+                const status = getUserApprovalStatus(r.id, r.email);
 
                 return (
                   <tr key={r.id} className="hover:bg-muted/20 transition-colors">
@@ -176,11 +315,33 @@ export function AdminReadersPanel() {
                           <div className="font-bold text-foreground">
                             {r.display_name || r.shipping_name || "قارئ unibook"}
                           </div>
-                          <div className="text-[10px] text-muted-foreground font-mono truncate max-w-36" dir="ltr">
-                            {r.id.slice(0, 12)}...
+                          <div className="text-[11px] text-muted-foreground font-mono truncate max-w-44" dir="ltr">
+                            {r.email || `${r.id.slice(0, 12)}...`}
                           </div>
                         </div>
                       </div>
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      {status === "approved" ? (
+                        <Badge
+                          variant="outline"
+                          className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/40 font-bold text-[11px]"
+                        >
+                          <ShieldCheck className="h-3 w-3 me-1" /> قارئ معتمد
+                        </Badge>
+                      ) : status === "rejected" ? (
+                        <Badge variant="destructive" className="font-bold text-[11px]">
+                          <XCircle className="h-3 w-3 me-1" /> حساب معلّق
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-500/20 text-amber-700 border-amber-500/40 font-bold text-[11px]"
+                        >
+                          <Clock className="h-3 w-3 me-1 animate-pulse" /> تحت المراجعة
+                        </Badge>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4 text-xs text-muted-foreground">
@@ -211,15 +372,40 @@ export function AdminReadersPanel() {
                     </td>
 
                     <td className="py-3.5 px-4 text-center">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 rounded-xl text-xs gap-1 cursor-pointer hover:border-primary"
-                        onClick={() => setSelectedReader(r)}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        <span>معاينة</span>
-                      </Button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        {status !== "approved" && (
+                          <Button
+                            size="sm"
+                            className="h-8 rounded-xl text-xs gap-1 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={() => handleSetReaderStatus(r, "approved")}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>موافقة وتفعيل</span>
+                          </Button>
+                        )}
+
+                        {status === "approved" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 rounded-xl text-xs gap-1 cursor-pointer text-destructive hover:bg-destructive/10"
+                            onClick={() => handleSetReaderStatus(r, "rejected")}
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            <span>تعليق</span>
+                          </Button>
+                        )}
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 rounded-xl text-xs gap-1 cursor-pointer hover:border-primary"
+                          onClick={() => setSelectedReader(r)}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>معاينة</span>
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -242,12 +428,38 @@ export function AdminReadersPanel() {
           {selectedReader && (
             <div className="space-y-4 pt-2 text-xs sm:text-sm">
               <div className="rounded-2xl border border-border/70 bg-muted/40 p-4 space-y-2.5">
-                <div>
-                  <span className="text-muted-foreground block text-[11px]">الاسم الكامل:</span>
-                  <span className="font-bold text-foreground text-base">
-                    {selectedReader.display_name || selectedReader.shipping_name || "قارئ unibook"}
-                  </span>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">الاسم الكامل:</span>
+                    <span className="font-bold text-foreground text-base">
+                      {selectedReader.display_name || selectedReader.shipping_name || "قارئ unibook"}
+                    </span>
+                  </div>
+                  {getUserApprovalStatus(selectedReader.id, selectedReader.email) === "approved" ? (
+                    <Badge
+                      variant="outline"
+                      className="bg-emerald-500/15 text-emerald-700 border-emerald-500/40 font-bold text-xs"
+                    >
+                      قارئ معتمد
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-500/20 text-amber-700 border-amber-500/40 font-bold text-xs"
+                    >
+                      تحت المراجعة
+                    </Badge>
+                  )}
                 </div>
+
+                {selectedReader.email && (
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">البريد الإلكتروني:</span>
+                    <span className="font-mono font-bold text-foreground" dir="ltr">
+                      {selectedReader.email}
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between">
                   <div>
@@ -270,6 +482,29 @@ export function AdminReadersPanel() {
                     {selectedReader.shipping_address || "لا يوجد عنوان مسجل"}
                   </span>
                 </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                  {getUserApprovalStatus(selectedReader.id, selectedReader.email) !== "approved" ? (
+                    <Button
+                      size="sm"
+                      className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 cursor-pointer"
+                      onClick={() => handleSetReaderStatus(selectedReader, "approved")}
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>اعتماد وتفعيل حساب القارئ</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full rounded-xl text-destructive hover:bg-destructive/10 font-bold gap-1.5 cursor-pointer"
+                      onClick={() => handleSetReaderStatus(selectedReader, "rejected")}
+                    >
+                      <XCircle className="h-4 w-4" />
+                      <span>تعليق حساب القارئ</span>
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Order history summary */}
@@ -286,7 +521,10 @@ export function AdminReadersPanel() {
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
                     {(ordersByBuyer[selectedReader.id] ?? []).map((o: any) => (
-                      <div key={o.id} className="p-3 rounded-xl border border-border/80 bg-card flex justify-between items-center text-xs">
+                      <div
+                        key={o.id}
+                        className="p-3 rounded-xl border border-border/80 bg-card flex justify-between items-center text-xs"
+                      >
                         <div>
                           <span className="font-mono font-bold text-foreground">طلب #{o.id.slice(0, 8)}</span>
                           <span className="block text-[10px] text-muted-foreground">

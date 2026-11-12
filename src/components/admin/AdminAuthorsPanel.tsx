@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   PenLine,
@@ -8,13 +8,9 @@ import {
   ShieldCheck,
   Wallet,
   Sparkles,
-  Download,
-  AlertCircle,
   Check,
   X,
-  FileText,
   Search,
-  Filter,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,26 +23,46 @@ import {
   rejectPlanRequest,
   type AuthorPlanRequest,
 } from "@/lib/author-plans";
-import { getAccountApprovals, updateAccountApprovalStatus } from "@/lib/admin-store";
+import { getLocalUsers } from "@/lib/auth";
+import {
+  getAccountApprovals,
+  getUserApprovalStatus,
+  updateAccountApprovalStatus,
+} from "@/lib/admin-store";
 import { useLocale } from "@/lib/locale";
 
 export function AdminAuthorsPanel() {
-  const { t, price: formatMoney } = useLocale();
+  const { t } = useLocale();
   const qc = useQueryClient();
   const [filterTab, setFilterTab] = useState<"all" | "pending" | "approved">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const [, setTick] = useState(0);
 
-  // 1. Fetch publishers with author accounts
-  const { data: authors = [], refetch: refetchAuthors } = useQuery({
+  useEffect(() => {
+    const onUpdate = () => setTick((n) => n + 1);
+    window.addEventListener("unibook_admin_update", onUpdate);
+    window.addEventListener("storage", onUpdate);
+    return () => {
+      window.removeEventListener("unibook_admin_update", onUpdate);
+      window.removeEventListener("storage", onUpdate);
+    };
+  }, []);
+
+  // 1. Fetch publishers with author accounts from Supabase
+  const { data: remoteAuthors = [], refetch: refetchAuthors } = useQuery({
     queryKey: ["admin-authors-list"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("publishers")
-        .select("*, manuscripts(*), books(*)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
+      try {
+        const { data, error } = await supabase
+          .from("publishers")
+          .select("*, manuscripts(*), books(*)")
+          .order("created_at", { ascending: false });
+        if (error) return [];
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -60,21 +76,75 @@ export function AdminAuthorsPanel() {
   const { data: payouts = [], refetch: refetchPayouts } = useQuery({
     queryKey: ["admin-author-payouts"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("author_payouts")
-        .select("*, publishers(store_name,author_code)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
+      try {
+        const { data, error } = await supabase
+          .from("author_payouts")
+          .select("*, publishers(store_name,author_code)")
+          .order("created_at", { ascending: false });
+        if (error) return [];
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
-  // Get local approvals map
-  const approvalsList = getAccountApprovals();
-  const approvalsMap = approvalsList.reduce((acc: Record<string, string>, item) => {
-    acc[item.userId] = item.status;
-    return acc;
-  }, {});
+  // Merge remote authors with locally registered authors & approval records
+  const localAuthors = getLocalUsers().filter((u) => u.accountType === "author");
+  const approvalAuthors = getAccountApprovals().filter((a) => a.role === "author");
+
+  const authorsMap = new Map<
+    string,
+    {
+      id: string;
+      email?: string;
+      store_name: string;
+      bio?: string | null;
+      author_code?: string | null;
+      books?: any[];
+      manuscripts?: any[];
+      created_at: string;
+    }
+  >();
+
+  for (const a of remoteAuthors) {
+    authorsMap.set(a.id, { ...a });
+  }
+  for (const la of localAuthors) {
+    const existing = authorsMap.get(la.id);
+    authorsMap.set(la.id, {
+      id: la.id,
+      email: la.email,
+      store_name: la.displayName || existing?.store_name || "مؤلف unibook",
+      bio: existing?.bio || "مؤلف وباحث علمي في unibook",
+      author_code: la.authorCode || existing?.author_code || `AUTH-${la.id.slice(0, 6)}`,
+      books: existing?.books || [],
+      manuscripts: existing?.manuscripts || [],
+      created_at: existing?.created_at || la.createdAt,
+    });
+  }
+  for (const aa of approvalAuthors) {
+    if (!authorsMap.has(aa.userId)) {
+      authorsMap.set(aa.userId, {
+        id: aa.userId,
+        email: aa.email,
+        store_name: aa.name || "مؤلف unibook",
+        bio: aa.notes || "مؤلف وباحث علمي في unibook",
+        author_code: `AUTH-${aa.userId.slice(0, 6).toUpperCase()}`,
+        books: [],
+        manuscripts: [],
+        created_at: aa.appliedAt,
+      });
+    } else {
+      const item = authorsMap.get(aa.userId)!;
+      if (!item.email && aa.email) item.email = aa.email;
+      if (!item.store_name && aa.name) item.store_name = aa.name;
+    }
+  }
+
+  const authors = Array.from(authorsMap.values()).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   // Handle plan approval
   async function handleActivatePlan(req: AuthorPlanRequest) {
@@ -103,14 +173,24 @@ export function AdminAuthorsPanel() {
   }
 
   // Handle author account status update
-  function handleSetAuthorStatus(authorId: string, authorName: string, status: "approved" | "rejected" | "pending") {
-    updateAccountApprovalStatus(authorId, status);
+  function handleSetAuthorStatus(
+    authorId: string,
+    authorName: string,
+    authorEmail: string | undefined,
+    status: "approved" | "rejected" | "pending"
+  ) {
+    updateAccountApprovalStatus(authorId, status, undefined, {
+      role: "author",
+      name: authorName,
+      email: authorEmail || "",
+    });
+    setTick((n) => n + 1);
     toast.success(
       status === "approved"
         ? `تم اعتماد حساب المؤلف (${authorName}) بنجاح وفتح صلاحيات النشر الكاملة`
         : status === "rejected"
-        ? `تم تعليق/رفض حساب المؤلف (${authorName})`
-        : `تم تعيين حساب المؤلف (${authorName}) قيد المراجعة`
+          ? `تم تعليق/رفض حساب المؤلف (${authorName})`
+          : `تم تعيين حساب المؤلف (${authorName}) قيد المراجعة`
     );
     refetchAuthors();
   }
@@ -137,6 +217,9 @@ export function AdminAuthorsPanel() {
   // Pending items count
   const pendingPlans = planRequests.filter((p) => p.status === "pending");
   const pendingPayouts = payouts.filter((p) => p.status === "requested");
+  const pendingAuthorsCount = authors.filter(
+    (a) => getUserApprovalStatus(a.id, a.email) === "pending"
+  ).length;
 
   return (
     <div className="space-y-8" dir="rtl">
@@ -146,7 +229,11 @@ export function AdminAuthorsPanel() {
           <div>
             <p className="text-xs font-bold text-muted-foreground">{t("المؤلفون والباحثون", "Registered Authors")}</p>
             <p className="mt-2 text-3xl font-extrabold text-foreground font-mono">{authors.length}</p>
-            <p className="text-[11px] text-amber-600 mt-1 font-semibold">يخضعون لمراجعة الإدارة</p>
+            <p className="text-[11px] text-amber-600 mt-1 font-semibold">
+              {pendingAuthorsCount > 0
+                ? `${pendingAuthorsCount} مؤلف بانتظار موافقة الأدمن`
+                : "يخضعون لمراجعة الإدارة"}
+            </p>
           </div>
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/10 text-amber-600">
             <PenLine className="h-6 w-6" />
@@ -265,18 +352,54 @@ export function AdminAuthorsPanel() {
               مراجعة واعتماد حسابات المؤلفين
             </h3>
             <p className="text-xs text-muted-foreground">
-              يخضع كل حساب مؤلف لمراجعة الإدارة للتحقق من الهوية والمخطوطات قبل فتح مساحة البيع والنشر.
+              لا يفتح حساب المؤلف ولا تتاح له لوحة النشر إلا بعد موافقة الإدارة.
             </p>
           </div>
 
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث باسم المؤلف أو الكود..."
-              className="ps-9 h-9 rounded-xl text-xs bg-card"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setFilterTab("all")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                filterTab === "all"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              الكل ({authors.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab("pending")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                filterTab === "pending"
+                  ? "bg-amber-600 text-white"
+                  : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+              }`}
+            >
+              تحت المراجعة ({pendingAuthorsCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab("approved")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                filterTab === "approved"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+              }`}
+            >
+              المعتمدون ({authors.filter((a) => getUserApprovalStatus(a.id, a.email) === "approved").length})
+            </button>
+
+            <div className="relative w-full sm:w-56">
+              <Search className="absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="ابحث باسم المؤلف أو الكود..."
+                className="ps-9 h-9 rounded-xl text-xs bg-card"
+              />
+            </div>
           </div>
         </div>
 
@@ -299,24 +422,31 @@ export function AdminAuthorsPanel() {
               <tbody className="divide-y divide-border/60">
                 {authors
                   .filter((a) => {
+                    const st = getUserApprovalStatus(a.id, a.email);
+                    if (filterTab === "pending" && st !== "pending") return false;
+                    if (filterTab === "approved" && st !== "approved") return false;
                     const q = searchQuery.toLowerCase().trim();
                     if (!q) return true;
-                    return a.store_name.toLowerCase().includes(q) || (a.author_code && a.author_code.includes(q));
+                    return (
+                      a.store_name.toLowerCase().includes(q) ||
+                      (a.email && a.email.toLowerCase().includes(q)) ||
+                      (a.author_code && a.author_code.toLowerCase().includes(q))
+                    );
                   })
                   .map((author) => {
-                    const status = approvalsMap[author.id] || "approved"; // default verified
+                    const status = getUserApprovalStatus(author.id, author.email);
 
                     return (
                       <tr key={author.id} className="hover:bg-muted/20 transition-colors">
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-2.5">
                             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-700 font-bold">
-                              {author.store_name[0]}
+                              {author.store_name[0] || "م"}
                             </span>
                             <div>
                               <div className="font-bold text-foreground">{author.store_name}</div>
-                              <div className="text-[11px] text-muted-foreground truncate max-w-44">
-                                {author.bio || "مؤلف وباحث معتمد في unibook"}
+                              <div className="text-[11px] text-muted-foreground truncate max-w-44" dir="ltr">
+                                {author.email || author.bio || "مؤلف وباحث في unibook"}
                               </div>
                             </div>
                           </div>
@@ -337,7 +467,7 @@ export function AdminAuthorsPanel() {
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-amber-500/20 text-amber-700 border-amber-500/40 font-bold text-[11px]">
-                              <Clock className="h-3 w-3 me-1 animate-pulse" /> قيد المراجعة
+                              <Clock className="h-3 w-3 me-1 animate-pulse" /> تحت المراجعة
                             </Badge>
                           )}
                         </td>
@@ -353,7 +483,9 @@ export function AdminAuthorsPanel() {
                               <Button
                                 size="sm"
                                 className="h-8 rounded-xl text-xs gap-1 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white"
-                                onClick={() => handleSetAuthorStatus(author.id, author.store_name, "approved")}
+                                onClick={() =>
+                                  handleSetAuthorStatus(author.id, author.store_name, author.email, "approved")
+                                }
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 <span>اعتماد الحساب</span>
@@ -365,7 +497,9 @@ export function AdminAuthorsPanel() {
                                 size="sm"
                                 variant="outline"
                                 className="h-8 rounded-xl text-xs gap-1 cursor-pointer text-destructive hover:bg-destructive/10"
-                                onClick={() => handleSetAuthorStatus(author.id, author.store_name, "rejected")}
+                                onClick={() =>
+                                  handleSetAuthorStatus(author.id, author.store_name, author.email, "rejected")
+                                }
                               >
                                 <XCircle className="h-3.5 w-3.5" />
                                 <span>تعليق الحساب</span>
@@ -394,7 +528,7 @@ export function AdminAuthorsPanel() {
           </p>
         ) : (
           <div className="space-y-3">
-            {payouts.map((p) => (
+            {payouts.map((p: any) => (
               <div key={p.id} className="p-4 rounded-2xl border border-border/80 bg-card shadow-xs flex flex-wrap items-center justify-between gap-4">
                 <div className="space-y-1 min-w-[240px]">
                   <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureAccountApprovalRecord, getAccountApprovals } from "@/lib/admin-store";
 
 export type UserRoleType = "reader" | "author" | "publisher" | "admin";
 
@@ -42,7 +43,7 @@ export function isNetworkOrFetchError(err: unknown): boolean {
   );
 }
 
-function getLocalUsers(): LocalUserRecord[] {
+export function getLocalUsers(): LocalUserRecord[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(LOCAL_USERS_KEY);
@@ -163,6 +164,13 @@ export function registerLocalUser(params: {
   }
   saveLocalUsers(users);
 
+  ensureAccountApprovalRecord({
+    userId: id,
+    role: params.accountType,
+    name: params.accountType === "publisher" && record.publisherName ? record.publisherName : record.displayName,
+    email: normalizedEmail,
+  });
+
   const session = buildSessionFromRecord(record);
   if (typeof window !== "undefined") {
     try {
@@ -192,6 +200,12 @@ export function loginLocalUser(params: {
         error: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
       };
     }
+    ensureAccountApprovalRecord({
+      userId: existing.id,
+      role: existing.accountType,
+      name: existing.accountType === "publisher" && existing.publisherName ? existing.publisherName : existing.displayName,
+      email: normalizedEmail,
+    });
     const session = buildSessionFromRecord(existing);
     if (typeof window !== "undefined") {
       try {
@@ -204,13 +218,45 @@ export function loginLocalUser(params: {
     return { session, user: session.user, error: null };
   }
 
+  const approvals = getAccountApprovals();
+  const existingApproval = approvals.find((a) => a.email?.trim().toLowerCase() === normalizedEmail);
+
   const { session, user } = registerLocalUser({
     email: normalizedEmail,
     password: params.password,
-    displayName: normalizedEmail.split("@")[0] || "مؤلف unibook",
-    accountType: "author",
+    displayName: existingApproval?.name || normalizedEmail.split("@")[0] || "مؤلف unibook",
+    accountType: existingApproval?.role || "author",
   });
   return { session, user, error: null };
+}
+
+function resolveSyncAccountType(s: Session | null): UserRoleType {
+  if (!s) return "reader";
+  const email = s.user.email?.trim().toLowerCase() || "";
+  const isLocalToken = s.access_token?.startsWith("local_token_");
+  if (!isLocalToken && email === "highsupply2025@gmail.com") return "admin";
+
+  const localUsers = getLocalUsers();
+  const localMatch = localUsers.find(
+    (u) => u.id === s.user.id || (email && u.email.trim().toLowerCase() === email)
+  );
+  if (localMatch?.accountType) {
+    return localMatch.accountType;
+  }
+
+  const approvals = getAccountApprovals();
+  const approvalMatch = approvals.find(
+    (a) => a.userId === s.user.id || (email && a.email?.trim().toLowerCase() === email)
+  );
+  if (approvalMatch?.role) {
+    return approvalMatch.role;
+  }
+
+  const metaType = s.user.user_metadata?.["account_type"] as UserRoleType | undefined;
+  if (metaType === "publisher" || metaType === "author" || metaType === "reader") {
+    return metaType;
+  }
+  return "reader";
 }
 
 type AuthState = {
@@ -239,10 +285,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(() => getLocalSession());
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isPublisher, setIsPublisher] = useState(false);
-  const [isAuthor, setIsAuthor] = useState(false);
-  const [isReader, setIsReader] = useState(true);
-  const [accountType, setAccountType] = useState<UserRoleType>("reader");
+  const [isPublisher, setIsPublisher] = useState(() => resolveSyncAccountType(getLocalSession()) === "publisher");
+  const [isAuthor, setIsAuthor] = useState(() => resolveSyncAccountType(getLocalSession()) === "author");
+  const [isReader, setIsReader] = useState(() => resolveSyncAccountType(getLocalSession()) === "reader");
+  const [accountType, setAccountType] = useState<UserRoleType>(() => resolveSyncAccountType(getLocalSession()));
 
   async function loadFlags(s: Session | null) {
     const activeSession = s ?? getLocalSession();
@@ -255,10 +301,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const syncRole = resolveSyncAccountType(activeSession);
+    if (syncRole !== "admin") {
+      setAccountType(syncRole);
+      setIsPublisher(syncRole === "publisher");
+      setIsAuthor(syncRole === "author");
+      setIsReader(syncRole === "reader");
+
+      const displayName =
+        (activeSession.user.user_metadata?.["display_name"] as string | undefined) ||
+        (activeSession.user.user_metadata?.["full_name"] as string | undefined) ||
+        activeSession.user.email?.split("@")[0] ||
+        "مستخدم unibook";
+      ensureAccountApprovalRecord({
+        userId: activeSession.user.id,
+        role: syncRole,
+        name: displayName,
+        email: activeSession.user.email || "",
+      });
+    }
+
     const isLocalToken = activeSession.access_token?.startsWith("local_token_");
     const isSpecialAdminEmail =
       !isLocalToken && activeSession.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com";
-    const metaType = activeSession.user.user_metadata?.["account_type"] as UserRoleType | undefined;
 
     let roles: { role: string }[] | null = null;
     let pub: { id: string; store_name: string } | null = null;
@@ -277,16 +342,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const admin = isSpecialAdminEmail || !!roles?.some((r) => r.role === "admin");
+    const resolvedSyncRole = resolveSyncAccountType(activeSession);
 
     let role: UserRoleType = "reader";
     if (admin) {
       role = "admin";
-    } else if (metaType === "publisher") {
-      role = "publisher";
-    } else if (metaType === "author") {
-      role = "author";
-    } else if (metaType === "reader") {
-      role = "reader";
+    } else if (resolvedSyncRole === "publisher" || resolvedSyncRole === "author" || resolvedSyncRole === "reader") {
+      role = resolvedSyncRole;
     } else if (pub) {
       role = "publisher";
     }
@@ -367,7 +429,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isReader,
         accountType,
         refresh: async () => {
-          const effective = session ?? getLocalSession();
+          const effective = getLocalSession() ?? session;
           if (effective !== session) setSession(effective);
           await loadFlags(effective);
         },

@@ -76,9 +76,9 @@ function RegisterPage() {
         : form.name.trim();
 
     const successMessages = {
-      reader: t("تم إنشاء حساب القارئ بنجاح! مرحباً بك في مكتبتك.", "Reader account created successfully!"),
-      author: t("تم إنشاء حساب المؤلف بنجاح! مرحباً بك في استوديو النشر.", "Author account created successfully!"),
-      publisher: t("تم إنشاء حساب دار النشر بنجاح! مرحباً بك في كتالوج النشر.", "Publisher account created successfully!"),
+      reader: t("تم استلام طلب حساب القارئ! حسابك الآن تحت المراجعة بانتظار موافقة الإدارة.", "Reader account submitted for admin review!"),
+      author: t("تم استلام طلب حساب المؤلف! حسابك الآن تحت المراجعة بانتظار موافقة الإدارة.", "Author account submitted for admin review!"),
+      publisher: t("تم استلام طلب حساب دار النشر! حسابك الآن تحت المراجعة بانتظار موافقة الإدارة.", "Publisher account submitted for admin review!"),
     };
 
     const redirectToDashboard = () => {

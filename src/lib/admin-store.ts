@@ -22,7 +22,7 @@ export interface BookDiscount {
 
 export interface AccountApproval {
   userId: string;
-  role: "author" | "publisher";
+  role: "reader" | "author" | "publisher";
   name: string;
   email: string;
   status: "pending" | "approved" | "rejected";
@@ -128,7 +128,7 @@ export function removeBookDiscount(bookId: string): void {
   setStorageItem(DISCOUNTS_KEY, current);
 }
 
-// 3. Author & Publisher Approvals
+// 3. Reader, Author & Publisher Approvals
 export function getAccountApprovals(): AccountApproval[] {
   return getStorageItem<AccountApproval[]>(APPROVALS_KEY, [
     {
@@ -154,24 +154,100 @@ export function getAccountApprovals(): AccountApproval[] {
   ]);
 }
 
+export function getUserApprovalStatus(
+  userId?: string | null,
+  email?: string | null
+): "pending" | "approved" | "rejected" {
+  const normalizedEmail = email?.trim().toLowerCase() || "";
+  if (normalizedEmail === "highsupply2025@gmail.com") return "approved";
+
+  const approvals = getAccountApprovals();
+  const found = approvals.find(
+    (a) =>
+      (userId && a.userId === userId) ||
+      (normalizedEmail && a.email && a.email.trim().toLowerCase() === normalizedEmail)
+  );
+  return found ? found.status : "pending";
+}
+
+export function ensureAccountApprovalRecord(params: {
+  userId: string;
+  role: "reader" | "author" | "publisher";
+  name: string;
+  email: string;
+}): AccountApproval {
+  const normalizedEmail = params.email.trim().toLowerCase();
+  const current = getAccountApprovals();
+  const idx = current.findIndex(
+    (a) =>
+      (params.userId && a.userId === params.userId) ||
+      (normalizedEmail && a.email && a.email.trim().toLowerCase() === normalizedEmail)
+  );
+  const existing = idx >= 0 ? current[idx] : undefined;
+  if (existing) {
+    let changed = false;
+    if (params.userId && existing.userId !== params.userId) {
+      existing.userId = params.userId;
+      changed = true;
+    }
+    if (params.role && existing.role !== params.role) {
+      existing.role = params.role;
+      changed = true;
+    }
+    if (params.name && existing.name !== params.name) {
+      existing.name = params.name;
+      changed = true;
+    }
+    if (normalizedEmail && existing.email !== normalizedEmail) {
+      existing.email = normalizedEmail;
+      changed = true;
+    }
+    if (changed) {
+      setStorageItem(APPROVALS_KEY, current);
+    }
+    return existing;
+  }
+
+  const created: AccountApproval = {
+    userId: params.userId,
+    role: params.role,
+    name: params.name || normalizedEmail.split("@")[0] || "مستخدم المنصة",
+    email: normalizedEmail,
+    status: "pending",
+    appliedAt: new Date().toISOString(),
+  };
+  current.unshift(created);
+  setStorageItem(APPROVALS_KEY, current);
+  return created;
+}
+
 export function updateAccountApprovalStatus(
   userId: string,
   status: "approved" | "rejected" | "pending",
-  notes?: string
+  notes?: string,
+  meta?: { role?: "reader" | "author" | "publisher"; name?: string; email?: string }
 ): void {
+  const normalizedEmail = meta?.email?.trim().toLowerCase() || "";
   const current = getAccountApprovals();
-  const index = current.findIndex((a) => a.userId === userId);
+  const index = current.findIndex(
+    (a) =>
+      a.userId === userId ||
+      (normalizedEmail && a.email && a.email.trim().toLowerCase() === normalizedEmail)
+  );
   const existing = index >= 0 ? current[index] : undefined;
   if (existing) {
     existing.status = status;
+    if (meta?.role) existing.role = meta.role;
+    if (meta?.name) existing.name = meta.name;
+    if (normalizedEmail) existing.email = normalizedEmail;
     if (notes) existing.notes = notes;
     if (status === "approved") existing.approvedAt = new Date().toISOString();
   } else {
-    current.push({
+    current.unshift({
       userId,
-      role: "author",
-      name: "مستخدم المنصة",
-      email: "user@example.com",
+      role: meta?.role || "reader",
+      name: meta?.name || "مستخدم المنصة",
+      email: normalizedEmail || "user@unibook.store",
       status,
       appliedAt: new Date().toISOString(),
       approvedAt: status === "approved" ? new Date().toISOString() : undefined,

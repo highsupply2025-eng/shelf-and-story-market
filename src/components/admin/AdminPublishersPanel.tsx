@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
@@ -10,17 +10,19 @@ import {
   Search,
   Check,
   X,
-  FileCheck,
-  Eye,
   Store,
-  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { getAccountApprovals, updateAccountApprovalStatus } from "@/lib/admin-store";
+import { getLocalUsers } from "@/lib/auth";
+import {
+  getAccountApprovals,
+  getUserApprovalStatus,
+  updateAccountApprovalStatus,
+} from "@/lib/admin-store";
 import { useLocale } from "@/lib/locale";
 import type { Book } from "@/components/BookCard";
 
@@ -28,18 +30,33 @@ export function AdminPublishersPanel() {
   const { t, price: formatMoney } = useLocale();
   const qc = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPublisher, setSelectedPublisher] = useState<any | null>(null);
+  const [filterTab, setFilterTab] = useState<"all" | "pending" | "approved">("all");
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const onUpdate = () => setTick((n) => n + 1);
+    window.addEventListener("unibook_admin_update", onUpdate);
+    window.addEventListener("storage", onUpdate);
+    return () => {
+      window.removeEventListener("unibook_admin_update", onUpdate);
+      window.removeEventListener("storage", onUpdate);
+    };
+  }, []);
 
   // Fetch publishers and their books
-  const { data: publishers = [], refetch: refetchPublishers } = useQuery({
+  const { data: remotePublishers = [], refetch: refetchPublishers } = useQuery({
     queryKey: ["admin-publishers-list"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("publishers")
-        .select("*, books(*)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
+      try {
+        const { data, error } = await supabase
+          .from("publishers")
+          .select("*, books(*)")
+          .order("created_at", { ascending: false });
+        if (error) return [];
+        return data || [];
+      } catch {
+        return [];
+      }
     },
   });
 
@@ -47,32 +64,90 @@ export function AdminPublishersPanel() {
   const { data: pendingBooks = [], refetch: refetchPendingBooks } = useQuery({
     queryKey: ["admin-pending-publisher-books"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("books")
-        .select("*, publishers(store_name)")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data || []) as (Book & { publishers: { store_name: string } | null })[];
+      try {
+        const { data, error } = await supabase
+          .from("books")
+          .select("*, publishers(store_name)")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false });
+        if (error) return [];
+        return (data || []) as (Book & { publishers: { store_name: string } | null })[];
+      } catch {
+        return [];
+      }
     },
   });
 
-  // Get local approvals map
-  const approvalsList = getAccountApprovals();
-  const approvalsMap = approvalsList.reduce((acc: Record<string, string>, item) => {
-    acc[item.userId] = item.status;
-    return acc;
-  }, {});
+  // Merge remote publishers with locally registered publishers & approval records
+  const localPublishers = getLocalUsers().filter((u) => u.accountType === "publisher");
+  const approvalPublishers = getAccountApprovals().filter((a) => a.role === "publisher");
+
+  const pubMap = new Map<
+    string,
+    {
+      id: string;
+      email?: string;
+      store_name: string;
+      bio?: string | null;
+      books?: any[];
+      created_at: string;
+    }
+  >();
+
+  for (const p of remotePublishers) {
+    pubMap.set(p.id, { ...p });
+  }
+  for (const lp of localPublishers) {
+    const existing = pubMap.get(lp.id);
+    pubMap.set(lp.id, {
+      id: lp.id,
+      email: lp.email,
+      store_name: lp.publisherName || lp.displayName || existing?.store_name || "دار نشر unibook",
+      bio: existing?.bio || "دار نشر وتوزيع في منصة unibook",
+      books: existing?.books || [],
+      created_at: existing?.created_at || lp.createdAt,
+    });
+  }
+  for (const ap of approvalPublishers) {
+    if (!pubMap.has(ap.userId)) {
+      pubMap.set(ap.userId, {
+        id: ap.userId,
+        email: ap.email,
+        store_name: ap.name || "دار نشر unibook",
+        bio: ap.notes || "دار نشر وتوزيع في منصة unibook",
+        books: [],
+        created_at: ap.appliedAt,
+      });
+    } else {
+      const item = pubMap.get(ap.userId)!;
+      if (!item.email && ap.email) item.email = ap.email;
+      if (!item.store_name && ap.name) item.store_name = ap.name;
+    }
+  }
+
+  const publishers = Array.from(pubMap.values()).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   // Handle publisher account status update
-  function handleSetPublisherStatus(pubId: string, pubName: string, status: "approved" | "rejected" | "pending") {
-    updateAccountApprovalStatus(pubId, status);
+  function handleSetPublisherStatus(
+    pubId: string,
+    pubName: string,
+    pubEmail: string | undefined,
+    status: "approved" | "rejected" | "pending"
+  ) {
+    updateAccountApprovalStatus(pubId, status, undefined, {
+      role: "publisher",
+      name: pubName,
+      email: pubEmail || "",
+    });
+    setTick((n) => n + 1);
     toast.success(
       status === "approved"
         ? `تم اعتماد حساب دار النشر (${pubName}) رسمياً في المنصة`
         : status === "rejected"
-        ? `تم تعليق حساب دار النشر (${pubName})`
-        : `تم تعيين حساب دار النشر (${pubName}) قيد المراجعة`
+          ? `تم تعليق حساب دار النشر (${pubName})`
+          : `تم تعيين حساب دار النشر (${pubName}) قيد المراجعة`
     );
     refetchPublishers();
   }
@@ -95,6 +170,9 @@ export function AdminPublishersPanel() {
   }
 
   const totalCatalogBooks = publishers.reduce((sum, p) => sum + (p.books?.length || 0), 0);
+  const pendingPublishersCount = publishers.filter(
+    (p) => getUserApprovalStatus(p.id, p.email) === "pending"
+  ).length;
 
   return (
     <div className="space-y-8" dir="rtl">
@@ -104,7 +182,11 @@ export function AdminPublishersPanel() {
           <div>
             <p className="text-xs font-bold text-muted-foreground">{t("دور النشر المعتمدة والمسجلة", "Publishers")}</p>
             <p className="mt-2 text-3xl font-extrabold text-foreground font-mono">{publishers.length}</p>
-            <p className="text-[11px] text-blue-600 mt-1 font-semibold">مؤسسات نشر مرخصة</p>
+            <p className="text-[11px] text-amber-600 mt-1 font-semibold">
+              {pendingPublishersCount > 0
+                ? `${pendingPublishersCount} دار نشر بانتظار موافقة الأدمن`
+                : "مؤسسات نشر مرخصة"}
+            </p>
           </div>
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-500/10 text-blue-600">
             <Building2 className="h-6 w-6" />
@@ -210,18 +292,54 @@ export function AdminPublishersPanel() {
               مراجعة واعتماد دور النشر والمؤسسات
             </h3>
             <p className="text-xs text-muted-foreground">
-              يخضع كل حساب دار نشر لمراجعة الإدارة للتحقق من السجل التجاري وحقوق الملكية الفكرية قبل إطلاق الكتالوج في unibook.
+              لا يفتح حساب دار النشر ولا يتاح لها رفع الكتالوج إلا بعد مراجعة وموافقة الإدارة.
             </p>
           </div>
 
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث باسم دار النشر..."
-              className="ps-9 h-9 rounded-xl text-xs bg-card"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setFilterTab("all")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                filterTab === "all"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              الكل ({publishers.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab("pending")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                filterTab === "pending"
+                  ? "bg-amber-600 text-white"
+                  : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+              }`}
+            >
+              تحت المراجعة ({pendingPublishersCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab("approved")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                filterTab === "approved"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
+              }`}
+            >
+              المعتمدون ({publishers.filter((p) => getUserApprovalStatus(p.id, p.email) === "approved").length})
+            </button>
+
+            <div className="relative w-full sm:w-56">
+              <Search className="absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="ابحث باسم دار النشر..."
+                className="ps-9 h-9 rounded-xl text-xs bg-card"
+              />
+            </div>
           </div>
         </div>
 
@@ -244,12 +362,18 @@ export function AdminPublishersPanel() {
               <tbody className="divide-y divide-border/60">
                 {publishers
                   .filter((p) => {
+                    const st = getUserApprovalStatus(p.id, p.email);
+                    if (filterTab === "pending" && st !== "pending") return false;
+                    if (filterTab === "approved" && st !== "approved") return false;
                     const q = searchQuery.toLowerCase().trim();
                     if (!q) return true;
-                    return p.store_name.toLowerCase().includes(q);
+                    return (
+                      p.store_name.toLowerCase().includes(q) ||
+                      (p.email && p.email.toLowerCase().includes(q))
+                    );
                   })
                   .map((pub) => {
-                    const status = approvalsMap[pub.id] || "approved";
+                    const status = getUserApprovalStatus(pub.id, pub.email);
 
                     return (
                       <tr key={pub.id} className="hover:bg-muted/20 transition-colors">
@@ -260,8 +384,8 @@ export function AdminPublishersPanel() {
                             </span>
                             <div>
                               <div className="font-bold text-foreground">{pub.store_name}</div>
-                              <div className="text-[11px] text-muted-foreground truncate max-w-48">
-                                {pub.bio || "دار نشر وتوزيع معتمدة في منصة unibook"}
+                              <div className="text-[11px] text-muted-foreground truncate max-w-48" dir="ltr">
+                                {pub.email || pub.bio || "دار نشر وتوزيع في منصة unibook"}
                               </div>
                             </div>
                           </div>
@@ -278,7 +402,7 @@ export function AdminPublishersPanel() {
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-amber-500/20 text-amber-700 border-amber-500/40 font-bold text-[11px]">
-                              <Clock className="h-3 w-3 me-1 animate-pulse" /> قيد المراجعة
+                              <Clock className="h-3 w-3 me-1 animate-pulse" /> تحت المراجعة
                             </Badge>
                           )}
                         </td>
@@ -297,7 +421,9 @@ export function AdminPublishersPanel() {
                               <Button
                                 size="sm"
                                 className="h-8 rounded-xl text-xs gap-1 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white"
-                                onClick={() => handleSetPublisherStatus(pub.id, pub.store_name, "approved")}
+                                onClick={() =>
+                                  handleSetPublisherStatus(pub.id, pub.store_name, pub.email, "approved")
+                                }
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 <span>اعتماد الدار</span>
@@ -309,7 +435,9 @@ export function AdminPublishersPanel() {
                                 size="sm"
                                 variant="outline"
                                 className="h-8 rounded-xl text-xs gap-1 cursor-pointer text-destructive hover:bg-destructive/10"
-                                onClick={() => handleSetPublisherStatus(pub.id, pub.store_name, "rejected")}
+                                onClick={() =>
+                                  handleSetPublisherStatus(pub.id, pub.store_name, pub.email, "rejected")
+                                }
                               >
                                 <XCircle className="h-3.5 w-3.5" />
                                 <span>تعليق الحساب</span>

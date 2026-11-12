@@ -416,7 +416,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
             <Button
               variant="outline"
               asChild
-              className="rounded-xl font-bold border-primary/30 text-primary hover:bg-primary/10 gap-2 cursor-pointer"
+            className="hidden"
             ><Link to="/author">
               <PenLine className="h-4 w-4" />
               {l.t("انشر كتابك معنا (باقات المؤلفين)", "Publish with us (Author plans)")}
@@ -1163,7 +1163,7 @@ function Empty({ text }: { text: string }) {
   return (
     <div className="rounded-3xl border border-dashed border-border/80 p-12 text-center text-muted-foreground bg-card/30">
       <p>{text}</p>
-      <Link to="/books" className="mt-3 inline-block font-semibold text-primary hover:underline">
+      <Link to="/books" className="hidden">
         {t("تصفّح المتجر", "Browse books")}
       </Link>
 </div>

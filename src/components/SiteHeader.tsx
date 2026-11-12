@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ShoppingBag,
@@ -11,11 +11,12 @@ import {
   LayoutDashboard,
   Library,
   Home,
-  User,
   Sparkles,
   ArrowUpRight,
   MessageSquare,
   Globe,
+  Clock,
+  XCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -27,6 +28,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth, clearLocalSession } from "@/lib/auth";
+import { getUserApprovalStatus } from "@/lib/admin-store";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,17 @@ import { useAppMode } from "@/lib/useAppMode";
 export function SiteHeader() {
   const { t, language, currency, currentCountry, set } = useLocale();
   const { session, isAdmin, accountType } = useAuth();
+  const [, setApprovalTick] = useState(0);
+
+  useEffect(() => {
+    const onUpdate = () => setApprovalTick((n) => n + 1);
+    window.addEventListener("unibook_admin_update", onUpdate);
+    window.addEventListener("storage", onUpdate);
+    return () => {
+      window.removeEventListener("unibook_admin_update", onUpdate);
+      window.removeEventListener("storage", onUpdate);
+    };
+  }, []);
 
   function toggleLanguage() {
     const nextLang = language === "ar" ? "en" : "ar";
@@ -53,13 +66,29 @@ export function SiteHeader() {
     try {
       await qc.cancelQueries();
       qc.clear();
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
     } catch (err) {
       console.warn("Sign out notice:", err);
     }
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      /* ignore */
+    }
     toast.success(t("تم تسجيل الخروج بنجاح", "Logged out successfully"));
     if (typeof window !== "undefined") {
-      window.location.href = "/";
+      try {
+        for (const k of Object.keys(window.localStorage)) {
+          if (k.startsWith("sb-") && k.endsWith("-auth-token")) {
+            window.localStorage.removeItem(k);
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+      window.location.replace("/");
+    } else {
+      navigate({ to: "/" });
     }
   }
 
@@ -131,6 +160,16 @@ export function SiteHeader() {
     session?.user.email?.split("@")[0] ||
     "";
 
+  // Check whether a Reader, Author, or Publisher account is logged in
+  const isUserAccountLogged = Boolean(session) && !isAdmin;
+  const approvalStatus = isAdmin
+    ? "approved"
+    : session
+      ? getUserApprovalStatus(session.user.id, session.user.email)
+      : "pending";
+
+  const showCart = !session || accountType === "reader" || isAdmin;
+
   const linkCls =
     "text-[14px] md:text-[15px] font-semibold text-foreground/80 hover:text-primary transition-colors px-3 py-2 rounded-xl hover:bg-primary/5 [&.active]:text-primary [&.active]:bg-primary/10 flex items-center gap-2";
   const iconBtn =
@@ -141,7 +180,11 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 md:h-18 md:gap-6 md:px-8">
         
         {/* Brand Logo with 5-click easter egg */}
-        <Link to="/" onClick={handleLogoClick} className="flex min-w-0 items-center gap-2.5 group cursor-pointer select-none">
+        <Link
+          to={isUserAccountLogged ? roleConfig.to : "/"}
+          onClick={handleLogoClick}
+          className="flex min-w-0 items-center gap-2.5 group cursor-pointer select-none"
+        >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card border border-border/80 shadow-xs md:h-11 md:w-11 transition-transform group-hover:scale-105">
             <img src="/logo-icon.png" alt="unibook" className="h-7 w-auto object-contain md:h-8" />
           </div>
@@ -152,26 +195,32 @@ export function SiteHeader() {
           </div>
         </Link>
 
-        {/* Desktop Navigation Links (Only in desktop web mode) */}
+        {/* Navigation Links:
+            When logged into Reader, Author, or Publisher account:
+            Hide الرئيسية, المتجر, and انشر كتاب, and keep تواصل معنا */}
         {!isAppExperience && (
-          <nav className="hidden items-center gap-1 md:flex">
-            <Link to="/" className={linkCls} activeOptions={{ exact: true }}>
-              <Home className="h-4 w-4 opacity-75" />
-              <span>{t("الرئيسية", "Home")}</span>
-            </Link>
-            <Link to="/books" className={linkCls}>
-              <Library className="h-4 w-4 opacity-75" />
-              <span>{t("المتجر", "Bookshop")}</span>
-            </Link>
-            <a
-              href="https://wa.me/966563057356?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20unibook%D8%8C%20%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D9%86%D8%B4%D8%B1%20%D9%83%D8%AA%D8%A7%D8%A8%D9%8A%20%D9%85%D8%B9%D9%83%D9%85."
-              target="_blank"
-              rel="noopener noreferrer"
-              className={linkCls}
-            >
-              <PenLine className="h-4 w-4 opacity-75" />
-              <span>{t("انشر كتاب", "Publish")}</span>
-            </a>
+          <nav className="flex items-center gap-1">
+            {!isUserAccountLogged && (
+              <div className="hidden items-center gap-1 md:flex">
+                <Link to="/" className={linkCls} activeOptions={{ exact: true }}>
+                  <Home className="h-4 w-4 opacity-75" />
+                  <span>{t("الرئيسية", "Home")}</span>
+                </Link>
+                <Link to="/books" className={linkCls}>
+                  <Library className="h-4 w-4 opacity-75" />
+                  <span>{t("المتجر", "Bookshop")}</span>
+                </Link>
+                <a
+                  href="https://wa.me/966563057356?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20unibook%D8%8C%20%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D9%86%D8%B4%D8%B1%20%D9%83%D8%AA%D8%A7%D8%A8%D9%8A%20%D9%85%D8%B9%D9%83%D9%85."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={linkCls}
+                >
+                  <PenLine className="h-4 w-4 opacity-75" />
+                  <span>{t("انشر كتاب", "Publish")}</span>
+                </a>
+              </div>
+            )}
             <Link to="/contact" className={linkCls}>
               <MessageSquare className="h-4 w-4 opacity-75" />
               <span>{t("تواصل معنا", "Contact")}</span>
@@ -179,7 +228,7 @@ export function SiteHeader() {
           </nav>
         )}
 
-        {/* Top Header Controls: السلة + دخول (No hamburger menu / No redundant dropdowns) */}
+        {/* Top Header Controls */}
         <div className="flex items-center gap-2.5 sm:gap-3">
           
           {/* Geo Currency & Country Selector Dropdown */}
@@ -234,15 +283,17 @@ export function SiteHeader() {
             </span>
           </button>
 
-          {/* السلة (Cart Icon) */}
-          <Link to="/cart" className={iconBtn} aria-label={t("السلة", "Cart")}>
-            <ShoppingBag className="h-5 w-5" />
-            {count > 0 && (
-              <span className="absolute -top-1 -start-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] font-bold text-primary-foreground shadow-xs animate-in zoom-in">
-                {count}
-              </span>
-            )}
-          </Link>
+          {/* السلة (Cart Icon): Visible only for Reader account (or unauthenticated / admin) */}
+          {showCart && (
+            <Link to="/cart" className={iconBtn} aria-label={t("السلة", "Cart")}>
+              <ShoppingBag className="h-5 w-5" />
+              {count > 0 && (
+                <span className="absolute -top-1 -start-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] font-bold text-primary-foreground shadow-xs animate-in zoom-in">
+                  {count}
+                </span>
+              )}
+            </Link>
+          )}
 
           {/* دخول (Login Button or Active Profile) */}
           {session ? (
@@ -258,7 +309,15 @@ export function SiteHeader() {
                       <RoleIcon className="h-4 w-4" />
                     </span>
                     <span className="absolute -bottom-0.5 -start-0.5 flex h-2.5 w-2.5">
-                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 border border-background"></span>
+                      <span
+                        className={`relative inline-flex h-2.5 w-2.5 rounded-full border border-background ${
+                          approvalStatus === "approved"
+                            ? "bg-emerald-500"
+                            : approvalStatus === "rejected"
+                              ? "bg-destructive"
+                              : "bg-amber-500 animate-pulse"
+                        }`}
+                      />
                     </span>
                   </div>
 
@@ -267,8 +326,20 @@ export function SiteHeader() {
                     <span className="max-w-24 sm:max-w-36 truncate font-extrabold text-foreground text-[12px] sm:text-[13px]">
                       {name}
                     </span>
-                    <span className="hidden sm:inline-block text-[10px] text-muted-foreground font-medium">
-                      {roleConfig.label} مفعّل
+                    <span
+                      className={`hidden sm:inline-block text-[10px] font-semibold ${
+                        approvalStatus === "approved"
+                          ? "text-muted-foreground"
+                          : approvalStatus === "rejected"
+                            ? "text-destructive"
+                            : "text-amber-600 dark:text-amber-400"
+                      }`}
+                    >
+                      {approvalStatus === "approved"
+                        ? `${roleConfig.label} ${t("مفعّل", "Active")}`
+                        : approvalStatus === "rejected"
+                          ? `${roleConfig.label} • ${t("معلّق", "Suspended")}`
+                          : `${roleConfig.label} • ${t("تحت المراجعة", "Under Review")}`}
                     </span>
                   </div>
 
@@ -295,10 +366,22 @@ export function SiteHeader() {
                       <RoleIcon className="h-3 w-3" />
                       {roleConfig.fullBadge}
                     </Badge>
-                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      نشط ومفعّل
-                    </span>
+                    {approvalStatus === "approved" ? (
+                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        {t("نشط ومفعّل", "Active")}
+                      </span>
+                    ) : approvalStatus === "rejected" ? (
+                      <span className="text-[10px] font-semibold text-destructive flex items-center gap-1">
+                        <XCircle className="h-3 w-3" />
+                        {t("حساب معلّق", "Suspended")}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <Clock className="h-3 w-3 animate-pulse" />
+                        {t("تحت المراجعة", "Under Review")}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -308,13 +391,17 @@ export function SiteHeader() {
                 <DropdownMenuItem asChild className="p-2.5 rounded-xl font-bold cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary my-1">
                   <Link to={roleConfig.to}>
                     <LayoutDashboard className="me-2 h-4 w-4" />
-                    <span>{roleConfig.dash}</span>
+                    <span>
+                      {approvalStatus === "approved"
+                        ? roleConfig.dash
+                        : t("متابعة حالة المراجعة", "Application Review Status")}
+                    </span>
                     <ArrowUpRight className="ms-auto h-3.5 w-3.5 opacity-60" />
                   </Link>
                 </DropdownMenuItem>
 
-                {/* Sub-links based on specific account type */}
-                {accountType === "reader" && (
+                {/* Sub-links based on specific account type (only when approved) */}
+                {approvalStatus === "approved" && accountType === "reader" && (
                   <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
                     <Link to="/account">
                       <BookOpen className="me-2 h-4 w-4 text-emerald-600" />
@@ -323,7 +410,7 @@ export function SiteHeader() {
                   </DropdownMenuItem>
                 )}
 
-                {accountType === "author" && (
+                {approvalStatus === "approved" && accountType === "author" && (
                   <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
                     <Link to="/author" search={{ view: "plans" }}>
                       <Sparkles className="me-2 h-4 w-4 text-amber-600" />
@@ -332,7 +419,7 @@ export function SiteHeader() {
                   </DropdownMenuItem>
                 )}
 
-                {accountType === "publisher" && (
+                {approvalStatus === "approved" && accountType === "publisher" && (
                   <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
                     <Link to="/publisher">
                       <Building2 className="me-2 h-4 w-4 text-blue-600" />
@@ -340,13 +427,6 @@ export function SiteHeader() {
                     </Link>
                   </DropdownMenuItem>
                 )}
-
-                <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
-                  <Link to="/books">
-                    <Library className="me-2 h-4 w-4 opacity-75" />
-                    <span>{t("تصفح متجر الكتب", "Browse Bookshop")}</span>
-                  </Link>
-                </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
 
@@ -388,6 +468,8 @@ export function SiteHeader() {
 
 export function SiteFooter() {
   const { t, language, set } = useLocale();
+  const { session, isAdmin } = useAuth();
+  const isUserAccountLogged = Boolean(session) && !isAdmin;
 
   function toggleLanguage() {
     const nextLang = language === "ar" ? "en" : "ar";
@@ -455,27 +537,26 @@ export function SiteFooter() {
 
         {/* Col 2: Navigation */}
         <div className="text-sm opacity-80">
-          <div className="mb-3 font-semibold text-gold">{t("تصفح", "Explore")}</div>
+          <div className="mb-3 font-semibold text-gold">{t("روابط سريعة", "Quick links")}</div>
           <ul className="space-y-2">
+            {!isUserAccountLogged && (
+              <>
+                <li>
+                  <Link to="/books" className="hover:text-gold transition-colors">
+                    {t("كل الكتب", "All books")}
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/author" className="hover:text-gold transition-colors">
+                    {t("انشر معنا", "Publish with us")}
+                  </Link>
+                </li>
+              </>
+            )}
             <li>
-              <Link to="/books" className="hover:text-gold transition-colors">
-                {t("كل الكتب", "All books")}
+              <Link to="/contact" className="hover:text-gold transition-colors">
+                {t("تواصل معنا", "Contact us")}
               </Link>
-            </li>
-            <li>
-              <Link to="/author" className="hover:text-gold transition-colors">
-                {t("انشر معنا", "Publish with us")}
-              </Link>
-            </li>
-            <li>
-              <a
-                href="https://mail.google.com/mail/?view=cm&fs=1&to=darobaid@unigates.online"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-gold transition-colors"
-              >
-                {t("تواصل", "Contact")}
-              </a>
             </li>
           </ul>
         </div>

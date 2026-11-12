@@ -23,7 +23,6 @@ import {
   rejectPlanRequest,
   type AuthorPlanRequest,
 } from "@/lib/author-plans";
-import { getLocalUsers } from "@/lib/auth";
 import {
   getAccountApprovals,
   getUserApprovalStatus,
@@ -90,7 +89,6 @@ export function AdminAuthorsPanel() {
   });
 
   // Merge remote authors with locally registered authors & approval records
-  const localAuthors = getLocalUsers().filter((u) => u.accountType === "author");
   const approvalAuthors = getAccountApprovals().filter((a) => a.role === "author");
 
   const authorsMap = new Map<
@@ -109,19 +107,6 @@ export function AdminAuthorsPanel() {
 
   for (const a of remoteAuthors) {
     authorsMap.set(a.id, { ...a });
-  }
-  for (const la of localAuthors) {
-    const existing = authorsMap.get(la.id);
-    authorsMap.set(la.id, {
-      id: la.id,
-      email: la.email,
-      store_name: la.displayName || existing?.store_name || "مؤلف unibook",
-      bio: existing?.bio || "مؤلف وباحث علمي في unibook",
-      author_code: la.authorCode || existing?.author_code || `AUTH-${la.id.slice(0, 6)}`,
-      books: existing?.books || [],
-      manuscripts: existing?.manuscripts || [],
-      created_at: existing?.created_at || la.createdAt,
-    });
   }
   for (const aa of approvalAuthors) {
     if (!authorsMap.has(aa.userId)) {

@@ -4,14 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import {
-  useAuth,
-  isNetworkOrFetchError,
-  loginLocalUser,
-  registerLocalUser,
-  resolveStoredRoleForEmail,
-} from "@/lib/auth";
-import { serverSignInFn } from "@/lib/auth.functions";
+import { useAuth, isNetworkOrFetchError, metadataAccountType } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,23 +43,17 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const { t, language } = useLocale();
   const [form, setForm] = useState({ email: "", password: "" });
-  const [selectedRole, setSelectedRole] = useState<"reader" | "author" | "publisher" | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const { session, refresh, isAdmin, accountType } = useAuth();
   const navigate = useNavigate();
 
-  const detectedRole = selectedRole || resolveStoredRoleForEmail(form.email) || null;
-
   useEffect(() => {
     if (session) {
-      const resolved =
-        resolveStoredRoleForEmail(session.user.email, session.user.id) ||
-        (session.user.user_metadata?.["account_type"] as "reader" | "author" | "publisher" | undefined) ||
-        accountType;
+      const resolved = metadataAccountType(session) || accountType;
 
-      if (isAdmin || session.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
+      if (isAdmin) {
         navigate({ to: "/admin" });
       } else if (resolved === "publisher") {
         navigate({ to: "/publisher" });
@@ -116,121 +103,41 @@ function LoginPage() {
       return;
     }
 
-    const resolveEffectiveRole = (
-      email?: string,
-      remoteType?: unknown,
-      userId?: string | null
-    ): "reader" | "author" | "publisher" => {
-      if (selectedRole) return selectedRole;
-      const stored = resolveStoredRoleForEmail(email || form.email.trim(), userId);
-      if (stored === "publisher" || stored === "author") return stored;
-      if (remoteType === "publisher" || remoteType === "author") return remoteType;
-      if (stored === "reader") return "reader";
-      return "reader";
-    };
-
-    const redirectByUser = (email?: string, userType?: "reader" | "author" | "publisher") => {
-      if (email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
-        navigate({ to: "/admin" });
-      } else if (userType === "publisher") {
-        navigate({ to: "/publisher" });
-      } else if (userType === "author") {
-        navigate({ to: "/author" });
-      } else {
-        navigate({ to: "/account" });
-      }
-    };
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: form.email.trim(),
         password: form.password,
       });
-
       if (error) {
         if (isNetworkOrFetchError(error)) {
-          try {
-            const srv = await serverSignInFn({
-              data: { email: form.email.trim(), password: form.password },
-            });
-            if (srv.ok) {
-              const role = resolveEffectiveRole(srv.email, srv.accountType, srv.userId);
-              registerLocalUser({
-                id: srv.userId ?? undefined,
-                email: form.email.trim(),
-                password: form.password,
-                displayName: srv.displayName || form.email.split("@")[0] || "مستخدم",
-                accountType: role,
-                forceRoleChange: Boolean(selectedRole),
-              });
-              try {
-                await supabase.auth.setSession(srv.session);
-              } catch {
-                /* ignore */
-              }
-              await refresh();
-              toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
-              redirectByUser(srv.email, role);
-              setBusy(false);
-              return;
-            }
-          } catch {
-            /* fallback to local */
-          }
-        }
-        const localRes = loginLocalUser({
-          email: form.email.trim(),
-          password: form.password,
-          preferredRole: selectedRole,
-        });
-        if (!localRes.error && localRes.user) {
-          const finalRole = resolveEffectiveRole(
-            localRes.user.email,
-            localRes.user.user_metadata?.["account_type"],
-            localRes.user.id
+          toast.error(
+            t(
+              "الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد قليل.",
+              "Service temporarily unavailable, please try again shortly."
+            )
           );
-          await refresh();
-          toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
-          redirectByUser(localRes.user.email, finalRole);
+        } else if (error.message?.toLowerCase().includes("email not confirmed")) {
+          toast.error(
+            t(
+              "يرجى تأكيد بريدك الإلكتروني أولاً من الرسالة المرسلة إليك.",
+              "Please confirm your email first using the message we sent you."
+            )
+          );
         } else {
           toast.error(t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));
         }
       } else {
-        const rawType = data.user?.user_metadata?.["account_type"];
-        const userType = resolveEffectiveRole(data.user?.email, rawType, data.user?.id);
-        registerLocalUser({
-          id: data.user?.id,
-          email: form.email.trim(),
-          password: form.password,
-          displayName: String(
-            data.user?.user_metadata?.["display_name"] || form.email.split("@")[0] || "مستخدم"
-          ),
-          accountType: userType,
-          publisherName: String(data.user?.user_metadata?.["publisher_name"] || ""),
-          forceRoleChange: Boolean(selectedRole),
-        });
         toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
+        // The effect above sends the user to their own dashboard once roles load.
         await refresh();
-        redirectByUser(data.user?.email, userType);
       }
     } catch {
-      const localRes = loginLocalUser({
-        email: form.email.trim(),
-        password: form.password,
-        preferredRole: selectedRole,
-      });
-      if (!localRes.error && localRes.user) {
-        const finalRole = resolveEffectiveRole(
-          localRes.user.email,
-          localRes.user.user_metadata?.["account_type"],
-          localRes.user.id
-        );
-        await refresh();
-        toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
-        redirectByUser(localRes.user.email, finalRole);
-      } else {
-        toast.error(t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));
-      }
+      toast.error(
+        t(
+          "الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد قليل.",
+          "Service temporarily unavailable, please try again shortly."
+        )
+      );
     }
     setBusy(false);
   }
@@ -352,59 +259,6 @@ function LoginPage() {
               <div className="h-px flex-1 bg-border/80" />
             </div>
 
-            {/* Interactive & Auto-Detecting Account Role Selector */}
-            <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/5 via-card to-amber-500/5 p-3.5 space-y-2 mb-4 shadow-xs">
-              <div className="text-xs font-extrabold text-foreground flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-primary" />
-                  {t("نوع الحساب عند الدخول", "Account Type")}
-                </span>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  {selectedRole
-                    ? t("تم التحديد يدوياً", "Selected")
-                    : t("تعرّف تلقائي أو اختر نوع حسابك", "Auto-detected or click to select")}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-extrabold pt-1">
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole("reader")}
-                  className={`rounded-xl border p-2.5 transition-all cursor-pointer ${
-                    detectedRole === "reader"
-                      ? "border-emerald-600 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 ring-2 ring-emerald-500/30 shadow-xs"
-                      : "border-emerald-500/30 bg-card text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
-                  }`}
-                >
-                  <BookOpen className="h-4 w-4 mx-auto mb-1 text-emerald-600" />
-                  <span>{t("قارئ", "Reader")}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole("author")}
-                  className={`rounded-xl border p-2.5 transition-all cursor-pointer ${
-                    detectedRole === "author"
-                      ? "border-amber-600 bg-amber-500/15 text-amber-800 dark:text-amber-300 ring-2 ring-amber-500/30 shadow-xs"
-                      : "border-amber-500/30 bg-card text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
-                  }`}
-                >
-                  <PenLine className="h-4 w-4 mx-auto mb-1 text-amber-600" />
-                  <span>{t("مؤلف", "Author")}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole("publisher")}
-                  className={`rounded-xl border p-2.5 transition-all cursor-pointer ${
-                    detectedRole === "publisher"
-                      ? "border-blue-600 bg-blue-500/15 text-blue-800 dark:text-blue-300 ring-2 ring-blue-500/30 shadow-xs"
-                      : "border-blue-500/30 bg-card text-blue-700 dark:text-blue-400 hover:bg-blue-500/10"
-                  }`}
-                >
-                  <Building2 className="h-4 w-4 mx-auto mb-1 text-blue-600" />
-                  <span>{t("دار نشر", "Publisher")}</span>
-                </button>
-              </div>
-            </div>
           </>
         )}
 

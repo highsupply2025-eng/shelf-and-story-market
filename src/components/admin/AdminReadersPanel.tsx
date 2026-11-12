@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { getLocalUsers } from "@/lib/auth";
 import {
   getAccountApprovals,
   getUserApprovalStatus,
@@ -86,26 +85,11 @@ export function AdminReadersPanel() {
   });
 
   // Merge remote profiles with locally registered readers & approval records
-  const localReaders = getLocalUsers().filter((u) => u.accountType === "reader");
   const approvalReaders = getAccountApprovals().filter((a) => a.role === "reader");
 
   const mergedMap = new Map<string, ReaderProfile>();
   for (const r of remoteReaders) {
     mergedMap.set(r.id, { ...r });
-  }
-  for (const lr of localReaders) {
-    const existing = mergedMap.get(lr.id);
-    mergedMap.set(lr.id, {
-      id: lr.id,
-      email: lr.email,
-      display_name: lr.displayName || existing?.display_name || "قارئ unibook",
-      shipping_name: existing?.shipping_name ?? null,
-      shipping_phone: existing?.shipping_phone ?? null,
-      shipping_address: existing?.shipping_address ?? null,
-      country: existing?.country || "SA",
-      currency: existing?.currency || "SAR",
-      created_at: existing?.created_at || lr.createdAt,
-    });
   }
   for (const ar of approvalReaders) {
     if (!mergedMap.has(ar.userId)) {

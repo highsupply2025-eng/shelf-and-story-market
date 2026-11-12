@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, clearLocalSession, resolveStoredRoleForEmail, type UserRoleType } from "@/lib/auth";
+import { useAuth, clearLocalSession, type UserRoleType } from "@/lib/auth";
 import {
   ensureAccountApprovalRecord,
   getUserApprovalStatus,
@@ -71,13 +71,7 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
   const navigate = useNavigate();
   const [, setTick] = useState(0);
 
-  const storedRole = session ? resolveStoredRoleForEmail(session.user.email, session.user.id) : null;
-  const effectiveRole: UserRoleType =
-    accountType === "admin"
-      ? "admin"
-      : storedRole === "publisher" || storedRole === "author"
-        ? storedRole
-        : accountType;
+  const effectiveRole: UserRoleType = accountType;
 
   useEffect(() => {
     if (session && effectiveRole !== "admin") {

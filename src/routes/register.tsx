@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import { useAuth, isNetworkOrFetchError, registerLocalUser, resolveStoredRoleForEmail } from "@/lib/auth";
-import { serverSignUpFn } from "@/lib/auth.functions";
+import { useAuth, isNetworkOrFetchError, metadataAccountType } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +43,7 @@ export const Route = createFileRoute("/register")({
 });
 
 function RegisterPage() {
-  const { t, language } = useLocale();
+  const { t, language, country } = useLocale();
   const [accountType, setAccountType] = useState<"reader" | "author" | "publisher">("reader");
   const [form, setForm] = useState({ name: "", publisherName: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -54,11 +53,12 @@ function RegisterPage() {
 
   useEffect(() => {
     if (session) {
-      if (isAdmin || session.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
+      const resolved = metadataAccountType(session) || activeRole;
+      if (isAdmin) {
         navigate({ to: "/admin" });
-      } else if ((resolveStoredRoleForEmail(session.user.email, session.user.id) || activeRole || session.user.user_metadata?.["account_type"]) === "publisher") {
+      } else if (resolved === "publisher") {
         navigate({ to: "/publisher" });
-      } else if ((resolveStoredRoleForEmail(session.user.email, session.user.id) || activeRole || session.user.user_metadata?.["account_type"]) === "author") {
+      } else if (resolved === "author") {
         navigate({ to: "/author" });
       } else {
         navigate({ to: "/account" });
@@ -81,30 +81,13 @@ function RegisterPage() {
       publisher: t("تم استلام طلب حساب دار النشر! حسابك الآن تحت المراجعة بانتظار موافقة الإدارة.", "Publisher account submitted for admin review!"),
     };
 
-    const redirectToDashboard = () => {
-      if (accountType === "publisher") {
-        navigate({ to: "/publisher" });
-      } else if (accountType === "author") {
-        navigate({ to: "/author" });
-      } else {
-        navigate({ to: "/account" });
-      }
-    };
-
-    const fallbackLocalSignUp = async (userId?: string) => {
-      registerLocalUser({
-        id: userId,
-        email: form.email.trim(),
-        password: form.password,
-        displayName,
-        accountType,
-        publisherName: form.publisherName.trim(),
-        forceRoleChange: true,
-      });
-      await refresh();
-      toast.success(successMessages[accountType]);
-      redirectToDashboard();
-    };
+    const unavailable = () =>
+      toast.error(
+        t(
+          "الخدمة غير متاحة مؤقتاً ولم يُنشأ الحساب، يرجى المحاولة بعد قليل.",
+          "Service temporarily unavailable — the account was not created. Please try again shortly."
+        )
+      );
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -116,79 +99,52 @@ function RegisterPage() {
             display_name: displayName,
             account_type: accountType,
             publisher_name: form.publisherName.trim(),
+            country,
           },
         },
       });
 
       if (error) {
-        if (isNetworkOrFetchError(error)) {
-          try {
-            const srv = await serverSignUpFn({
-              data: {
-                email: form.email.trim(),
-                password: form.password,
-                displayName,
-                accountType,
-                publisherName: form.publisherName.trim(),
-                redirectTo: window.location.origin,
-              },
-            });
-            if (srv.ok) {
-              await fallbackLocalSignUp(srv.userId ?? undefined);
-              if (srv.session) {
-                try {
-                  await supabase.auth.setSession(srv.session);
-                } catch {
-                  /* ignore */
-                }
-              }
-              setBusy(false);
-              return;
-            }
-            if (srv.networkError) {
-              await fallbackLocalSignUp();
-              setBusy(false);
-              return;
-            }
-          } catch {
-            await fallbackLocalSignUp();
-            setBusy(false);
-            return;
-          }
-          await fallbackLocalSignUp();
-          setBusy(false);
-          return;
-        }
-
         const msg = error.message?.toLowerCase() || "";
-        if (msg.includes("already registered") || msg.includes("already been registered")) {
-          await fallbackLocalSignUp();
-          setBusy(false);
-          return;
+        if (isNetworkOrFetchError(error)) {
+          unavailable();
+        } else if (msg.includes("already registered") || msg.includes("already been registered")) {
+          toast.error(
+            t("هذا البريد مسجّل مسبقاً، سجّل الدخول بدلاً من ذلك.", "This email is already registered — please sign in.")
+          );
         } else if (msg.includes("password")) {
           toast.error(t("كلمة المرور يجب أن تتكون من 6 خانات على الأقل.", "Password must be at least 6 characters."));
         } else {
           toast.error(error.message || t("تعذر إنشاء الحساب، يرجى المحاولة مرة أخرى.", "Could not create account."));
         }
+      } else if (!data.session) {
+        toast.success(successMessages[accountType]);
+        toast.info(
+          t(
+            "أرسلنا رسالة تأكيد إلى بريدك الإلكتروني، افتحها ثم سجّل الدخول.",
+            "We sent a confirmation email — open it, then sign in."
+          )
+        );
+        navigate({ to: "/login" });
       } else {
-        if ((accountType === "author" || accountType === "publisher") && data.user?.id) {
-          try {
-            await supabase.from("publishers").insert({
+        if ((accountType === "author" || accountType === "publisher") && data.user) {
+          await supabase.from("publishers").upsert(
+            {
               id: data.user.id,
               store_name: displayName,
               bio:
                 accountType === "publisher"
                   ? "دار نشر ومؤسسة توزيع معتمدة في unibook"
                   : "مؤلف وباحث علمي في unibook",
-            });
-          } catch {
-            /* ignore */
-          }
+            },
+            { onConflict: "id", ignoreDuplicates: true }
+          );
         }
-        await fallbackLocalSignUp(data.user?.id);
+        toast.success(successMessages[accountType]);
+        await refresh();
       }
     } catch {
-      await fallbackLocalSignUp();
+      unavailable();
     }
     setBusy(false);
   }

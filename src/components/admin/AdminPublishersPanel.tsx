@@ -17,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { getLocalUsers } from "@/lib/auth";
 import {
   getAccountApprovals,
   getUserApprovalStatus,
@@ -79,7 +78,6 @@ export function AdminPublishersPanel() {
   });
 
   // Merge remote publishers with locally registered publishers & approval records
-  const localPublishers = getLocalUsers().filter((u) => u.accountType === "publisher");
   const approvalPublishers = getAccountApprovals().filter((a) => a.role === "publisher");
 
   const pubMap = new Map<
@@ -96,17 +94,6 @@ export function AdminPublishersPanel() {
 
   for (const p of remotePublishers) {
     pubMap.set(p.id, { ...p });
-  }
-  for (const lp of localPublishers) {
-    const existing = pubMap.get(lp.id);
-    pubMap.set(lp.id, {
-      id: lp.id,
-      email: lp.email,
-      store_name: lp.publisherName || lp.displayName || existing?.store_name || "دار نشر unibook",
-      bio: existing?.bio || "دار نشر وتوزيع في منصة unibook",
-      books: existing?.books || [],
-      created_at: existing?.created_at || lp.createdAt,
-    });
   }
   for (const ap of approvalPublishers) {
     if (!pubMap.has(ap.userId)) {

@@ -4,14 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import {
-  useAuth,
-  isNetworkOrFetchError,
-  loginLocalUser,
-  registerLocalUser,
-  resolveStoredRoleForEmail,
-} from "@/lib/auth";
-import { serverSignInFn } from "@/lib/auth.functions";
+import { useAuth, isNetworkOrFetchError, metadataAccountType } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,16 +50,13 @@ function LoginPage() {
   const { session, refresh, isAdmin, accountType } = useAuth();
   const navigate = useNavigate();
 
-  const detectedRole = selectedRole || resolveStoredRoleForEmail(form.email) || null;
+  const detectedRole = selectedRole;
 
   useEffect(() => {
     if (session) {
-      const resolved =
-        resolveStoredRoleForEmail(session.user.email, session.user.id) ||
-        (session.user.user_metadata?.["account_type"] as "reader" | "author" | "publisher" | undefined) ||
-        accountType;
+      const resolved = metadataAccountType(session) || accountType;
 
-      if (isAdmin || session.user.email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
+      if (isAdmin) {
         navigate({ to: "/admin" });
       } else if (resolved === "publisher") {
         navigate({ to: "/publisher" });
@@ -116,121 +106,41 @@ function LoginPage() {
       return;
     }
 
-    const resolveEffectiveRole = (
-      email?: string,
-      remoteType?: unknown,
-      userId?: string | null
-    ): "reader" | "author" | "publisher" => {
-      if (selectedRole) return selectedRole;
-      const stored = resolveStoredRoleForEmail(email || form.email.trim(), userId);
-      if (stored === "publisher" || stored === "author") return stored;
-      if (remoteType === "publisher" || remoteType === "author") return remoteType;
-      if (stored === "reader") return "reader";
-      return "reader";
-    };
-
-    const redirectByUser = (email?: string, userType?: "reader" | "author" | "publisher") => {
-      if (email?.toLowerCase().trim() === "highsupply2025@gmail.com") {
-        navigate({ to: "/admin" });
-      } else if (userType === "publisher") {
-        navigate({ to: "/publisher" });
-      } else if (userType === "author") {
-        navigate({ to: "/author" });
-      } else {
-        navigate({ to: "/account" });
-      }
-    };
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: form.email.trim(),
         password: form.password,
       });
-
       if (error) {
         if (isNetworkOrFetchError(error)) {
-          try {
-            const srv = await serverSignInFn({
-              data: { email: form.email.trim(), password: form.password },
-            });
-            if (srv.ok) {
-              const role = resolveEffectiveRole(srv.email, srv.accountType, srv.userId);
-              registerLocalUser({
-                id: srv.userId ?? undefined,
-                email: form.email.trim(),
-                password: form.password,
-                displayName: srv.displayName || form.email.split("@")[0] || "مستخدم",
-                accountType: role,
-                forceRoleChange: Boolean(selectedRole),
-              });
-              try {
-                await supabase.auth.setSession(srv.session);
-              } catch {
-                /* ignore */
-              }
-              await refresh();
-              toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
-              redirectByUser(srv.email, role);
-              setBusy(false);
-              return;
-            }
-          } catch {
-            /* fallback to local */
-          }
-        }
-        const localRes = loginLocalUser({
-          email: form.email.trim(),
-          password: form.password,
-          preferredRole: selectedRole,
-        });
-        if (!localRes.error && localRes.user) {
-          const finalRole = resolveEffectiveRole(
-            localRes.user.email,
-            localRes.user.user_metadata?.["account_type"],
-            localRes.user.id
+          toast.error(
+            t(
+              "الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد قليل.",
+              "Service temporarily unavailable, please try again shortly."
+            )
           );
-          await refresh();
-          toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
-          redirectByUser(localRes.user.email, finalRole);
+        } else if (error.message?.toLowerCase().includes("email not confirmed")) {
+          toast.error(
+            t(
+              "يرجى تأكيد بريدك الإلكتروني أولاً من الرسالة المرسلة إليك.",
+              "Please confirm your email first using the message we sent you."
+            )
+          );
         } else {
           toast.error(t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));
         }
       } else {
-        const rawType = data.user?.user_metadata?.["account_type"];
-        const userType = resolveEffectiveRole(data.user?.email, rawType, data.user?.id);
-        registerLocalUser({
-          id: data.user?.id,
-          email: form.email.trim(),
-          password: form.password,
-          displayName: String(
-            data.user?.user_metadata?.["display_name"] || form.email.split("@")[0] || "مستخدم"
-          ),
-          accountType: userType,
-          publisherName: String(data.user?.user_metadata?.["publisher_name"] || ""),
-          forceRoleChange: Boolean(selectedRole),
-        });
         toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
+        // The effect above sends the user to their own dashboard once roles load.
         await refresh();
-        redirectByUser(data.user?.email, userType);
       }
     } catch {
-      const localRes = loginLocalUser({
-        email: form.email.trim(),
-        password: form.password,
-        preferredRole: selectedRole,
-      });
-      if (!localRes.error && localRes.user) {
-        const finalRole = resolveEffectiveRole(
-          localRes.user.email,
-          localRes.user.user_metadata?.["account_type"],
-          localRes.user.id
-        );
-        await refresh();
-        toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
-        redirectByUser(localRes.user.email, finalRole);
-      } else {
-        toast.error(t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));
-      }
+      toast.error(
+        t(
+          "الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد قليل.",
+          "Service temporarily unavailable, please try again shortly."
+        )
+      );
     }
     setBusy(false);
   }

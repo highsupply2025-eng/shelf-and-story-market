@@ -20,6 +20,7 @@ import {
   Heart,
   Package,
   Settings,
+  Coins,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -60,7 +61,7 @@ export function SiteHeader() {
     set({ language: nextLang });
   }
 
-  function selectReaderTab(tabName: "library" | "settings" | "favorites" | "orders") {
+  function selectReaderTab(tabName: "library" | "settings" | "favorites" | "orders" | "currency") {
     if (typeof window !== "undefined") {
       window.sessionStorage.setItem("unibook_reader_tab", tabName);
       window.dispatchEvent(new CustomEvent("unibook_reader_tab", { detail: tabName }));
@@ -259,43 +260,45 @@ export function SiteHeader() {
         {/* Top Header Controls */}
         <div className="flex items-center gap-2.5 sm:gap-3">
           
-          {/* Geo Currency & Country Selector Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex h-10 items-center gap-1.5 rounded-full border border-border/80 bg-card px-2 sm:px-2.5 text-foreground transition-all hover:border-primary/50 hover:bg-primary/5 shadow-xs cursor-pointer select-none active:scale-95"
-                title={t("المنطقة الجغرافية والعملة التلقائية", "Geographic Region & Currency")}
-              >
-                <span className="text-sm sm:text-base leading-none">{currentCountry.flag}</span>
-                <span className="text-[10px] sm:text-xs font-mono font-bold">
-                  {currency}
-                </span>
-                <ChevronDown className="h-3 w-3 opacity-60" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60 p-2 rounded-2xl shadow-xl border border-border/80 bg-card max-h-80 overflow-y-auto">
-              <div className="px-2.5 py-1.5 text-xs font-bold text-muted-foreground border-b border-border/50 mb-1 flex items-center justify-between">
-                <span>{t("تحديد المنطقة والعملة", "Select Region & Currency")}</span>
-                <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full">تلقائي جغرافي</span>
-              </div>
-              {countries.map((c) => (
-                <DropdownMenuItem
-                  key={c.code}
-                  onClick={() => set({ country: c.code, currency: c.currency, language: ["EG", "SA", "AE", "KW", "QA", "BH", "OM", "JO"].includes(c.code) ? "ar" : language }, true)}
-                  className={`flex items-center justify-between p-2 rounded-xl text-xs font-bold cursor-pointer ${
-                    currentCountry.code === c.code ? "bg-primary/10 text-primary" : ""
-                  }`}
+          {/* Geo Currency & Country Selector Dropdown — shown in header only when not logged in; inside dropdown menu when logged in */}
+          {!session && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-10 items-center gap-1.5 rounded-full border border-border/80 bg-card px-2 sm:px-2.5 text-foreground transition-all hover:border-primary/50 hover:bg-primary/5 shadow-xs cursor-pointer select-none active:scale-95"
+                  title={t("المنطقة الجغرافية والعملة التلقائية", "Geographic Region & Currency")}
                 >
-                  <div className="flex items-center gap-2 truncate">
-                    <span className="text-base leading-none shrink-0">{c.flag}</span>
-                    <span className="truncate">{language === "ar" ? c.nameAr : c.nameEn}</span>
-                  </div>
-                  <span className="font-mono text-[11px] text-muted-foreground font-semibold shrink-0">{c.currency}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <span className="text-sm sm:text-base leading-none">{currentCountry.flag}</span>
+                  <span className="text-[10px] sm:text-xs font-mono font-bold">
+                    {currency}
+                  </span>
+                  <ChevronDown className="h-3 w-3 opacity-60" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60 p-2 rounded-2xl shadow-xl border border-border/80 bg-card max-h-80 overflow-y-auto">
+                <div className="px-2.5 py-1.5 text-xs font-bold text-muted-foreground border-b border-border/50 mb-1 flex items-center justify-between">
+                  <span>{t("تحديد المنطقة والعملة", "Select Region & Currency")}</span>
+                  <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full">تلقائي جغرافي</span>
+                </div>
+                {countries.map((c) => (
+                  <DropdownMenuItem
+                    key={c.code}
+                    onClick={() => set({ country: c.code, currency: c.currency, language: ["EG", "SA", "AE", "KW", "QA", "BH", "OM", "JO"].includes(c.code) ? "ar" : language }, true)}
+                    className={`flex items-center justify-between p-2 rounded-xl text-xs font-bold cursor-pointer ${
+                      currentCountry.code === c.code ? "bg-primary/10 text-primary" : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="text-base leading-none shrink-0">{c.flag}</span>
+                      <span className="truncate">{language === "ar" ? c.nameAr : c.nameEn}</span>
+                    </div>
+                    <span className="font-mono text-[11px] text-muted-foreground font-semibold shrink-0">{c.currency}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* Language Switcher Icon Button (عربي / EN) — shown in header only when not logged in; inside dropdown menu when logged in */}
           {!session && (
@@ -417,7 +420,7 @@ export function SiteHeader() {
 
                 <DropdownMenuSeparator />
 
-                {/* Reader Navigation Items (مكتبتي هي الصفحة الرئيسية، بيانات الحساب، المفضلة، طلباتي) */}
+                {/* Reader Navigation Items (مكتبتي هي الصفحة الرئيسية، المفضلة، طلباتي) */}
                 {approvalStatus === "approved" && accountType === "reader" ? (
                   <>
                     <DropdownMenuItem
@@ -429,14 +432,6 @@ export function SiteHeader() {
                       <span className="ms-auto rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-extrabold text-primary">
                         {t("الرئيسية", "Home")}
                       </span>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem
-                      onClick={() => selectReaderTab("settings")}
-                      className="p-2 rounded-lg cursor-pointer font-semibold"
-                    >
-                      <Settings className="me-2 h-4 w-4 text-muted-foreground" />
-                      <span>{t("بيانات الحساب", "Account Details")}</span>
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
@@ -504,6 +499,17 @@ export function SiteHeader() {
 
                 <DropdownMenuSeparator />
 
+                {/* بيانات الحساب — right before اللغة / تغيير اللغة */}
+                {approvalStatus === "approved" && accountType === "reader" && (
+                  <DropdownMenuItem
+                    onClick={() => selectReaderTab("settings")}
+                    className="p-2 rounded-lg cursor-pointer font-semibold"
+                  >
+                    <Settings className="me-2 h-4 w-4 text-muted-foreground" />
+                    <span>{t("بيانات الحساب", "Account Details")}</span>
+                  </DropdownMenuItem>
+                )}
+
                 {/* Language / Change Language inside Dropdown Menu */}
                 <DropdownMenuItem
                   onClick={toggleLanguage}
@@ -515,6 +521,21 @@ export function SiteHeader() {
                   </div>
                   <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-extrabold text-primary">
                     {language === "ar" ? "English" : "العربية"}
+                  </span>
+                </DropdownMenuItem>
+
+                {/* العملة / المنطقة — right after اللغة / تغيير اللغة */}
+                <DropdownMenuItem
+                  onClick={() => selectReaderTab("currency")}
+                  className="p-2 rounded-lg cursor-pointer font-semibold flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    <Coins className="me-2 h-4 w-4 text-amber-600" />
+                    <span>{t("العملة والمنطقة", "Currency & Region")}</span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-mono font-extrabold text-amber-700 dark:text-amber-400">
+                    <span>{currentCountry.flag}</span>
+                    <span>{currency}</span>
                   </span>
                 </DropdownMenuItem>
 

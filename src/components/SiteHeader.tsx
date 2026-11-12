@@ -173,11 +173,12 @@ export function SiteHeader() {
 
   // Check whether a Reader, Author, or Publisher account is logged in
   const isUserAccountLogged = Boolean(session) && !isAdmin;
-  const approvalStatus = isAdmin
-    ? "approved"
-    : session
-      ? getUserApprovalStatus(session.user.id, session.user.email)
-      : "pending";
+  const approvalStatus =
+    isAdmin || accountType === "reader"
+      ? "approved"
+      : session
+        ? getUserApprovalStatus(session.user.id, session.user.email, accountType)
+        : "pending";
 
   const showCart = !session || accountType === "reader" || isAdmin;
 

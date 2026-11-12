@@ -156,10 +156,12 @@ export function getAccountApprovals(): AccountApproval[] {
 
 export function getUserApprovalStatus(
   userId?: string | null,
-  email?: string | null
+  email?: string | null,
+  role?: "reader" | "author" | "publisher" | "admin"
 ): "pending" | "approved" | "rejected" {
   const normalizedEmail = email?.trim().toLowerCase() || "";
-  if (normalizedEmail === "highsupply2025@gmail.com") return "approved";
+  if (normalizedEmail === "highsupply2025@gmail.com" || role === "admin") return "approved";
+  if (role === "reader") return "approved";
 
   const approvals = getAccountApprovals();
   const found = approvals.find(
@@ -167,7 +169,13 @@ export function getUserApprovalStatus(
       (userId && a.userId === userId) ||
       (normalizedEmail && a.email && a.email.trim().toLowerCase() === normalizedEmail)
   );
-  return found ? found.status : "pending";
+  if (found) {
+    if (found.role === "reader" && found.status === "pending") {
+      return "approved";
+    }
+    return found.status;
+  }
+  return "pending";
 }
 
 export function ensureAccountApprovalRecord(params: {
@@ -194,6 +202,11 @@ export function ensureAccountApprovalRecord(params: {
       existing.role = params.role;
       changed = true;
     }
+    if (params.role === "reader" && existing.status === "pending") {
+      existing.status = "approved";
+      existing.approvedAt = new Date().toISOString();
+      changed = true;
+    }
     if (params.name && existing.name !== params.name) {
       existing.name = params.name;
       changed = true;
@@ -208,13 +221,15 @@ export function ensureAccountApprovalRecord(params: {
     return existing;
   }
 
+  const isReader = params.role === "reader";
   const created: AccountApproval = {
     userId: params.userId,
     role: params.role,
     name: params.name || normalizedEmail.split("@")[0] || "مستخدم المنصة",
     email: normalizedEmail,
-    status: "pending",
+    status: isReader ? "approved" : "pending",
     appliedAt: new Date().toISOString(),
+    approvedAt: isReader ? new Date().toISOString() : undefined,
   };
   current.unshift(created);
   setStorageItem(APPROVALS_KEY, current);

@@ -76,7 +76,7 @@ function RegisterPage() {
         : form.name.trim();
 
     const successMessages = {
-      reader: t("تم استلام طلب حساب القارئ! حسابك الآن تحت المراجعة بانتظار موافقة الإدارة.", "Reader account submitted for admin review!"),
+      reader: t("تم إنشاء حسابك كقارئ بنجاح! أهلاً بك في مكتبتك.", "Reader account created successfully! Welcome to your library."),
       author: t("تم استلام طلب حساب المؤلف! حسابك الآن تحت المراجعة بانتظار موافقة الإدارة.", "Author account submitted for admin review!"),
       publisher: t("تم استلام طلب حساب دار النشر! حسابك الآن تحت المراجعة بانتظار موافقة الإدارة.", "Publisher account submitted for admin review!"),
     };

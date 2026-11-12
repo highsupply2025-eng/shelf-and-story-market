@@ -109,9 +109,9 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
   const Icon = m.icon;
 
   const approvalStatus =
-    accountType === "admin"
+    accountType === "admin" || role === "reader" || accountType === "reader"
       ? "approved"
-      : getUserApprovalStatus(session?.user.id, session?.user.email);
+      : getUserApprovalStatus(session?.user.id, session?.user.email, role);
 
   const displayName =
     (session?.user.user_metadata?.["display_name"] as string | undefined) ||
@@ -222,8 +222,8 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
                       "Please contact unibook administration for assistance regarding your account."
                     )
                   : l.t(
-                      "تم استلام طلب تسجيل حسابك بنجاح. وفقاً لسياسة منصة unibook، لا يفتح الحساب (سواء للقارئ أو المؤلف أو دار النشر) إلا بعد مراجعته والموافقة عليه من قِبل الإدارة.",
-                      "Your registration request has been received. All Reader, Author, and Publisher accounts remain under review until approved by the Admin."
+                      "تم استلام طلب تسجيل حسابك بنجاح. وفقاً لسياسة منصة unibook، يخضع حساب المؤلف وحساب دار النشر للمراجعة والموافقة من قِبل الإدارة قبل تفعيله.",
+                      "Your registration request has been received. Author and Publisher accounts remain under review until approved by the Admin."
                     )}
               </p>
             </div>

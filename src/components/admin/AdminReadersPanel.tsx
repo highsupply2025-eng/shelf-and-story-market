@@ -155,7 +155,7 @@ export function AdminReadersPanel() {
   // Calculate stats
   const totalReadersCount = readers.length;
   const pendingReadersCount = readers.filter(
-    (r) => getUserApprovalStatus(r.id, r.email) === "pending"
+    (r) => getUserApprovalStatus(r.id, r.email, "reader") === "pending"
   ).length;
   const totalOrdersCount = orders.length;
   const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
@@ -167,7 +167,7 @@ export function AdminReadersPanel() {
   }, {});
 
   const filteredReaders = readers.filter((r) => {
-    const status = getUserApprovalStatus(r.id, r.email);
+    const status = getUserApprovalStatus(r.id, r.email, "reader");
     if (filterTab === "pending" && status !== "pending") return false;
     if (filterTab === "approved" && status !== "approved") return false;
 
@@ -302,7 +302,7 @@ export function AdminReadersPanel() {
               {filteredReaders.map((r) => {
                 const readerOrders = ordersByBuyer[r.id] || [];
                 const spent = readerOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
-                const status = getUserApprovalStatus(r.id, r.email);
+                const status = getUserApprovalStatus(r.id, r.email, "reader");
 
                 return (
                   <tr key={r.id} className="hover:bg-muted/20 transition-colors">

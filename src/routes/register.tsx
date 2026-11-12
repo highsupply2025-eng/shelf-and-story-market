@@ -127,6 +127,19 @@ function RegisterPage() {
         );
         navigate({ to: "/login" });
       } else {
+        if ((accountType === "author" || accountType === "publisher") && data.user) {
+          await supabase.from("publishers").upsert(
+            {
+              id: data.user.id,
+              store_name: displayName,
+              bio:
+                accountType === "publisher"
+                  ? "دار نشر ومؤسسة توزيع معتمدة في unibook"
+                  : "مؤلف وباحث علمي في unibook",
+            },
+            { onConflict: "id", ignoreDuplicates: true }
+          );
+        }
         toast.success(successMessages[accountType]);
         await refresh();
       }

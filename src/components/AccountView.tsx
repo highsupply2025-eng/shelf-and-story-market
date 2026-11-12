@@ -417,9 +417,9 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
               variant="outline"
               asChild
             className="hidden"
-            ><Link to="/author">
+            ><Link to="/author" className="hidden">
               <PenLine className="h-4 w-4" />
-              {l.t("انشر كتابك معنا (باقات المؤلفين)", "Publish with us (Author plans)")}
+              {null}
             </Link></Button>
           </div>
         </div>

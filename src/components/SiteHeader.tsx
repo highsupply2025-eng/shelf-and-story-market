@@ -444,6 +444,21 @@ export function SiteHeader() {
                   </DropdownMenuItem>
                 )}
 
+                <DropdownMenuItem
+                  asChild
+                  className="p-2 rounded-lg cursor-pointer text-emerald-700 dark:text-emerald-400 font-bold"
+                >
+                  <a
+                    href="https://wa.me/966563057356?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20%D8%A5%D8%AF%D8%A7%D8%B1%D8%A9%20unibook%D8%8C%20%D8%A3%D8%B1%D8%BA%D8%A8%20%D9%81%D9%8A%20%D9%86%D8%B4%D8%B1%20%D9%83%D8%AA%D8%A7%D8%A8%D9%8A%20%D9%85%D8%AC%D8%A7%D9%86%D8%A7%D9%8B%20%D9%85%D8%B9%D9%83%D9%85."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <PenLine className="me-2 h-4 w-4 text-emerald-600" />
+                    <span>{t("انشر كتابك مجاناً", "Publish your book for free")}</span>
+                    <ArrowUpRight className="ms-auto h-3.5 w-3.5 opacity-60" />
+                  </a>
+                </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
 
                 {/* Sign out */}

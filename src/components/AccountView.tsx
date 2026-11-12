@@ -383,10 +383,40 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
 
   const adminWallet = getAdminWalletNumber();
 
-  const [tab, setTab] = useState<string>(accountMode === "reader" ? "library" : "plans");
+  const [tab, setTab] = useState<string>(() => {
+    if (accountMode === "reader") {
+      if (typeof window !== "undefined") {
+        const requested = window.sessionStorage.getItem("unibook_reader_tab");
+        if (requested && ["library", "settings", "favorites", "orders"].includes(requested)) {
+          return requested;
+        }
+      }
+      return "library";
+    }
+    return "plans";
+  });
 
   useEffect(() => {
-    setTab(accountMode === "reader" ? "library" : "plans");
+    if (accountMode !== "reader") return;
+    const onReaderTab = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (detail && ["library", "settings", "favorites", "orders"].includes(detail)) {
+        setTab(detail);
+        window.sessionStorage.removeItem("unibook_reader_tab");
+      }
+    };
+    window.addEventListener("unibook_reader_tab", onReaderTab);
+    return () => window.removeEventListener("unibook_reader_tab", onReaderTab);
+  }, [accountMode]);
+
+  useEffect(() => {
+    const requested = typeof window !== "undefined" ? window.sessionStorage.getItem("unibook_reader_tab") : null;
+    if (accountMode === "reader" && requested && ["library", "settings", "favorites", "orders"].includes(requested)) {
+      window.sessionStorage.removeItem("unibook_reader_tab");
+      setTab(requested);
+    } else {
+      setTab(accountMode === "reader" ? "library" : "plans");
+    }
   }, [accountMode]);
 
   return (
@@ -548,7 +578,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
-        <TabsList className="h-auto flex-wrap gap-1.5 p-1.5 bg-muted/70 rounded-2xl border border-border/60">
+        <TabsList className={accountMode === "reader" ? "hidden" : "h-auto flex-wrap gap-1.5 p-1.5 bg-muted/70 rounded-2xl border border-border/60"}>
           {accountMode === "reader" ? (
             <>
               <TabsTrigger

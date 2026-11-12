@@ -17,6 +17,9 @@ import {
   Globe,
   Clock,
   XCircle,
+  Heart,
+  Package,
+  Settings,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -55,6 +58,14 @@ export function SiteHeader() {
   function toggleLanguage() {
     const nextLang = language === "ar" ? "en" : "ar";
     set({ language: nextLang });
+  }
+
+  function selectReaderTab(tabName: "library" | "settings" | "favorites" | "orders") {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("unibook_reader_tab", tabName);
+      window.dispatchEvent(new CustomEvent("unibook_reader_tab", { detail: tabName }));
+    }
+    navigate({ to: "/account" });
   }
   const { count } = useCart();
   const { isAppExperience } = useAppMode();
@@ -285,19 +296,21 @@ export function SiteHeader() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Language Switcher Icon Button (عربي / EN) */}
-          <button
-            type="button"
-            onClick={toggleLanguage}
-            className="flex h-10 items-center gap-1.5 rounded-full border border-border/80 bg-card px-2.5 sm:px-3 text-foreground transition-all hover:border-primary/50 hover:bg-primary/5 shadow-xs cursor-pointer select-none active:scale-95"
-            aria-label={language === "ar" ? "Switch to English" : "التبديل إلى العربية"}
-            title={language === "ar" ? "Switch to English" : "التبديل إلى العربية"}
-          >
-            <Globe className="h-4 w-4 text-primary" />
-            <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider">
-              {language === "ar" ? "EN" : "عربي"}
-            </span>
-          </button>
+          {/* Language Switcher Icon Button (عربي / EN) — shown in header only when not logged in; inside dropdown menu when logged in */}
+          {!session && (
+            <button
+              type="button"
+              onClick={toggleLanguage}
+              className="flex h-10 items-center gap-1.5 rounded-full border border-border/80 bg-card px-2.5 sm:px-3 text-foreground transition-all hover:border-primary/50 hover:bg-primary/5 shadow-xs cursor-pointer select-none active:scale-95"
+              aria-label={language === "ar" ? "Switch to English" : "التبديل إلى العربية"}
+              title={language === "ar" ? "Switch to English" : "التبديل إلى العربية"}
+            >
+              <Globe className="h-4 w-4 text-primary" />
+              <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider">
+                {language === "ar" ? "EN" : "عربي"}
+              </span>
+            </button>
+          )}
 
           {/* السلة (Cart Icon): Visible only for Reader account (or unauthenticated / admin) */}
           {showCart && (
@@ -403,25 +416,54 @@ export function SiteHeader() {
 
                 <DropdownMenuSeparator />
 
-                {/* Primary Role Dashboard Link */}
-                <DropdownMenuItem asChild className="p-2.5 rounded-xl font-bold cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary my-1">
-                  <Link to={roleConfig.to}>
-                    <LayoutDashboard className="me-2 h-4 w-4" />
-                    <span>
-                      {approvalStatus === "approved"
-                        ? roleConfig.dash
-                        : t("متابعة حالة المراجعة", "Application Review Status")}
-                    </span>
-                    <ArrowUpRight className="ms-auto h-3.5 w-3.5 opacity-60" />
-                  </Link>
-                </DropdownMenuItem>
+                {/* Reader Navigation Items (مكتبتي هي الصفحة الرئيسية، بيانات الحساب، المفضلة، طلباتي) */}
+                {approvalStatus === "approved" && accountType === "reader" ? (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => selectReaderTab("library")}
+                      className="p-2.5 rounded-xl font-bold cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary my-0.5"
+                    >
+                      <Library className="me-2 h-4 w-4 text-primary" />
+                      <span>{t("مكتبتي", "My Library")}</span>
+                      <span className="ms-auto rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-extrabold text-primary">
+                        {t("الرئيسية", "Home")}
+                      </span>
+                    </DropdownMenuItem>
 
-                {/* Sub-links based on specific account type (only when approved) */}
-                {approvalStatus === "approved" && accountType === "reader" && (
-                  <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
-                    <Link to="/account">
-                      <BookOpen className="me-2 h-4 w-4 text-emerald-600" />
-                      <span>{t("مكتبتي وطلباتي", "My Library & Orders")}</span>
+                    <DropdownMenuItem
+                      onClick={() => selectReaderTab("settings")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <Settings className="me-2 h-4 w-4 text-muted-foreground" />
+                      <span>{t("بيانات الحساب", "Account Details")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectReaderTab("favorites")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <Heart className="me-2 h-4 w-4 text-rose-500" />
+                      <span>{t("المفضلة", "Favorites")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectReaderTab("orders")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <Package className="me-2 h-4 w-4 text-amber-600" />
+                      <span>{t("طلباتي", "My Orders")}</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem asChild className="p-2.5 rounded-xl font-bold cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary my-1">
+                    <Link to={roleConfig.to}>
+                      <LayoutDashboard className="me-2 h-4 w-4" />
+                      <span>
+                        {approvalStatus === "approved"
+                          ? roleConfig.dash
+                          : t("متابعة حالة المراجعة", "Application Review Status")}
+                      </span>
+                      <ArrowUpRight className="ms-auto h-3.5 w-3.5 opacity-60" />
                     </Link>
                   </DropdownMenuItem>
                 )}
@@ -457,6 +499,22 @@ export function SiteHeader() {
                     <span>{t("انشر كتابك مجاناً", "Publish your book for free")}</span>
                     <ArrowUpRight className="ms-auto h-3.5 w-3.5 opacity-60" />
                   </a>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                {/* Language / Change Language inside Dropdown Menu */}
+                <DropdownMenuItem
+                  onClick={toggleLanguage}
+                  className="p-2 rounded-lg cursor-pointer font-semibold flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    <Globe className="me-2 h-4 w-4 text-primary" />
+                    <span>{t("اللغة / تغيير اللغة", "Language / Change Language")}</span>
+                  </div>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-extrabold text-primary">
+                    {language === "ar" ? "English" : "العربية"}
+                  </span>
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />

@@ -1,6 +1,12 @@
 User-agent: Googlebot
 Allow: /
 
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Google-Favicon
+Allow: /
+
 User-agent: Bingbot
 Allow: /
 
@@ -12,3 +18,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://unibook.store/sitemap.xml

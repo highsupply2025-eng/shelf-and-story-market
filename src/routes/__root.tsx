@@ -99,24 +99,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { property: "og:title", content: "unibook — متجر الكتب الرقمية والورقية" },
       { property: "og:description", content: "اشترِ الكتب الرقمية والورقية أو انشر كتابك على unibook." },
-      { property: "og:image", content: "https://unibook.store/icon-512.png" },
+      { property: "og:image", content: "https://unibook.store/icon-512.png?v=unibook2026" },
       { property: "og:image:width", content: "512" },
       { property: "og:image:height", content: "512" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "unibook — متجر الكتب الرقمية والورقية" },
       { name: "twitter:description", content: "اشترِ الكتب الرقمية والورقية أو انشر كتابك على unibook." },
-      { name: "twitter:image", content: "https://unibook.store/icon-512.png" },
+      { name: "twitter:image", content: "https://unibook.store/icon-512.png?v=unibook2026" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", sizes: "48x48 32x32 16x16" },
-      { rel: "shortcut icon", href: "/favicon.ico" },
-      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
-      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
-      { rel: "icon", type: "image/png", sizes: "64x64", href: "/favicon.png" },
-      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
-      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
-      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png?v=unibook2026" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png?v=unibook2026" },
+      { rel: "icon", type: "image/png", sizes: "64x64", href: "/favicon.png?v=unibook2026" },
+      { rel: "icon", type: "image/x-icon", href: "/favicon.ico?v=unibook2026", sizes: "48x48 32x32 16x16" },
+      { rel: "shortcut icon", type: "image/png", href: "/icon-192.png?v=unibook2026" },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg?v=unibook2026" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png?v=unibook2026" },
+      { rel: "manifest", href: "/manifest.webmanifest?v=unibook2026" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -136,6 +136,25 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="ar" dir="rtl">
       <head>
         <HeadContent />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "unibook",
+              alternateName: "unibook — متجر الكتب الرقمية والورقية",
+              url: "https://unibook.store",
+              logo: {
+                "@type": "ImageObject",
+                url: "https://unibook.store/icon-512.png?v=unibook2026",
+                width: 512,
+                height: 512,
+              },
+              image: "https://unibook.store/icon-512.png?v=unibook2026",
+            }),
+          }}
+        />
         <style
           dangerouslySetInnerHTML={{
             __html: `

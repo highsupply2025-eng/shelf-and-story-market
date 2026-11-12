@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useLocale } from "@/lib/locale";
-import { AdminAuthCard, ADMIN_EMAIL } from "@/components/AdminAuthModal";
+import { AdminAuthCard } from "@/components/AdminAuthModal";
 import { AdminReadersPanel } from "@/components/admin/AdminReadersPanel";
 import { AdminAuthorsPanel } from "@/components/admin/AdminAuthorsPanel";
 import { AdminPublishersPanel } from "@/components/admin/AdminPublishersPanel";
@@ -56,8 +56,8 @@ function AdminPage() {
   const [walletNumberInput, setWalletNumberInput] = useState(() => getAdminWalletNumber());
 
   // Check admin identity specifically
-  const isSuperAdmin =
-    isAdmin || session?.user?.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase();
+  // Decided only by the database role check (user_roles / has_role).
+  const isSuperAdmin = isAdmin;
 
   function handleSaveWallet() {
     setAdminWalletNumber(walletNumberInput);
@@ -104,7 +104,7 @@ function AdminPage() {
                 </Badge>
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 font-medium">
-                مرحباً بك: <span className="font-mono text-foreground font-bold" dir="ltr">{session?.user?.email || ADMIN_EMAIL}</span> · إدارة القرّاء والمؤلفين ودور النشر ومركز الإنتاج بالذكاء الاصطناعي
+                مرحباً بك: <span className="font-mono text-foreground font-bold" dir="ltr">{session?.user?.email}</span> · إدارة القرّاء والمؤلفين ودور النشر ومركز الإنتاج بالذكاء الاصطناعي
               </p>
             </div>
           </div>

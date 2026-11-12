@@ -43,7 +43,7 @@ import {
   getAdminWalletNumber,
 } from "@/lib/author-plans";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, registerLocalUser } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { ProtectedBookReader } from "@/components/ProtectedBookReader";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -531,12 +531,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
         );
       }
       if (profile.display_name.trim()) {
-        registerLocalUser({
-          id: session.user.id,
-          email: session.user.email || "",
-          displayName: profile.display_name.trim(),
-          accountType: accountMode,
-        });
+        await supabase.auth.updateUser({ data: { display_name: profile.display_name.trim() } });
         await refresh();
       }
       await supabase.from("profiles").upsert({
@@ -606,7 +601,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
   }, [accountMode]);
 
   // Dynamic Hero Header info per Reader page
-  const readerHeroMeta = {
+  const readerHeroMeta: Record<string, { badge: string; title: string; desc: string; icon: typeof BookOpen }> = {
     library: {
       badge: l.t("مكتبتي الرقمية · الصفحة الرئيسية", "My Digital Library · Home"),
       title: l.t("أهلاً بك في مكتبتك الرقمية", "Welcome to Your Digital Library"),

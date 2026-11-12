@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useAuth, clearLocalSession, resolveStoredRoleForEmail } from "@/lib/auth";
+import { useAuth, clearLocalSession } from "@/lib/auth";
 import { getUserApprovalStatus } from "@/lib/admin-store";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
@@ -117,21 +117,14 @@ export function SiteHeader() {
       e.preventDefault();
       e.stopPropagation();
       setLogoClicks(0);
-      const isCurrentAdmin = isAdmin || session?.user?.email?.toLowerCase().trim() === "highsupply2025@gmail.com";
-      if (isCurrentAdmin) navigate({ to: "/admin" });
+      if (isAdmin) navigate({ to: "/admin" });
       else setAdminModalOpen(true);
       return;
     }
     clickTimeoutRef.current = setTimeout(() => setLogoClicks(0), 3000);
   }
 
-  const storedRole = session ? resolveStoredRoleForEmail(session.user.email, session.user.id) : null;
-  const effectiveAccountType =
-    isAdmin || accountType === "admin"
-      ? "admin"
-      : storedRole === "publisher" || storedRole === "author"
-        ? storedRole
-        : accountType;
+  const effectiveAccountType = isAdmin ? "admin" : accountType;
 
   // Account role configuration
   const roleConfig = {

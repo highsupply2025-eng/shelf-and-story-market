@@ -13,7 +13,6 @@ import {
   EyeOff,
   Sparkles,
   Send,
-  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";

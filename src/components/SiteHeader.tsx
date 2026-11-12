@@ -125,7 +125,7 @@ export function SiteHeader() {
       accentBg: "from-rose-500 to-amber-600",
     },
     publisher: {
-      label: t("دار نشر", "Publisher"),
+      label: t("ناشر", "Publisher"),
       fullBadge: t("حساب دار نشر", "Publisher"),
       dash: t("لوحة دار النشر", "Publisher dashboard"),
       icon: Building2,
@@ -177,22 +177,38 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 md:h-18 md:gap-6 md:px-8">
+      <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-1.5 md:min-h-18 md:gap-6 md:px-8">
         
-        {/* Brand Logo with 5-click easter egg */}
+        {/* Brand Logo with 5-click easter egg + Account Role label underneath when logged in */}
         <Link
           to={isUserAccountLogged ? roleConfig.to : "/"}
           onClick={handleLogoClick}
-          className="flex min-w-0 items-center gap-2.5 group cursor-pointer select-none"
+          className="flex min-w-0 flex-col items-center justify-center group cursor-pointer select-none shrink-0"
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card border border-border/80 shadow-xs md:h-11 md:w-11 transition-transform group-hover:scale-105">
-            <img src="/logo-icon.png" alt="unibook" className="h-7 w-auto object-contain md:h-8" />
-          </div>
-          <div className="flex flex-col">
-            <span className="truncate font-display text-2xl font-extrabold tracking-tight text-foreground group-hover:text-primary md:text-3xl">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-card border border-border/80 shadow-xs md:h-10 md:w-10 transition-transform group-hover:scale-105">
+              <img src="/logo-icon.png" alt="unibook" className="h-6 w-auto object-contain md:h-7" />
+            </div>
+            <span className="truncate font-display text-2xl font-extrabold tracking-tight text-foreground group-hover:text-primary md:text-3xl leading-none">
               unibook
             </span>
           </div>
+          {session && (
+            <span
+              className={`mt-1 inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold leading-none ${roleConfig.color}`}
+            >
+              <RoleIcon className="h-3 w-3" />
+              <span>
+                {accountType === "reader"
+                  ? t("قارئ", "Reader")
+                  : accountType === "author"
+                    ? t("مؤلف", "Author")
+                    : accountType === "publisher"
+                      ? t("ناشر", "Publisher")
+                      : t("إدارة المنصة", "Admin")}
+              </span>
+            </span>
+          )}
         </Link>
 
         {/* Navigation Links:

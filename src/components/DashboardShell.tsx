@@ -16,6 +16,7 @@ import { useAuth, clearLocalSession, type UserRoleType } from "@/lib/auth";
 import {
   ensureAccountApprovalRecord,
   getUserApprovalStatus,
+  syncMyApprovalFromDb,
 } from "@/lib/admin-store";
 import { useLocale } from "@/lib/locale";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,20 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
   }, [session, effectiveRole]);
 
   useEffect(() => {
+    if (!session || effectiveRole === "admin") return;
+    void syncMyApprovalFromDb(session.user.id, session.user.email).then(() => {
+      setTick((n) => n + 1);
+    });
+    if (effectiveRole === "reader") return;
+    const timer = window.setInterval(() => {
+      void syncMyApprovalFromDb(session.user.id, session.user.email).then(() => {
+        setTick((n) => n + 1);
+      });
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [session, effectiveRole]);
+
+  useEffect(() => {
     const onUpdate = () => setTick((n) => n + 1);
     window.addEventListener("unibook_admin_update", onUpdate);
     window.addEventListener("storage", onUpdate);
@@ -111,7 +126,7 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
   const Icon = m.icon;
 
   const approvalStatus =
-    effectiveRole === "admin" || (role === "reader" && effectiveRole === "reader")
+    effectiveRole === "admin"
       ? "approved"
       : getUserApprovalStatus(session?.user.id, session?.user.email, role);
 
@@ -149,7 +164,8 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
     }
   }
 
-  function handleCheckStatus() {
+  async function handleCheckStatus() {
+    await syncMyApprovalFromDb(session?.user.id, session?.user.email);
     setTick((n) => n + 1);
     const current = getUserApprovalStatus(session?.user.id, session?.user.email, role);
     if (current === "approved") {

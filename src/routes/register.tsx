@@ -127,17 +127,42 @@ function RegisterPage() {
         );
         navigate({ to: "/login" });
       } else {
-        if ((accountType === "author" || accountType === "publisher") && data.user) {
-          await supabase.from("publishers").upsert(
+        if (data.user) {
+          const initialApprovalStatus = accountType === "reader" ? "approved" : "pending";
+          if (accountType === "author" || accountType === "publisher") {
+            await supabase.from("publishers").upsert(
+              {
+                id: data.user.id,
+                store_name: displayName,
+                email: form.email.trim().toLowerCase(),
+                account_type: accountType,
+                approval_status: initialApprovalStatus,
+                bio:
+                  accountType === "publisher"
+                    ? "دار نشر ومؤسسة توزيع معتمدة في unibook"
+                    : "مؤلف وباحث علمي في unibook",
+              },
+              { onConflict: "id", ignoreDuplicates: true }
+            );
+          } else {
+            await supabase.from("profiles").upsert(
+              {
+                id: data.user.id,
+                display_name: displayName,
+              },
+              { onConflict: "id", ignoreDuplicates: true }
+            );
+          }
+          await supabase.from("account_approvals").upsert(
             {
-              id: data.user.id,
-              store_name: displayName,
-              bio:
-                accountType === "publisher"
-                  ? "دار نشر ومؤسسة توزيع معتمدة في unibook"
-                  : "مؤلف وباحث علمي في unibook",
+              user_id: data.user.id,
+              email: form.email.trim().toLowerCase(),
+              display_name: displayName,
+              account_type: accountType,
+              status: initialApprovalStatus,
+              approved_at: initialApprovalStatus === "approved" ? new Date().toISOString() : null,
             },
-            { onConflict: "id", ignoreDuplicates: true }
+            { onConflict: "user_id", ignoreDuplicates: true }
           );
         }
         toast.success(successMessages[accountType]);

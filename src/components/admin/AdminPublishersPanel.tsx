@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import {
   getAccountApprovals,
   getUserApprovalStatus,
+  syncAccountApprovalsFromDb,
   updateAccountApprovalStatus,
 } from "@/lib/admin-store";
 import { useLocale } from "@/lib/locale";
@@ -47,12 +48,13 @@ export function AdminPublishersPanel() {
     queryKey: ["admin-publishers-list"],
     queryFn: async () => {
       try {
+        await syncAccountApprovalsFromDb();
         const { data, error } = await supabase
           .from("publishers")
           .select("*, books(*)")
           .order("created_at", { ascending: false });
         if (error) return [];
-        return data || [];
+        return (data || []).filter((p: any) => p.account_type !== "author" || (p.books && p.books.length > 0));
       } catch {
         return [];
       }
@@ -117,13 +119,13 @@ export function AdminPublishersPanel() {
   );
 
   // Handle publisher account status update
-  function handleSetPublisherStatus(
+  async function handleSetPublisherStatus(
     pubId: string,
     pubName: string,
     pubEmail: string | undefined,
     status: "approved" | "rejected" | "pending"
   ) {
-    updateAccountApprovalStatus(pubId, status, undefined, {
+    await updateAccountApprovalStatus(pubId, status, undefined, {
       role: "publisher",
       name: pubName,
       email: pubEmail || "",
@@ -131,12 +133,13 @@ export function AdminPublishersPanel() {
     setTick((n) => n + 1);
     toast.success(
       status === "approved"
-        ? `تم اعتماد حساب دار النشر (${pubName}) رسمياً في المنصة`
+        ? `تم اعتماد حساب دار النشر (${pubName}) وحفظ الموافقة في قاعدة البيانات`
         : status === "rejected"
-          ? `تم تعليق حساب دار النشر (${pubName})`
+          ? `تم تعليق حساب دار النشر (${pubName}) في قاعدة البيانات`
           : `تم تعيين حساب دار النشر (${pubName}) قيد المراجعة`
     );
     refetchPublishers();
+    qc.invalidateQueries();
   }
 
   // Handle book decision

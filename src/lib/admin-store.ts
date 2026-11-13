@@ -1,4 +1,5 @@
 // Administrative state management for site control, approvals, and AI production
+import { supabase } from "@/integrations/supabase/client";
 
 export interface SiteBanner {
   id: string;
@@ -252,6 +253,7 @@ export function ensureAccountApprovalRecord(params: {
     }
     if (changed) {
       setStorageItem(APPROVALS_KEY, current);
+      void persistMyApprovalToDb(existing);
     }
     return existing;
   }
@@ -268,15 +270,216 @@ export function ensureAccountApprovalRecord(params: {
   };
   current.unshift(created);
   setStorageItem(APPROVALS_KEY, current);
+  void persistMyApprovalToDb(created);
   return created;
 }
 
-export function updateAccountApprovalStatus(
+function mergeApprovalsIntoCache(incoming: AccountApproval[]): AccountApproval[] {
+  if (incoming.length === 0) return getAccountApprovals();
+  const current = getAccountApprovals();
+  let changed = false;
+
+  for (const row of incoming) {
+    const normEmail = row.email?.trim().toLowerCase() || "";
+    const idx = current.findIndex(
+      (a) =>
+        (row.userId && a.userId === row.userId) ||
+        (normEmail && a.email && a.email.trim().toLowerCase() === normEmail)
+    );
+    if (idx >= 0) {
+      const existing = current[idx]!;
+      if (
+        existing.status !== row.status ||
+        existing.role !== row.role ||
+        (row.name && existing.name !== row.name) ||
+        (row.userId && existing.userId !== row.userId) ||
+        (row.notes && existing.notes !== row.notes)
+      ) {
+        current[idx] = {
+          ...existing,
+          ...row,
+          email: normEmail || existing.email,
+          name: row.name || existing.name,
+        };
+        changed = true;
+      }
+    } else {
+      current.unshift({ ...row, email: normEmail });
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    setStorageItem(APPROVALS_KEY, current);
+  }
+  return current;
+}
+
+async function persistMyApprovalToDb(record: AccountApproval): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) return;
+
+    const { error: rpcErr } = await supabase.rpc("upsert_my_account_approval", {
+      _user_id: record.userId,
+      _email: record.email,
+      _name: record.name,
+      _role: record.role,
+    });
+
+    if (rpcErr) {
+      await supabase.from("account_approvals").upsert(
+        {
+          user_id: record.userId,
+          email: record.email.trim().toLowerCase(),
+          name: record.name,
+          role: record.role,
+          status: record.status,
+          applied_at: record.appliedAt,
+          approved_at: record.approvedAt ?? null,
+        },
+        { onConflict: "user_id" }
+      );
+      if (record.role === "author" || record.role === "publisher") {
+        await supabase.from("publishers").upsert(
+          {
+            id: record.userId,
+            store_name: record.name,
+            email: record.email.trim().toLowerCase(),
+            account_type: record.role,
+            approval_status: record.status,
+          },
+          { onConflict: "id" }
+        );
+      }
+    }
+  } catch {
+    /* offline fallback: local cache already saved */
+  }
+}
+
+export async function syncAccountApprovalsFromDb(): Promise<AccountApproval[]> {
+  try {
+    const collected: AccountApproval[] = [];
+
+    const { data: rows, error } = await supabase
+      .from("account_approvals")
+      .select("*")
+      .order("applied_at", { ascending: false });
+
+    if (!error && rows) {
+      for (const r of rows) {
+        collected.push({
+          userId: r.user_id,
+          role: (r.role as AccountApproval["role"]) || "reader",
+          name: r.name || "مستخدم المنصة",
+          email: r.email || "",
+          status: (r.status as AccountApproval["status"]) || "pending",
+          appliedAt: r.applied_at,
+          approvedAt: r.approved_at ?? undefined,
+          notes: r.notes ?? undefined,
+        });
+      }
+    }
+
+    const { data: pubs, error: pubErr } = await supabase
+      .from("publishers")
+      .select("id, store_name, email, account_type, approval_status, approval_notes, approved_at, created_at")
+      .order("created_at", { ascending: false });
+
+    if (!pubErr && pubs) {
+      for (const p of pubs) {
+        if (!collected.some((c) => c.userId === p.id)) {
+          collected.push({
+            userId: p.id,
+            role: p.account_type === "publisher" ? "publisher" : "author",
+            name: p.store_name || "مؤلف unibook",
+            email: p.email || "",
+            status: (p.approval_status as AccountApproval["status"]) || "pending",
+            appliedAt: p.created_at,
+            approvedAt: p.approved_at ?? undefined,
+            notes: p.approval_notes ?? undefined,
+          });
+        }
+      }
+    }
+
+    return mergeApprovalsIntoCache(collected);
+  } catch {
+    return getAccountApprovals();
+  }
+}
+
+export async function syncMyApprovalFromDb(
+  userId?: string | null,
+  email?: string | null
+): Promise<AccountApproval | null> {
+  const normEmail = email?.trim().toLowerCase() || "";
+  if (!userId && !normEmail) return null;
+
+  try {
+    const collected: AccountApproval[] = [];
+    let query = supabase.from("account_approvals").select("*");
+    if (userId && normEmail) {
+      query = query.or(`user_id.eq.${userId},email.ilike.${normEmail}`);
+    } else if (userId) {
+      query = query.eq("user_id", userId);
+    } else if (normEmail) {
+      query = query.ilike("email", normEmail);
+    }
+
+    const { data: rows, error } = await query;
+    if (!error && rows && rows.length > 0) {
+      for (const r of rows) {
+        collected.push({
+          userId: r.user_id,
+          role: (r.role as AccountApproval["role"]) || "reader",
+          name: r.name || "مستخدم المنصة",
+          email: r.email || normEmail,
+          status: (r.status as AccountApproval["status"]) || "pending",
+          appliedAt: r.applied_at,
+          approvedAt: r.approved_at ?? undefined,
+          notes: r.notes ?? undefined,
+        });
+      }
+    } else if (userId) {
+      const { data: pub } = await supabase
+        .from("publishers")
+        .select("id, store_name, email, account_type, approval_status, approval_notes, approved_at, created_at")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (pub) {
+        collected.push({
+          userId: pub.id,
+          role: pub.account_type === "publisher" ? "publisher" : "author",
+          name: pub.store_name || "مؤلف unibook",
+          email: pub.email || normEmail,
+          status: (pub.approval_status as AccountApproval["status"]) || "pending",
+          appliedAt: pub.created_at,
+          approvedAt: pub.approved_at ?? undefined,
+          notes: pub.approval_notes ?? undefined,
+        });
+      }
+    }
+
+    if (collected.length > 0) {
+      mergeApprovalsIntoCache(collected);
+      return collected[0] ?? null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function updateAccountApprovalStatus(
   userId: string,
   status: "approved" | "rejected" | "pending",
   notes?: string,
   meta?: { role?: "reader" | "author" | "publisher"; name?: string; email?: string }
-): void {
+): Promise<boolean> {
   const normalizedEmail = meta?.email?.trim().toLowerCase() || "";
   const current = getAccountApprovals();
   const index = current.findIndex(
@@ -285,26 +488,75 @@ export function updateAccountApprovalStatus(
       (normalizedEmail && a.email && a.email.trim().toLowerCase() === normalizedEmail)
   );
   const existing = index >= 0 ? current[index] : undefined;
+  const resolvedRole = meta?.role || existing?.role || "reader";
+  const resolvedName = meta?.name || existing?.name || "مستخدم المنصة";
+  const resolvedEmail = normalizedEmail || existing?.email || "user@unibook.store";
+  const nowIso = new Date().toISOString();
+
   if (existing) {
     existing.status = status;
     if (meta?.role) existing.role = meta.role;
     if (meta?.name) existing.name = meta.name;
     if (normalizedEmail) existing.email = normalizedEmail;
     if (notes) existing.notes = notes;
-    if (status === "approved") existing.approvedAt = new Date().toISOString();
+    if (status === "approved") existing.approvedAt = nowIso;
   } else {
     current.unshift({
       userId,
-      role: meta?.role || "reader",
-      name: meta?.name || "مستخدم المنصة",
-      email: normalizedEmail || "user@unibook.store",
+      role: resolvedRole,
+      name: resolvedName,
+      email: resolvedEmail,
       status,
-      appliedAt: new Date().toISOString(),
-      approvedAt: status === "approved" ? new Date().toISOString() : undefined,
+      appliedAt: nowIso,
+      approvedAt: status === "approved" ? nowIso : undefined,
       notes,
     });
   }
   setStorageItem(APPROVALS_KEY, current);
+
+  try {
+    const { error: rpcErr } = await supabase.rpc("admin_set_account_approval", {
+      _user_id: userId,
+      _email: resolvedEmail,
+      _name: resolvedName,
+      _role: resolvedRole,
+      _status: status,
+      _notes: notes ?? null,
+    });
+
+    if (!rpcErr) return true;
+
+    const { error: upsertErr } = await supabase.from("account_approvals").upsert(
+      {
+        user_id: userId,
+        email: resolvedEmail,
+        name: resolvedName,
+        role: resolvedRole,
+        status,
+        notes: notes ?? null,
+        approved_at: status === "approved" ? nowIso : null,
+        updated_at: nowIso,
+      },
+      { onConflict: "user_id" }
+    );
+
+    if (resolvedRole === "author" || resolvedRole === "publisher") {
+      await supabase
+        .from("publishers")
+        .update({
+          approval_status: status,
+          approval_notes: notes ?? null,
+          approved_at: status === "approved" ? nowIso : null,
+          account_type: resolvedRole,
+          email: resolvedEmail,
+        })
+        .eq("id", userId);
+    }
+
+    return !upsertErr;
+  } catch {
+    return false;
+  }
 }
 
 // 4. Site Banners & Content

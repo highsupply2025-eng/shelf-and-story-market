@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Users,
   Search,
@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   getAccountApprovals,
   getUserApprovalStatus,
+  syncAccountApprovalsFromDb,
   updateAccountApprovalStatus,
 } from "@/lib/admin-store";
 import { useLocale } from "@/lib/locale";
@@ -37,6 +38,7 @@ interface ReaderProfile {
 }
 
 export function AdminReadersPanel() {
+  const qc = useQueryClient();
   const { t, price: formatMoney } = useLocale();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTab, setFilterTab] = useState<"all" | "pending" | "approved">("all");
@@ -58,6 +60,7 @@ export function AdminReadersPanel() {
     queryKey: ["admin-all-readers"],
     queryFn: async () => {
       try {
+        await syncAccountApprovalsFromDb();
         const { data, error } = await supabase
           .from("profiles")
           .select("*")
@@ -115,12 +118,12 @@ export function AdminReadersPanel() {
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
-  function handleSetReaderStatus(
+  async function handleSetReaderStatus(
     reader: ReaderProfile,
     status: "approved" | "rejected" | "pending"
   ) {
     const rName = reader.display_name || reader.shipping_name || "قارئ unibook";
-    updateAccountApprovalStatus(reader.id, status, undefined, {
+    await updateAccountApprovalStatus(reader.id, status, undefined, {
       role: "reader",
       name: rName,
       email: reader.email || "",
@@ -128,12 +131,13 @@ export function AdminReadersPanel() {
     setTick((n) => n + 1);
     toast.success(
       status === "approved"
-        ? `تمت الموافقة وتفعيل حساب القارئ (${rName}) بنجاح`
+        ? `تمت الموافقة وتفعيل حساب القارئ (${rName}) وحفظه في قاعدة البيانات`
         : status === "rejected"
-          ? `تم تعليق/رفض حساب القارئ (${rName})`
+          ? `تم تعليق/رفض حساب القارئ (${rName}) في قاعدة البيانات`
           : `تم تعيين حساب القارئ (${rName}) تحت المراجعة`
     );
     refetchReaders();
+    qc.invalidateQueries();
   }
 
   // Calculate stats

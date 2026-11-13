@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_approvals: {
+        Row: {
+          applied_at: string
+          approved_at: string | null
+          email: string
+          name: string
+          notes: string | null
+          role: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string
+          approved_at?: string | null
+          email?: string
+          name?: string
+          notes?: string | null
+          role: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          applied_at?: string
+          approved_at?: string | null
+          email?: string
+          name?: string
+          notes?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       author_earnings: {
         Row: {
           amount: number
@@ -479,21 +515,36 @@ export type Database = {
       }
       publishers: {
         Row: {
+          account_type: string
+          approval_notes: string | null
+          approval_status: string
+          approved_at: string | null
           author_code: string
+          email: string | null
           bio: string | null
           created_at: string
           id: string
           store_name: string
         }
         Insert: {
+          account_type?: string
+          approval_notes?: string | null
+          approval_status?: string
+          approved_at?: string | null
           author_code?: string
+          email?: string | null
           bio?: string | null
           created_at?: string
           id: string
           store_name: string
         }
         Update: {
+          account_type?: string
+          approval_notes?: string | null
+          approval_status?: string
+          approved_at?: string | null
           author_code?: string
+          email?: string | null
           bio?: string | null
           created_at?: string
           id?: string
@@ -550,6 +601,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_account_approval: {
+        Args: {
+          _email: string
+          _name: string
+          _notes?: string | null
+          _role: string
+          _status: string
+          _user_id: string
+        }
+        Returns: Database["public"]["Tables"]["account_approvals"]["Row"]
+      }
+      upsert_my_account_approval: {
+        Args: {
+          _email: string
+          _name: string
+          _role: string
+          _user_id: string
+        }
+        Returns: Database["public"]["Tables"]["account_approvals"]["Row"]
+      }
       can_access_book_file: { Args: { _path: string }; Returns: boolean }
       has_role: {
         Args: {

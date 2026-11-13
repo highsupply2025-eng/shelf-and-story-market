@@ -26,6 +26,7 @@ import {
 import {
   getAccountApprovals,
   getUserApprovalStatus,
+  syncAccountApprovalsFromDb,
   updateAccountApprovalStatus,
 } from "@/lib/admin-store";
 import { useLocale } from "@/lib/locale";
@@ -53,12 +54,13 @@ export function AdminAuthorsPanel() {
     queryKey: ["admin-authors-list"],
     queryFn: async () => {
       try {
+        await syncAccountApprovalsFromDb();
         const { data, error } = await supabase
           .from("publishers")
           .select("*, manuscripts(*), books(*)")
           .order("created_at", { ascending: false });
         if (error) return [];
-        return data || [];
+        return (data || []).filter((p: any) => p.account_type !== "publisher");
       } catch {
         return [];
       }
@@ -158,26 +160,29 @@ export function AdminAuthorsPanel() {
   }
 
   // Handle author account status update
-  function handleSetAuthorStatus(
+  async function handleSetAuthorStatus(
     authorId: string,
     authorName: string,
     authorEmail: string | undefined,
     status: "approved" | "rejected" | "pending"
   ) {
-    updateAccountApprovalStatus(authorId, status, undefined, {
+    setBusy(true);
+    await updateAccountApprovalStatus(authorId, status, undefined, {
       role: "author",
       name: authorName,
       email: authorEmail || "",
     });
+    setBusy(false);
     setTick((n) => n + 1);
     toast.success(
       status === "approved"
-        ? `تم اعتماد حساب المؤلف (${authorName}) بنجاح وفتح صلاحيات النشر الكاملة`
+        ? `تم اعتماد حساب المؤلف (${authorName}) وحفظ الموافقة في قاعدة البيانات`
         : status === "rejected"
-          ? `تم تعليق/رفض حساب المؤلف (${authorName})`
+          ? `تم تعليق/رفض حساب المؤلف (${authorName}) في قاعدة البيانات`
           : `تم تعيين حساب المؤلف (${authorName}) قيد المراجعة`
     );
     refetchAuthors();
+    qc.invalidateQueries();
   }
 
   // Handle payout review

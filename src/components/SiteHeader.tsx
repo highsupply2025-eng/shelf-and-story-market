@@ -32,7 +32,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth, clearLocalSession } from "@/lib/auth";
-import { getUserApprovalStatus } from "@/lib/admin-store";
+import { getUserApprovalStatus, syncMyApprovalFromDb } from "@/lib/admin-store";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,14 @@ export function SiteHeader() {
   const { t, language, currency, currentCountry, set } = useLocale();
   const { session, isAdmin, accountType } = useAuth();
   const [, setApprovalTick] = useState(0);
+
+  useEffect(() => {
+    if (session && !isAdmin) {
+      void syncMyApprovalFromDb(session.user.id, session.user.email).then(() => {
+        setApprovalTick((n) => n + 1);
+      });
+    }
+  }, [session, isAdmin, accountType]);
 
   useEffect(() => {
     const onUpdate = () => setApprovalTick((n) => n + 1);
@@ -175,12 +183,11 @@ export function SiteHeader() {
 
   // Check whether a Reader, Author, or Publisher account is logged in
   const isUserAccountLogged = Boolean(session) && !isAdmin;
-  const approvalStatus =
-    isAdmin || effectiveAccountType === "reader"
-      ? "approved"
-      : session
-        ? getUserApprovalStatus(session.user.id, session.user.email, effectiveAccountType)
-        : "pending";
+  const approvalStatus = isAdmin
+    ? "approved"
+    : session
+      ? getUserApprovalStatus(session.user.id, session.user.email, effectiveAccountType)
+      : "pending";
 
   const showCart = !session || effectiveAccountType === "reader" || isAdmin;
 

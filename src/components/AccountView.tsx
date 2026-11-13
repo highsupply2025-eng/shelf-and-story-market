@@ -488,11 +488,26 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
     setLocalFavIdsState(next);
     setLocalFavoriteIds(session?.user.id, next);
     if (exists) {
-      supabase.from("reader_favorites").delete().eq("book_id", bookId).then(() => {
-        qc.invalidateQueries({ queryKey: ["favorites"] });
-      });
+      if (session?.user?.id) {
+        supabase
+          .from("reader_favorites")
+          .delete()
+          .eq("user_id", session.user.id)
+          .eq("book_id", bookId)
+          .then(() => {
+            qc.invalidateQueries({ queryKey: ["favorites"] });
+          });
+      }
       toast.info(l.t("تمت إزالة الكتاب من المفضلة", "Removed from favorites"));
     } else {
+      if (session?.user?.id) {
+        supabase
+          .from("reader_favorites")
+          .upsert({ user_id: session.user.id, book_id: bookId }, { onConflict: "user_id,book_id" })
+          .then(() => {
+            qc.invalidateQueries({ queryKey: ["favorites"] });
+          });
+      }
       toast.success(l.t("تمت إضافة الكتاب إلى المفضلة", "Added to favorites"));
     }
   }

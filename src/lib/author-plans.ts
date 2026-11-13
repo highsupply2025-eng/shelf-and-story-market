@@ -159,6 +159,19 @@ export async function getUserPlanRequest(userId: string): Promise<AuthorPlanRequ
   return found || null;
 }
 
+export function hasUsedFreePlan(userId: string | undefined, metadata?: Record<string, unknown>): boolean {
+  if (!userId) return false;
+  if (metadata?.["free_plan_used"] === true) return true;
+  if (typeof window !== "undefined") {
+    try {
+      if (window.localStorage.getItem(`unibook_free_plan_used_${userId}`) === "1") return true;
+    } catch {
+      /* ignore */
+    }
+  }
+  return getLocalRequests().some((r) => r.userId === userId && r.price === 0);
+}
+
 /**
  * Submit a new plan request with wallet transfer details
  */
@@ -176,6 +189,9 @@ export async function submitPlanRequest(params: {
   notes?: string;
 }): Promise<AuthorPlanRequest> {
   const isFree = params.price === 0;
+  if (isFree && hasUsedFreePlan(params.userId)) {
+    throw new Error("FREE_PLAN_ALREADY_USED");
+  }
   const nowIso = new Date().toISOString();
   const newReq: AuthorPlanRequest = {
     id: crypto.randomUUID(),
@@ -198,6 +214,7 @@ export async function submitPlanRequest(params: {
   if (isFree && typeof window !== "undefined") {
     try {
       window.localStorage.setItem("unibook_selected_plan_title", params.planTitle);
+      window.localStorage.setItem(`unibook_free_plan_used_${params.userId}`, "1");
     } catch {
       /* ignore */
     }
@@ -249,6 +266,14 @@ export async function submitPlanRequest(params: {
     }
   } catch (err) {
     console.error("Could not sync plan request to publishers table:", err);
+  }
+
+  if (isFree) {
+    try {
+      await supabase.auth.updateUser({ data: { free_plan_used: true } });
+    } catch {
+      /* ignore */
+    }
   }
 
   return newReq;

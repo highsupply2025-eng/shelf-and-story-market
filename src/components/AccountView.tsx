@@ -41,6 +41,7 @@ import {
   getUserPlanRequest,
   submitPlanRequest,
   getAdminWalletNumber,
+  hasUsedFreePlan,
 } from "@/lib/author-plans";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -304,7 +305,20 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
     return "plan-1";
   });
 
+  const freePlanUsed = session
+    ? hasUsedFreePlan(session.user.id, session.user.user_metadata as Record<string, unknown> | undefined)
+    : false;
+
   function handleSelectPlan(plan: PublishingPlan) {
+    if (plan.price === 0 && freePlanUsed) {
+      toast.error(
+        l.t(
+          "يمكن اختيار الخطة المجانية مرة واحدة فقط للحساب؛ يمكنك اختيار إحدى الباقات المدفوعة.",
+          "The free plan can only be used once per account; please choose a paid plan."
+        )
+      );
+      return;
+    }
     setAuthorNameInput(
       profile.display_name || publisher?.store_name || session?.user.email?.split("@")[0] || ""
     );
@@ -962,6 +976,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
                   <div className="mt-8 pt-4">
                     <Button
                       onClick={() => handleSelectPlan(plan)}
+                      disabled={plan.price === 0 && freePlanUsed}
                       variant={plan.featured ? "default" : "outline"}
                       className={`w-full rounded-xl py-6 font-bold shadow-xs cursor-pointer transition-all ${
                         plan.featured
@@ -969,8 +984,10 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
                           : "border-border hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
                       }`}
                     >
-                      {plan.ctaText}
-                      <ArrowRight className="ms-2 h-4 w-4 rtl:rotate-180" />
+                      {plan.price === 0 && freePlanUsed
+                        ? l.t("تم استخدامها مسبقاً (مرة واحدة للحساب)", "Already used (once per account)")
+                        : plan.ctaText}
+                      {!(plan.price === 0 && freePlanUsed) && <ArrowRight className="ms-2 h-4 w-4 rtl:rotate-180" />}
                     </Button>
                   </div>
                 </div>

@@ -21,6 +21,13 @@ import {
   Package,
   Settings,
   Coins,
+  FileUp,
+  Receipt,
+  Wallet,
+  UserCheck,
+  FileCheck2,
+  HelpCircle,
+  Wand2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -33,6 +40,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth, clearLocalSession } from "@/lib/auth";
 import { getUserApprovalStatus, syncMyApprovalFromDb } from "@/lib/admin-store";
+import { isAuthorProfileComplete, loadAuthorProfile } from "@/components/AuthorProfileForm";
 import { useCart } from "@/lib/cart";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -76,6 +84,14 @@ export function SiteHeader() {
     }
     navigate({ to: "/account" });
   }
+
+  function selectAuthorTab(tabName: "projects" | "new" | "invoices" | "books" | "earnings" | "blurb" | "contracts" | "guidelines" | "profile") {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("unibook_author_tab", tabName);
+      window.dispatchEvent(new CustomEvent("unibook_author_tab", { detail: tabName }));
+    }
+    navigate({ to: "/author" });
+  }
   const { count } = useCart();
   const { isAppExperience } = useAppMode();
   const navigate = useNavigate();
@@ -89,11 +105,6 @@ export function SiteHeader() {
       await supabase.auth.signOut({ scope: "local" });
     } catch (err) {
       console.warn("Sign out notice:", err);
-    }
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      /* ignore */
     }
     toast.success(t("تم تسجيل الخروج بنجاح", "Logged out successfully"));
     if (typeof window !== "undefined") {
@@ -183,6 +194,10 @@ export function SiteHeader() {
 
   // Check whether a Reader, Author, or Publisher account is logged in
   const isUserAccountLogged = Boolean(session) && !isAdmin;
+  const authorProfileComplete =
+    effectiveAccountType === "author" && session
+      ? isAuthorProfileComplete(loadAuthorProfile(session.user.id, session.user.user_metadata as Record<string, unknown> | undefined))
+      : true;
   const approvalStatus = isAdmin
     ? "approved"
     : session
@@ -458,6 +473,82 @@ export function SiteHeader() {
                       <span>{t("طلباتي", "My Orders")}</span>
                     </DropdownMenuItem>
                   </>
+                ) : approvalStatus === "approved" && effectiveAccountType === "author" ? (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => selectAuthorTab("projects")}
+                      className="p-2.5 rounded-xl font-bold cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary my-0.5"
+                    >
+                      <LayoutDashboard className="me-2 h-4 w-4 text-primary" />
+                      <span>{t("استوديو المؤلف والإنتاج", "Author Studio & Production")}</span>
+                      <span className="ms-auto rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-extrabold text-primary">
+                        {t("الرئيسية", "Home")}
+                      </span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectAuthorTab("new")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <FileUp className="me-2 h-4 w-4 text-emerald-600" />
+                      <span>{t("رفع ملف مؤلف جديد", "Upload New File")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectAuthorTab("invoices")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <Receipt className="me-2 h-4 w-4 text-amber-600" />
+                      <span>{t("إيصالات الدفع والفواتير", "Payment Receipts & Invoices")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectAuthorTab("books")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <BookOpen className="me-2 h-4 w-4 text-blue-600" />
+                      <span>{t("كتبي المنشورة", "My Published Books")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectAuthorTab("earnings")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <Wallet className="me-2 h-4 w-4 text-emerald-600" />
+                      <span>{t("المبيعات والأرباح", "Sales & Earnings")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectAuthorTab("blurb")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <Wand2 className="me-2 h-4 w-4 text-purple-600" />
+                      <span>{t("نبذة تسويقية بالذكاء الاصطناعي", "AI Marketing Blurb")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectAuthorTab("contracts")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <FileCheck2 className="me-2 h-4 w-4 text-emerald-600" />
+                      <span>{t("عقود النشر والحقوق", "Contracts & Rights")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectAuthorTab("guidelines")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <HelpCircle className="me-2 h-4 w-4 text-sky-600" />
+                      <span>{t("دليل النشر والدعم", "Guidelines & Support")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer font-semibold">
+                      <Link to="/author" search={{ view: "plans" }}>
+                        <Sparkles className="me-2 h-4 w-4 text-amber-600" />
+                        <span>{t("باقات النشر الستة", "Publishing Plans")}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
                 ) : (
                   <DropdownMenuItem asChild className="p-2.5 rounded-xl font-bold cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary my-1">
                     <Link to={roleConfig.to}>
@@ -468,15 +559,6 @@ export function SiteHeader() {
                           : t("متابعة حالة المراجعة", "Application Review Status")}
                       </span>
                       <ArrowUpRight className="ms-auto h-3.5 w-3.5 opacity-60" />
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-
-                {approvalStatus === "approved" && effectiveAccountType === "author" && (
-                  <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
-                    <Link to="/author" search={{ view: "plans" }}>
-                      <Sparkles className="me-2 h-4 w-4 text-amber-600" />
-                      <span>{t("باقات النشر الستة", "Publishing Plans")}</span>
                     </Link>
                   </DropdownMenuItem>
                 )}
@@ -507,7 +589,7 @@ export function SiteHeader() {
 
                 <DropdownMenuSeparator />
 
-                {/* بيانات الحساب — right before اللغة / تغيير اللغة */}
+                {/* بيانات الحساب / المؤلف — right before اللغة / تغيير اللغة */}
                 {approvalStatus === "approved" && effectiveAccountType === "reader" && (
                   <DropdownMenuItem
                     onClick={() => selectReaderTab("settings")}
@@ -515,6 +597,23 @@ export function SiteHeader() {
                   >
                     <Settings className="me-2 h-4 w-4 text-muted-foreground" />
                     <span>{t("بيانات الحساب", "Account Details")}</span>
+                  </DropdownMenuItem>
+                )}
+
+                {approvalStatus === "approved" && effectiveAccountType === "author" && (
+                  <DropdownMenuItem
+                    onClick={() => selectAuthorTab("profile")}
+                    className="p-2 rounded-lg cursor-pointer font-semibold flex items-center justify-between"
+                  >
+                    <div className="flex items-center">
+                      <UserCheck className="me-2 h-4 w-4 text-primary" />
+                      <span>{t("بيانات المؤلف", "Author Profile")}</span>
+                    </div>
+                    {!authorProfileComplete && (
+                      <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                        {t("أكملها", "Required")}
+                      </span>
+                    )}
                   </DropdownMenuItem>
                 )}
 

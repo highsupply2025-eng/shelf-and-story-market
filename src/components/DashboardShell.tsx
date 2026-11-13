@@ -118,6 +118,10 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
     return <p className="p-16 text-center text-muted-foreground">{l.t("جارٍ التحميل…", "Loading…")}</p>;
   }
 
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
+
   if (effectiveRole !== "admin" && effectiveRole !== role) {
     return <Navigate to={ROLE_HOME[effectiveRole]} replace />;
   }
@@ -140,11 +144,6 @@ export function DashboardShell({ role, children }: { role: Exclude<UserRoleType,
     clearLocalSession();
     try {
       await supabase.auth.signOut({ scope: "local" });
-    } catch {
-      /* ignore */
-    }
-    try {
-      await supabase.auth.signOut();
     } catch {
       /* ignore */
     }

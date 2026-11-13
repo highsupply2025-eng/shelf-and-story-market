@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AuthorStudio } from "@/components/AuthorStudio";
 import { AccountView } from "@/components/AccountView";
@@ -27,6 +28,17 @@ function AuthorPage() {
   const l = useLocale();
   const { view = "studio" } = Route.useSearch();
   const navigate = useNavigate({ from: "/author" });
+
+  useEffect(() => {
+    const onTab = () => {
+      if (view === "plans") {
+        void navigate({ search: {} });
+      }
+    };
+    window.addEventListener("unibook_author_tab", onTab);
+    return () => window.removeEventListener("unibook_author_tab", onTab);
+  }, [view, navigate]);
+
   const item = (v: View, label: string, Icon: typeof PenLine) => (
     <button
       type="button"

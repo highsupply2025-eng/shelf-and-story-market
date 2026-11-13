@@ -16,6 +16,8 @@ const LEGACY_LOCAL_KEYS = [
 
 export function isNetworkOrFetchError(err: unknown): boolean {
   if (!err) return false;
+  const status = (err as { status?: number })?.status;
+  if (typeof status === "number" && status >= 400) return false;
   const msg =
     typeof err === "string"
       ? err

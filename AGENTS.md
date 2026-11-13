@@ -17,3 +17,5 @@
 
 - Native apps are Capacitor shells (android/, ios/) loading the published site and built by .github/workflows/build-mobile.yml; never ship an unsigned iOS bundle as an IPA.
 - Admin access is decided only by the database `has_role` check (server functions use requireSupabaseAuth + has_role); never add client-side PINs, master passwords or localStorage admin flags — they ship in the public bundle.
+- Accounts exist only in Lovable Cloud auth; never add a browser/localStorage fallback account system — it creates accounts admins can never see.
+- Author/publisher approval state belongs in the database `account_applications` table (sign-up trigger + admin-only `review_account_application` RPC); never store approvals in localStorage. Migration file is in supabase/migrations and must be applied byte-for-byte before switching the admin panels to it.

@@ -1,6 +1,6 @@
 import { useLocale } from "@/lib/locale";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -8,6 +8,7 @@ import { useAuth, isNetworkOrFetchError, metadataAccountType } from "@/lib/auth"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import {
   Eye,
   EyeOff,
@@ -24,6 +25,7 @@ import {
   Globe2,
   UserPlus,
   LogIn,
+  RefreshCw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
@@ -46,11 +48,21 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [resetMode, setResetMode] = useState(false);
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const verifyingPasswordRef = useRef(false);
   const { session, refresh, isAdmin, accountType } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (session) {
+    if (otpCountdown <= 0) return;
+    const timer = setTimeout(() => setOtpCountdown((prev) => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [otpCountdown]);
+
+  useEffect(() => {
+    if (session && !verifyingPasswordRef.current && !otpStep) {
       const resolved = metadataAccountType(session) || accountType;
 
       if (isAdmin) {
@@ -63,7 +75,7 @@ function LoginPage() {
         navigate({ to: "/account" });
       }
     }
-  }, [session, isAdmin, accountType, navigate]);
+  }, [session, isAdmin, accountType, otpStep, navigate]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -104,11 +116,14 @@ function LoginPage() {
     }
 
     try {
+      verifyingPasswordRef.current = true;
+      const email = form.email.trim();
       const { error } = await supabase.auth.signInWithPassword({
-        email: form.email.trim(),
+        email,
         password: form.password,
       });
       if (error) {
+        verifyingPasswordRef.current = false;
         if (isNetworkOrFetchError(error)) {
           toast.error(
             t(
@@ -127,11 +142,40 @@ function LoginPage() {
           toast.error(t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));
         }
       } else {
-        toast.success(t("تم تسجيل الدخول بنجاح! مرحباً بك.", "Logged in successfully!"));
-        // The effect above sends the user to their own dashboard once roles load.
-        await refresh();
+        await supabase.auth.signOut({ scope: "local" });
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: false,
+            emailRedirectTo: `${window.location.origin}/login`,
+          },
+        });
+        verifyingPasswordRef.current = false;
+        if (otpError) {
+          if (isNetworkOrFetchError(otpError)) {
+            toast.error(
+              t(
+                "الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد قليل.",
+                "Service temporarily unavailable, please try again shortly."
+              )
+            );
+          } else {
+            toast.error(otpError.message || t("تعذر إرسال كود التحقق", "Failed to send verification code"));
+          }
+        } else {
+          setOtpCode("");
+          setOtpStep(true);
+          setOtpCountdown(60);
+          toast.success(
+            t(
+              "تم إرسال كود التحقق إلى بريدك الإلكتروني! أدخله لإتمام الدخول.",
+              "Verification code sent to your email! Enter it to complete sign in."
+            )
+          );
+        }
       }
     } catch {
+      verifyingPasswordRef.current = false;
       toast.error(
         t(
           "الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد قليل.",
@@ -140,6 +184,68 @@ function LoginPage() {
       );
     }
     setBusy(false);
+  }
+
+  async function handleResendOtp() {
+    const email = form.email.trim();
+    if (!email) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
+      });
+      if (error) {
+        toast.error(error.message || t("تعذر إعادة إرسال الكود", "Failed to resend code"));
+      } else {
+        setOtpCountdown(60);
+        toast.success(t("تم إرسال كود جديد إلى بريدك الإلكتروني", "A new code has been sent to your email"));
+      }
+    } catch {
+      toast.error(t("تعذر إعادة إرسال الكود", "Failed to resend code"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleVerifyOtp(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    const token = otpCode.trim();
+    if (!token || token.length < 8) {
+      toast.error(t("يرجى إدخال كود التحقق المكوّن من 8 أرقام", "Please enter the 8-digit verification code"));
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: form.email.trim(),
+        token,
+        type: "email",
+      });
+      if (error) {
+        if (isNetworkOrFetchError(error)) {
+          toast.error(
+            t(
+              "الخدمة غير متاحة مؤقتاً، يرجى المحاولة بعد قليل.",
+              "Service temporarily unavailable, please try again shortly."
+            )
+          );
+        } else {
+          toast.error(t("كود التحقق غير صحيح أو منتهي الصلاحية", "Invalid or expired verification code"));
+        }
+      } else {
+        setOtpStep(false);
+        toast.success(t("تم التحقق وتسجيل الدخول بنجاح! مرحباً بك.", "Verified and signed in successfully!"));
+        await refresh();
+      }
+    } catch {
+      toast.error(t("تعذر التحقق من الكود", "Failed to verify code"));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleGoogle() {
@@ -218,7 +324,7 @@ function LoginPage() {
           )}
         </div>
 
-        {!resetMode && (
+        {!resetMode && !otpStep && (
           <>
             {/* Google OAuth Button */}
             <Button
@@ -262,7 +368,101 @@ function LoginPage() {
           </>
         )}
 
-        {/* Form */}
+        {/* OTP Verification Step */}
+        {otpStep && !resetMode ? (
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-center space-y-1">
+              <p className="text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
+                {t("تم إرسال كود التحقق إلى بريدك الإلكتروني!", "Verification code sent to your email!")}
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {t("أدخل الكود المكوّن من 8 أرقام المرسل إلى", "Enter the 8-digit code sent to")}{" "}
+                <strong className="font-mono text-foreground" dir="ltr">{form.email.trim()}</strong>
+              </p>
+            </div>
+
+            <div className="text-center py-1">
+              <label className="text-xs font-bold text-foreground block mb-2">
+                {t("كود التحقق (8 أرقام):", "Verification Code (8 digits):")}
+              </label>
+              <div className="flex justify-center" dir="ltr">
+                <InputOTP
+                  maxLength={8}
+                  value={otpCode}
+                  onChange={(val) => {
+                    setOtpCode(val);
+                    if (val.length === 8) {
+                      setTimeout(() => {
+                        const btn = document.getElementById("login-verify-otp-btn");
+                        btn?.click();
+                      }, 100);
+                    }
+                  }}
+                  autoFocus
+                >
+                  <InputOTPGroup className="gap-1.5 sm:gap-2">
+                    {Array.from({ length: 8 }).map((_, index) => (
+                      <InputOTPSlot
+                        key={index}
+                        index={index}
+                        className="h-10 w-8 sm:h-11 sm:w-10 rounded-lg sm:rounded-xl text-lg sm:text-xl font-bold border-border/80 focus:border-primary shadow-xs"
+                      />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+            </div>
+
+            <Button
+              id="login-verify-otp-btn"
+              type="submit"
+              className="w-full h-12 rounded-2xl font-extrabold text-sm shadow-md hover:shadow-lg transition-transform active:scale-[0.99] cursor-pointer gap-2"
+              disabled={busy || otpCode.length < 8}
+            >
+              {busy ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("جاري التحقق من الكود...", "Verifying code...")}
+                </span>
+              ) : (
+                <>
+                  <ShieldCheck className="h-4.5 w-4.5" />
+                  <span>{t("تأكيد الكود والدخول", "Verify Code & Sign In")}</span>
+                </>
+              )}
+            </Button>
+
+            <div className="flex items-center justify-between pt-1 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpStep(false);
+                  setOtpCode("");
+                }}
+                className="text-muted-foreground hover:text-foreground font-semibold flex items-center gap-1 cursor-pointer"
+              >
+                <BackIcon className="h-3.5 w-3.5" />
+                <span>{t("الرجوع", "Back")}</span>
+              </button>
+
+              {otpCountdown > 0 ? (
+                <span className="text-muted-foreground text-[11px] font-mono">
+                  {t(`إعادة الإرسال بعد (${otpCountdown} ث)`, `Resend in (${otpCountdown}s)`)}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={busy}
+                  className="text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>{t("إعادة إرسال الكود", "Resend code")}</span>
+                </button>
+              )}
+            </div>
+          </form>
+        ) : (
         <form onSubmit={handleLogin} className="space-y-4">
           {/* Email */}
           <div className="space-y-1.5">
@@ -284,7 +484,7 @@ function LoginPage() {
           </div>
 
           {/* Password (if not in reset mode) */}
-          {!resetMode && (
+          {!resetMode && !otpStep && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="loginPassword" className="text-xs font-bold text-foreground/90">
@@ -347,6 +547,7 @@ function LoginPage() {
             )}
           </Button>
         </form>
+        )}
 
         {/* Footer Navigation */}
         <div className="mt-6 text-center pt-3 border-t border-border/50">

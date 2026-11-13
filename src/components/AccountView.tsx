@@ -841,11 +841,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab} className="mt-8">
         <TabsList
-          className={
-            accountMode === "reader"
-              ? "hidden"
-              : "h-auto flex-wrap gap-1.5 p-1.5 bg-muted/70 rounded-2xl border border-border/60"
-          }
+          className="hidden"
         >
           {accountMode !== "reader" && (
             <>

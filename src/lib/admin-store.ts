@@ -191,16 +191,16 @@ export function getUserApprovalStatus(
   if (found) {
     // If the stored record is an author or publisher, strictly use its approval status
     if (found.role === "author" || found.role === "publisher") {
-      return found.status;
+      return found.status === "rejected" ? "rejected" : "approved";
     }
     if (found.role === "reader" && found.status !== "rejected") {
       return "approved";
     }
-    return found.status;
+    return found.status === "rejected" ? "rejected" : "approved";
   }
 
   if (role === "reader") return "approved";
-  return "pending";
+  return "approved";
 }
 
 export function ensureAccountApprovalRecord(params: {
@@ -233,12 +233,12 @@ export function ensureAccountApprovalRecord(params: {
     if (params.role && existing.role !== params.role && canChangeRole) {
       existing.role = params.role;
       if (params.role === "author" || params.role === "publisher") {
-        existing.status = "pending";
-        delete existing.approvedAt;
+        existing.status = "approved";
+        existing.approvedAt = new Date().toISOString();
       }
       changed = true;
     }
-    if (existing.role === "reader" && existing.status === "pending") {
+    if (existing.status === "pending") {
       existing.status = "approved";
       existing.approvedAt = new Date().toISOString();
       changed = true;
@@ -258,15 +258,15 @@ export function ensureAccountApprovalRecord(params: {
     return existing;
   }
 
-  const isReader = params.role === "reader";
+
   const created: AccountApproval = {
     userId: params.userId,
     role: params.role,
     name: params.name || normalizedEmail.split("@")[0] || "مستخدم المنصة",
     email: normalizedEmail,
-    status: isReader ? "approved" : "pending",
+    status: "approved",
     appliedAt: new Date().toISOString(),
-    approvedAt: isReader ? new Date().toISOString() : undefined,
+    approvedAt: new Date().toISOString(),
   };
   current.unshift(created);
   setStorageItem(APPROVALS_KEY, current);

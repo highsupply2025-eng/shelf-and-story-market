@@ -77,8 +77,8 @@ function RegisterPage() {
 
     const successMessages = {
       reader: t("تم إنشاء حسابك كقارئ بنجاح! أهلاً بك في مكتبتك.", "Reader account created successfully! Welcome to your library."),
-      author: t("تم استلام طلب حساب المؤلف! حسابك الآن تحت المراجعة بانتظار موافقة الإدارة.", "Author account submitted for admin review!"),
-      publisher: t("تم استلام طلب حساب دار النشر! حسابك الآن تحت المراجعة بانتظار موافقة الإدارة.", "Publisher account submitted for admin review!"),
+      author: t("تم إنشاء حساب المؤلف بنجاح!", "Author account created successfully!"),
+      publisher: t("تم إنشاء حساب دار النشر بنجاح!", "Publisher account created successfully!"),
     };
 
     const unavailable = () =>
@@ -128,7 +128,7 @@ function RegisterPage() {
         navigate({ to: "/login" });
       } else {
         if (data.user) {
-          const initialApprovalStatus = accountType === "reader" ? "approved" : "pending";
+          const initialApprovalStatus = "approved";
           if (accountType === "author" || accountType === "publisher") {
             await supabase.from("publishers").upsert(
               {

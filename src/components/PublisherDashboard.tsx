@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -20,6 +20,9 @@ import {
   Save,
   Layers,
   Sparkles,
+  Truck,
+  BarChart3,
+  ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -47,8 +50,35 @@ export function PublisherDashboard() {
   const qc = useQueryClient();
   const uid = session?.user.id;
 
-  const [activeTab, setActiveTab] = useState("books");
-  const [newBookDialogOpen, setNewBookDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.sessionStorage.getItem("unibook_publisher_tab");
+      if (saved === "new-book") return "books";
+      if (saved) return saved;
+    }
+    return "books";
+  });
+  const [newBookDialogOpen, setNewBookDialogOpen] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return window.sessionStorage.getItem("unibook_publisher_tab") === "new-book";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const onTab = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (!detail) return;
+      if (detail === "new-book") {
+        setActiveTab("books");
+        setNewBookDialogOpen(true);
+      } else {
+        setActiveTab(detail);
+      }
+    };
+    window.addEventListener("unibook_publisher_tab", onTab);
+    return () => window.removeEventListener("unibook_publisher_tab", onTab);
+  }, []);
   const [submittingBook, setSubmittingBook] = useState(false);
 
   // New Book Form State
@@ -262,16 +292,28 @@ export function PublisherDashboard() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="h-12 w-full justify-start rounded-2xl bg-muted/70 p-1.5 border border-border/70">
-          <TabsTrigger value="books" className="rounded-xl px-5 text-sm font-bold gap-2">
+        <TabsList className="h-auto w-full flex-wrap justify-start rounded-2xl bg-muted/70 p-1.5 border border-border/70 gap-1">
+          <TabsTrigger value="books" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
             <BookOpen className="h-4 w-4" />
             {t("كتالوج إصدارات الدار", "Books Catalog")} ({books.length})
           </TabsTrigger>
-          <TabsTrigger value="sales" className="rounded-xl px-5 text-sm font-bold gap-2">
+          <TabsTrigger value="sales" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
             <TrendingUp className="h-4 w-4" />
             {t("المبيعات والأرباح", "Sales & Royalties")}
           </TabsTrigger>
-          <TabsTrigger value="profile" className="rounded-xl px-5 text-sm font-bold gap-2">
+          <TabsTrigger value="orders" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
+            <Truck className="h-4 w-4" />
+            {t("طلبات الشحن والتوزيع", "Shipping & Orders")}
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
+            <BarChart3 className="h-4 w-4" />
+            {t("التقارير والتحليلات", "Reports & Analytics")}
+          </TabsTrigger>
+          <TabsTrigger value="contracts" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            {t("التراخيص والاتفاقيات", "Licenses & Contracts")}
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
             <Building2 className="h-4 w-4" />
             {t("الملف التعريفي لدار النشر", "Publisher Profile")}
           </TabsTrigger>
@@ -456,6 +498,122 @@ export function PublisherDashboard() {
                 {t("حفظ التعديلات", "Save Changes")}
               </Button>
             </form>
+          </div>
+        </TabsContent>
+
+        {/* Tab 4: Shipping & Orders */}
+        <TabsContent value="orders" className="space-y-4">
+          <div className="rounded-2xl border bg-card p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-primary" />
+                  <span>{t("طلبات الشحن والمخزون الورقي", "Physical Stock & Shipping Orders")}</span>
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("متابعة توفر النسخ الورقية للكتب الصادرة عن الدار وحالة تجهيز الشحن.", "Monitor physical book stock and shipping readiness.")}
+                </p>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => setActiveTab("books")} className="rounded-xl text-xs font-bold">
+                {t("عرض الكتالوج", "View Catalog")}
+              </Button>
+            </div>
+            {books.length === 0 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                {t("لا توجد إصدارات مسجلة لدار النشر بعد لمتابعة مخزونها.", "No books registered yet to track stock.")}
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {books.map((b) => (
+                  <div key={b.id} className="rounded-xl border bg-muted/30 p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-bold text-sm line-clamp-1">{b.title}</h3>
+                      <Badge variant="outline" className="text-[10px]">
+                        {b.format === "digital" ? t("رقمي", "Digital") : b.format === "physical" ? t("ورقي", "Print") : t("رقمي وورقي", "Both")}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t("المخزون المتاح:", "Available Stock:")} <strong className="text-foreground">{b.stock ?? 0}</strong>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Tab 5: Reports & Analytics */}
+        <TabsContent value="analytics" className="space-y-4">
+          <div className="rounded-2xl border bg-card p-6 space-y-5">
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                <span>{t("التقارير والتحليلات التفصيلية", "Catalog & Sales Analytics")}</span>
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("ملخص أداء إصدارات الدار ونسب الاعتماد والمبيعات.", "Overview of catalog approval rates, formats, and sales.")}
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">{t("إصدارات رقمية / مزدوجة", "Digital / Hybrid Titles")}</p>
+                <p className="mt-1 text-2xl font-extrabold text-primary">
+                  {books.filter((b) => b.format === "digital" || b.format === "both").length}
+                </p>
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">{t("إصدارات ورقية / مزدوجة", "Print / Hybrid Titles")}</p>
+                <p className="mt-1 text-2xl font-extrabold text-amber-600">
+                  {books.filter((b) => b.format === "physical" || b.format === "both").length}
+                </p>
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">{t("النسخ المباعة", "Copies Sold")}</p>
+                <p className="mt-1 text-2xl font-extrabold text-emerald-600">
+                  {earnings.filter((e) => !e.reversed).reduce((s, e) => s + Number(e.quantity || 0), 0)}
+                </p>
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">{t("صافي الأرباح المسجلة", "Net Recorded Royalties")}</p>
+                <p className="mt-1 text-2xl font-extrabold text-foreground">
+                  {formatPrice(earnings.filter((e) => !e.reversed).reduce((s, e) => s + Number(e.amount || 0), 0))}
+                </p>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Tab 6: Licenses & Contracts */}
+        <TabsContent value="contracts" className="space-y-4">
+          <div className="rounded-2xl border bg-card p-6 md:p-8 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                <span>{t("تراخيص دار النشر واتفاقية التوزيع", "Publisher Licensing & Distribution Terms")}</span>
+              </h2>
+              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                {t("حساب دار نشر معتمد", "Verified Publisher")}
+              </Badge>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3 text-sm">
+              <div className="rounded-xl border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">{t("كود الدار المرجعي", "Publisher Code")}</p>
+                <p className="mt-1 font-mono font-bold text-primary">{publisher?.author_code || "PUB-UNIBOOK"}</p>
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">{t("تغطية النشر الرقمي", "Digital Distribution")}</p>
+                <p className="mt-1 font-bold text-emerald-600">{t("تفعيل عالمي فوري", "Global Instant Access")}</p>
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">{t("دعم الشحن واللوجستيات", "Shipping & Fulfillment")}</p>
+                <p className="mt-1 font-bold text-foreground">{t("متابعة مركزية عبر المنصة", "Managed via unibook")}</p>
+              </div>
+            </div>
+            <ul className="space-y-2 text-sm text-muted-foreground list-disc ps-5">
+              <li>{t("تلتزم دار النشر بملكية حقوق النشر والتوزيع لجميع الكتب المضافة في الكتالوج.", "The publisher certifies ownership of publishing and distribution rights for all listed titles.")}</li>
+              <li>{t("تُراجع الكتب الجديدة علمياً وفنياً قبل ظهورها العام في متجر unibook.", "New titles undergo editorial and technical review before store publication.")}</li>
+              <li>{t("يمكن للدار تحديث ملفها التعريفي وإضافة إصدارات غير محدودة في أي وقت.", "Publishers can update their profile and add titles anytime.")}</li>
+            </ul>
           </div>
         </TabsContent>
       </Tabs>

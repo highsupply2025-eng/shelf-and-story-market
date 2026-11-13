@@ -29,6 +29,10 @@ import {
   HelpCircle,
   Wand2,
   Check,
+  PlusCircle,
+  Truck,
+  BarChart3,
+  TrendingUp,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -95,6 +99,14 @@ export function SiteHeader() {
       window.dispatchEvent(new CustomEvent("unibook_author_tab", { detail: tabName }));
     }
     navigate({ to: "/author" });
+  }
+
+  function selectPublisherTab(tabName: "books" | "new-book" | "sales" | "orders" | "analytics" | "contracts" | "profile") {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("unibook_publisher_tab", tabName);
+      window.dispatchEvent(new CustomEvent("unibook_publisher_tab", { detail: tabName }));
+    }
+    navigate({ to: "/publisher" });
   }
   const { count } = useCart();
   const { isAppExperience } = useAppMode();
@@ -553,6 +565,59 @@ export function SiteHeader() {
                       </Link>
                     </DropdownMenuItem>
                   </>
+                ) : approvalStatus === "approved" && effectiveAccountType === "publisher" ? (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => selectPublisherTab("books")}
+                      className="p-2.5 rounded-xl font-bold cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary my-0.5"
+                    >
+                      <LayoutDashboard className="me-2 h-4 w-4 text-primary" />
+                      <span>{t("لوحة دار النشر والكتالوج", "Publisher Catalog")}</span>
+                      <span className="ms-auto rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-extrabold text-primary">
+                        {t("الرئيسية", "Home")}
+                      </span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectPublisherTab("new-book")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <PlusCircle className="me-2 h-4 w-4 text-emerald-600" />
+                      <span>{t("إضافة كتاب جديد للدار", "Add New Book")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectPublisherTab("sales")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <TrendingUp className="me-2 h-4 w-4 text-blue-600" />
+                      <span>{t("المبيعات والأرباح", "Sales & Royalties")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectPublisherTab("orders")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <Truck className="me-2 h-4 w-4 text-amber-600" />
+                      <span>{t("طلبات الشحن والتوزيع", "Shipping & Orders")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectPublisherTab("analytics")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <BarChart3 className="me-2 h-4 w-4 text-purple-600" />
+                      <span>{t("التقارير والتحليلات", "Reports & Analytics")}</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => selectPublisherTab("contracts")}
+                      className="p-2 rounded-lg cursor-pointer font-semibold"
+                    >
+                      <FileCheck2 className="me-2 h-4 w-4 text-emerald-600" />
+                      <span>{t("التراخيص والاتفاقيات", "Licenses & Contracts")}</span>
+                    </DropdownMenuItem>
+                  </>
                 ) : (
                   <DropdownMenuItem asChild className="p-2.5 rounded-xl font-bold cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary my-1">
                     <Link to={roleConfig.to}>
@@ -563,15 +628,6 @@ export function SiteHeader() {
                           : t("متابعة حالة المراجعة", "Application Review Status")}
                       </span>
                       <ArrowUpRight className="ms-auto h-3.5 w-3.5 opacity-60" />
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-
-                {approvalStatus === "approved" && effectiveAccountType === "publisher" && (
-                  <DropdownMenuItem asChild className="p-2 rounded-lg cursor-pointer">
-                    <Link to="/publisher">
-                      <Building2 className="me-2 h-4 w-4 text-blue-600" />
-                      <span>{t("إدارة كتب الدار والمبيعات", "Manage Catalog & Sales")}</span>
                     </Link>
                   </DropdownMenuItem>
                 )}
@@ -618,6 +674,16 @@ export function SiteHeader() {
                         {t("أكملها", "Required")}
                       </span>
                     )}
+                  </DropdownMenuItem>
+                )}
+
+                {approvalStatus === "approved" && effectiveAccountType === "publisher" && (
+                  <DropdownMenuItem
+                    onClick={() => selectPublisherTab("profile")}
+                    className="p-2 rounded-lg cursor-pointer font-semibold"
+                  >
+                    <Building2 className="me-2 h-4 w-4 text-blue-600" />
+                    <span>{t("بيانات دار النشر", "Publisher Profile")}</span>
                   </DropdownMenuItem>
                 )}
 

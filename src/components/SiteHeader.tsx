@@ -28,6 +28,7 @@ import {
   FileCheck2,
   HelpCircle,
   Wand2,
+  Check,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,6 +36,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -631,36 +635,50 @@ export function SiteHeader() {
                   </span>
                 </DropdownMenuItem>
 
-                {/* العملة / المنطقة — right after اللغة / تغيير اللغة */}
-                <DropdownMenuItem
-                  onClick={() => {
-                    if (effectiveAccountType === "reader") {
-                      selectReaderTab("currency");
-                    } else {
-                      const idx = countries.findIndex((c) => c.code === currentCountry.code);
-                      const next = countries[(idx + 1) % countries.length] ?? countries[0];
-                      if (next) {
-                        set({ country: next.code, currency: next.currency }, true);
-                        toast.success(
-                          t(
-                            `تم تغيير العملة إلى ${next.nameAr} (${next.currency})`,
-                            `Currency changed to ${next.nameEn} (${next.currency})`
-                          )
-                        );
-                      }
-                    }
-                  }}
-                  className="p-2 rounded-lg cursor-pointer font-semibold flex items-center justify-between"
-                >
-                  <div className="flex items-center">
-                    <Coins className="me-2 h-4 w-4 text-amber-600" />
-                    <span>{t("العملة والمنطقة", "Currency & Region")}</span>
-                  </div>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-mono font-extrabold text-amber-700 dark:text-amber-400">
-                    <span>{currentCountry.flag}</span>
-                    <span>{currency}</span>
-                  </span>
-                </DropdownMenuItem>
+                {/* العملة / المنطقة — قائمة اختيار كاملة */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="p-2 rounded-lg cursor-pointer font-semibold flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Coins className="me-2 h-4 w-4 text-amber-600" />
+                      <span>{t("العملة والمنطقة", "Currency & Region")}</span>
+                    </div>
+                    <span className="ms-2 inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-mono font-extrabold text-amber-700 dark:text-amber-400">
+                      <span>{currentCountry.flag}</span>
+                      <span>{currency}</span>
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-60 max-h-72 overflow-y-auto p-1.5 rounded-xl">
+                    {countries.map((item) => {
+                      const active = item.code === currentCountry.code;
+                      return (
+                        <DropdownMenuItem
+                          key={item.code}
+                          onClick={() => {
+                            set({ country: item.code, currency: item.currency }, true);
+                            toast.success(
+                              t(
+                                `تم اختيار ${item.nameAr} (${item.currency})`,
+                                `Selected ${item.nameEn} (${item.currency})`
+                              )
+                            );
+                          }}
+                          className={`p-2 rounded-lg cursor-pointer flex items-center justify-between text-xs ${
+                            active ? "bg-primary/10 text-primary font-bold" : "font-medium"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span>{item.flag}</span>
+                            <span className="truncate">{language === "ar" ? item.nameAr : item.nameEn}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-mono text-[11px] font-bold">{item.currency}</span>
+                            {active && <Check className="h-3.5 w-3.5 text-primary" />}
+                          </div>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
 
                 <DropdownMenuSeparator />
 

@@ -112,8 +112,8 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
   async function handleVerifyOtp(e?: React.FormEvent) {
     if (e) e.preventDefault();
     const token = otpCode.trim();
-    if (!token || token.length < 6) {
-      toast.error("يرجى إدخال كود التحقق المكوّن من 6 أرقام");
+    if (!token || token.length < 8) {
+      toast.error("يرجى إدخال كود التحقق المكوّن من 8 أرقام");
       return;
     }
     setLoading(true);
@@ -233,18 +233,18 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
             <div className="flex-grow border-t border-border/70" />
           </div>
 
-          {/* Option 2: 6-Digit OTP */}
+          {/* Option 2: 8-Digit OTP */}
           <div className="text-center py-1">
             <label className="text-xs font-bold text-foreground block mb-2">
-              اكتب كود الـ 6 أرقام المرسل إلى بريد الإدارة:
+              اكتب كود الـ 8 أرقام المرسل إلى بريد الإدارة:
             </label>
             <div className="flex justify-center" dir="ltr">
               <InputOTP
-                maxLength={6}
+                maxLength={8}
                 value={otpCode}
                 onChange={(val) => {
                   setOtpCode(val);
-                  if (val.length === 6) {
+                  if (val.length === 8) {
                     setTimeout(() => {
                       const btn = document.getElementById("admin-verify-btn");
                       btn?.click();
@@ -253,13 +253,14 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
                 }}
                 autoFocus
               >
-                <InputOTPGroup className="gap-2 sm:gap-2.5">
-                  <InputOTPSlot index={0} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
-                  <InputOTPSlot index={1} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
-                  <InputOTPSlot index={2} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
-                  <InputOTPSlot index={3} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
-                  <InputOTPSlot index={4} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
-                  <InputOTPSlot index={5} className="h-11 w-10 sm:h-12 sm:w-11 rounded-xl text-xl font-bold border-border/80 focus:border-primary shadow-xs" />
+                <InputOTPGroup className="gap-1.5 sm:gap-2">
+                  {Array.from({ length: 8 }).map((_, index) => (
+                    <InputOTPSlot
+                      key={index}
+                      index={index}
+                      className="h-10 w-8 sm:h-11 sm:w-10 rounded-lg sm:rounded-xl text-lg sm:text-xl font-bold border-border/80 focus:border-primary shadow-xs"
+                    />
+                  ))}
                 </InputOTPGroup>
               </InputOTP>
             </div>
@@ -268,7 +269,7 @@ export function AdminAuthCard({ onSuccess }: AdminAuthProps) {
           <Button
             id="admin-verify-btn"
             type="submit"
-            disabled={loading || otpCode.length < 6}
+            disabled={loading || otpCode.length < 8}
             className="w-full h-11 text-sm font-extrabold rounded-2xl shadow-md gap-2 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer active:scale-[0.99]"
           >
             {loading ? (

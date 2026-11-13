@@ -200,24 +200,24 @@ export const PUBLISHING_PLANS: PublishingPlan[] = [
   {
     id: "plan-12",
     title: "باقة الـ 12 كتاب",
-    tagline: "الباقة السنوية الكبرى",
-    badge: "عضوية سنوية ذهبية 👑",
+    tagline: "الباقة الذهبية الكبرى",
+    badge: "باقة ذهبية كبرى 👑",
     badgeStyle: "bg-gradient-to-r from-amber-500/20 via-primary/20 to-amber-500/20 text-foreground border-amber-500/40 font-bold",
     booksCount: 12,
-    booksLabel: "12 كتاب للنشر (سنة كاملة)",
+    booksLabel: "12 كتاب للنشر",
     price: 8500,
     priceDisplay: "8,500 ر.س",
     priceNote: "الخيار الأقوى للمؤسسات ودور النشر والمؤلفين الغزيرين",
     featured: false,
     features: [
-      "نشر حتى 12 كتاباً خلال العام",
+      "نشر حتى 12 كتاباً على المنصة",
       "إنتاج طباعي ورقمي بمعايير دولية متكاملة",
       "جناح خاص واستعراض شامل لكافة أعمال المؤلف",
       "حملات تدشين وإطلاق رسمي لكل كتاب ينشر",
-      "استشارات نشر وتسويق مخصصة على مدار العام",
+      "استشارات نشر وتسويق مخصصة لكل كتاب",
       "أعلى فئة أولوية في المراجعة والدعم الفني والسحب",
     ],
-    ctaText: "اختيار الباقة السنوية (8,500 ر.س)",
+    ctaText: "اختيار باقة 12 كتاب (8,500 ر.س)",
   },
 ];
 
@@ -884,7 +884,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {l.t(
-                  "تبدأ من الخطة المجانية لنشر أول كتاب، وتصل إلى الباقة السنوية لـ 12 كتاباً مع خدمات إنتاج وطباعة متكاملة.",
+                  "تبدأ من الخطة المجانية لنشر أول كتاب، وتصل إلى باقة الـ 12 كتاباً مع خدمات إنتاج وطباعة متكاملة.",
                   "From free 1-book starter to comprehensive 12-book annual tier."
                 )}
               </p>

@@ -81,7 +81,7 @@ function BookPage() {
     );
   }
 
-  const discount = book ? getBookDiscount(book) : { hasDiscount: false, percent: 0, badgeText: "", apply: (p: any) => p };
+  const discount = book ? getBookDiscount(book) : { hasDiscount: false, percent: 0, badgeText: "", apply: (p: number) => p };
 
   const options = [
     book.format !== "physical" && book.price_digital != null && {

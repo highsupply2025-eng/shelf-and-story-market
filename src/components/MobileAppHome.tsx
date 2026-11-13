@@ -48,7 +48,7 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate({ to: "/books", search: { q: searchQuery.trim() } as any });
+      navigate({ to: "/books", search: { q: searchQuery.trim() } as Record<string, string> });
     } else {
       navigate({ to: "/books" });
     }
@@ -84,7 +84,7 @@ export function MobileAppHome({ books, isLoading }: MobileAppHomeProps) {
               onClick={() => {
                 setSelectedTag(tag.id);
                 if (tag.id === "all") navigate({ to: "/books" });
-                else navigate({ to: "/books", search: { category: tag.id } as any });
+                else navigate({ to: "/books", search: { category: tag.id } as Record<string, string> });
               }}
               className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                 selectedTag === tag.id

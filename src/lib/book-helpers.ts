@@ -72,7 +72,7 @@ export function fileToDataUrl(file: File): Promise<string> {
 
 const LOCAL_BOOKS_KEY = "unibook_local_books_v1";
 
-export function getLocalBooks(): any[] {
+export function getLocalBooks(): (Record<string, unknown> & { id: string })[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(LOCAL_BOOKS_KEY);
@@ -82,7 +82,7 @@ export function getLocalBooks(): any[] {
   }
 }
 
-export function saveLocalBook(book: any): void {
+export function saveLocalBook(book: Record<string, unknown> & { id: string }): void {
   if (typeof window === "undefined") return;
   try {
     const existing = getLocalBooks().filter((b) => b.id !== book.id);

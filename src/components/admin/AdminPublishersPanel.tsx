@@ -54,7 +54,7 @@ export function AdminPublishersPanel() {
           .select("*, books(*)")
           .order("created_at", { ascending: false });
         if (error) return [];
-        return (data || []).filter((p: any) => p.account_type !== "author" || (p.books && p.books.length > 0));
+        return (data || []).filter((p) => p.account_type !== "author" || (p.books && p.books.length > 0));
       } catch {
         return [];
       }
@@ -86,10 +86,10 @@ export function AdminPublishersPanel() {
     string,
     {
       id: string;
-      email?: string;
+      email?: string | null;
       store_name: string;
       bio?: string | null;
-      books?: any[];
+      books?: Record<string, unknown>[];
       created_at: string;
     }
   >();
@@ -412,7 +412,7 @@ export function AdminPublishersPanel() {
                                 size="sm"
                                 className="h-8 rounded-xl text-xs gap-1 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white"
                                 onClick={() =>
-                                  handleSetPublisherStatus(pub.id, pub.store_name, pub.email, "approved")
+                                  handleSetPublisherStatus(pub.id, pub.store_name, pub.email ?? undefined, "approved")
                                 }
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
@@ -426,7 +426,7 @@ export function AdminPublishersPanel() {
                                 variant="outline"
                                 className="h-8 rounded-xl text-xs gap-1 cursor-pointer text-destructive hover:bg-destructive/10"
                                 onClick={() =>
-                                  handleSetPublisherStatus(pub.id, pub.store_name, pub.email, "rejected")
+                                  handleSetPublisherStatus(pub.id, pub.store_name, pub.email ?? undefined, "rejected")
                                 }
                               >
                                 <XCircle className="h-3.5 w-3.5" />

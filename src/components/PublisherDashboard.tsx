@@ -135,8 +135,8 @@ export function PublisherDashboard() {
       toast.success(t("تم تحديث بيانات دار النشر بنجاح!", "Publisher profile updated!"));
       refetchPublisher();
       await refresh();
-    } catch (err: any) {
-      toast.error(err?.message || t("تعذر التحديث", "Update failed"));
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "") || t("تعذر التحديث", "Update failed"));
     } finally {
       setSavingProfile(false);
     }
@@ -185,8 +185,8 @@ export function PublisherDashboard() {
         stock: "50",
         cover_url: "",
       });
-    } catch (err: any) {
-      toast.error(err?.message || t("تعذر إضافة الكتاب", "Failed to add book"));
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "") || t("تعذر إضافة الكتاب", "Failed to add book"));
     } finally {
       setSubmittingBook(false);
     }

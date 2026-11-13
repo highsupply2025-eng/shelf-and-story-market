@@ -60,7 +60,7 @@ export function AdminAuthorsPanel() {
           .select("*, manuscripts(*), books(*)")
           .order("created_at", { ascending: false });
         if (error) return [];
-        return (data || []).filter((p: any) => p.account_type !== "publisher");
+        return (data || []).filter((p) => p.account_type !== "publisher");
       } catch {
         return [];
       }
@@ -97,12 +97,12 @@ export function AdminAuthorsPanel() {
     string,
     {
       id: string;
-      email?: string;
+      email?: string | null;
       store_name: string;
       bio?: string | null;
       author_code?: string | null;
-      books?: any[];
-      manuscripts?: any[];
+      books?: Record<string, unknown>[];
+      manuscripts?: Record<string, unknown>[];
       created_at: string;
     }
   >();
@@ -474,7 +474,7 @@ export function AdminAuthorsPanel() {
                                 size="sm"
                                 className="h-8 rounded-xl text-xs gap-1 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white"
                                 onClick={() =>
-                                  handleSetAuthorStatus(author.id, author.store_name, author.email, "approved")
+                                  handleSetAuthorStatus(author.id, author.store_name, author.email ?? undefined, "approved")
                                 }
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
@@ -488,7 +488,7 @@ export function AdminAuthorsPanel() {
                                 variant="outline"
                                 className="h-8 rounded-xl text-xs gap-1 cursor-pointer text-destructive hover:bg-destructive/10"
                                 onClick={() =>
-                                  handleSetAuthorStatus(author.id, author.store_name, author.email, "rejected")
+                                  handleSetAuthorStatus(author.id, author.store_name, author.email ?? undefined, "rejected")
                                 }
                               >
                                 <XCircle className="h-3.5 w-3.5" />
@@ -518,7 +518,7 @@ export function AdminAuthorsPanel() {
           </p>
         ) : (
           <div className="space-y-3">
-            {payouts.map((p: any) => (
+            {payouts.map((p) => (
               <div key={p.id} className="p-4 rounded-2xl border border-border/80 bg-card shadow-xs flex flex-wrap items-center justify-between gap-4">
                 <div className="space-y-1 min-w-[240px]">
                   <div className="flex items-center gap-2">

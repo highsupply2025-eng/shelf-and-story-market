@@ -149,7 +149,7 @@ export function AdminReadersPanel() {
   const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
 
   // Map orders by buyer_id
-  const ordersByBuyer = orders.reduce((acc: Record<string, any[]>, order) => {
+  const ordersByBuyer = orders.reduce<Record<string, typeof orders>>((acc, order) => {
     (acc[order.buyer_id] ??= []).push(order);
     return acc;
   }, {});
@@ -508,7 +508,7 @@ export function AdminReadersPanel() {
                   </p>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
-                    {(ordersByBuyer[selectedReader.id] ?? []).map((o: any) => (
+                    {(ordersByBuyer[selectedReader.id] ?? []).map((o) => (
                       <div
                         key={o.id}
                         className="p-3 rounded-xl border border-border/80 bg-card flex justify-between items-center text-xs"

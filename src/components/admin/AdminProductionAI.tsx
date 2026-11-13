@@ -238,8 +238,8 @@ export function AdminProductionAI() {
         await refetchBooks();
         await qc.invalidateQueries({ queryKey: ["books"] });
       }
-    } catch (err: any) {
-      toast.error(err?.message || "فشل نشر الكتاب");
+    } catch (err: unknown) {
+      toast.error((err instanceof Error ? err.message : "") || "فشل نشر الكتاب");
     } finally {
       setIsPublishingBook(false);
     }
@@ -591,7 +591,7 @@ export function AdminProductionAI() {
                     <button
                       key={lang.id}
                       type="button"
-                      onClick={() => setBookLanguage(lang.id as any)}
+                      onClick={() => setBookLanguage(lang.id as Parameters<typeof setBookLanguage>[0])}
                       className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer text-xs font-bold ${
                         bookLanguage === lang.id
                           ? "border-primary bg-primary/10 text-primary shadow-xs"

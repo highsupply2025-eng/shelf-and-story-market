@@ -219,7 +219,7 @@ export function AdminSiteControl() {
         featured: false,
       };
 
-      let inserted: any = null;
+      let inserted: (Record<string, unknown> & { id: string; price_digital?: number | null; price_physical?: number | null }) | null = null;
 
       // 4. Primary insert: Run via server function with Service Role (bypasses RLS)
       try {
@@ -288,10 +288,10 @@ export function AdminSiteControl() {
       setIsAddBookOpen(false);
       refetchBooks();
       qc.invalidateQueries();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Book creation error:", err);
       toast.error("تعذر إضافة ونشر الكتاب في المتجر", {
-        description: err?.message || "حدث خطأ غير متوقع، يرجى إعادة المحاولة.",
+        description: (err instanceof Error ? err.message : "") || "حدث خطأ غير متوقع، يرجى إعادة المحاولة.",
         duration: 6000,
       });
     } finally {

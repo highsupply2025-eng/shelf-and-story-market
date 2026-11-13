@@ -157,8 +157,8 @@ function RegisterPage() {
             {
               user_id: data.user.id,
               email: form.email.trim().toLowerCase(),
-              display_name: displayName,
-              account_type: accountType,
+              name: displayName,
+              role: accountType,
               status: initialApprovalStatus,
               approved_at: initialApprovalStatus === "approved" ? new Date().toISOString() : null,
             },

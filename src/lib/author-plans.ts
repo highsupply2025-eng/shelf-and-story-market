@@ -175,6 +175,8 @@ export async function submitPlanRequest(params: {
   reference: string;
   notes?: string;
 }): Promise<AuthorPlanRequest> {
+  const isFree = params.price === 0;
+  const nowIso = new Date().toISOString();
   const newReq: AuthorPlanRequest = {
     id: crypto.randomUUID(),
     userId: params.userId,
@@ -185,12 +187,21 @@ export async function submitPlanRequest(params: {
     booksCount: params.booksCount,
     price: params.price,
     priceDisplay: params.priceDisplay,
-    status: "pending", // Waiting for admin wallet verification
+    status: isFree ? "active" : "pending",
     walletSender: params.walletSender,
     reference: params.reference,
     notes: params.notes || "",
-    requestedAt: new Date().toISOString(),
+    requestedAt: nowIso,
+    ...(isFree ? { activatedAt: nowIso } : {}),
   };
+
+  if (isFree && typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem("unibook_selected_plan_title", params.planTitle);
+    } catch {
+      /* ignore */
+    }
+  }
 
   // 1. Save locally
   const list = getLocalRequests().filter((r) => r.userId !== params.userId);
@@ -206,11 +217,12 @@ export async function submitPlanRequest(params: {
     books_count: params.booksCount,
     price: params.price,
     price_display: params.priceDisplay,
-    status: "pending",
+    status: isFree ? "active" : "pending",
     wallet_sender: params.walletSender,
     reference: params.reference,
     notes: params.notes || "",
     requested_at: newReq.requestedAt,
+    ...(isFree ? { activated_at: nowIso } : {}),
   });
 
   try {

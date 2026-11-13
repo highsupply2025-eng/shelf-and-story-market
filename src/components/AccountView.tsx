@@ -338,8 +338,8 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
       toast.success(
         selectedPlanModal.price === 0
           ? l.t(
-              "تم إرسال طلب تفعيل الخطة المجانية! سيتم اعتماده وتفعيله من لوحة الإدارة.",
-              "Free plan request submitted!"
+              "تم تفعيل الخطة المجانية تلقائياً وبنجاح! يمكنك الآن استخدام استوديو المؤلف.",
+              "Free plan activated automatically!"
             )
           : l.t(
               "تم إرسال إشعار تحويل المحفظة بنجاح! سيتم التحقق وتفعيل حسابك كمؤلف من خلال لوحة الإدارة.",
@@ -2023,7 +2023,7 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
                   </>
                 ) : (
                   <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-950 dark:text-emerald-200">
-                    الخطة الأولى مجانية لنشر كتاب واحد. سيتم إرسال طلب التفعيل إلى لوحة الإدارة لاعتماده فوراً.
+                    الخطة الأولى مجانية لنشر كتاب واحد، وتُفعّل تلقائياً وفوراً بمجرد التأكيد دون انتظار موافقة الإدارة.
                   </div>
                 )}
 
@@ -2035,9 +2035,9 @@ export function AccountView({ mode }: { mode: "reader" | "author" }) {
                   >
                     <Zap className="me-2 h-5 w-5" />
                     {submittingPlan
-                      ? "جارٍ إرسال الطلب للإدارة..."
+                      ? selectedPlanModal.price === 0 ? "جارٍ تفعيل الخطة المجانية..." : "جارٍ إرسال الطلب للإدارة..."
                       : selectedPlanModal.price === 0
-                        ? "إرسال طلب تفعيل الخطة المجانية للإدارة"
+                        ? "تفعيل الخطة المجانية تلقائياً الآن"
                         : "تأكيد وإرسال إشعار تحويل المحفظة للإدارة"}
                   </Button>
 

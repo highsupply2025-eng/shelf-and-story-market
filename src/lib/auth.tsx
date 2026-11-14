@@ -87,10 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     const meta = metadataAccountType(s);
-    // Show the sign-up choice immediately; the database decides admin.
-    setAccountType(meta ?? "reader");
     try {
-      const [{ data: roles }, { data: pub }] = await Promise.all([
+      const [{ data: roles, error: rolesErr }, { data: pub }] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", s.user.id),
         supabase.from("publishers").select("id").eq("id", s.user.id).maybeSingle(),
       ]);
@@ -98,9 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAccountType("admin");
         return;
       }
+      if (rolesErr) return;
       setAccountType(meta ?? (pub ? "publisher" : "reader"));
     } catch {
-      /* keep the metadata role when the backend is unreachable */
+      /* keep the current role when the backend is unreachable */
     }
   }
 

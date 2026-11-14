@@ -11,6 +11,11 @@ import {
   Check,
   X,
   Search,
+  Pencil,
+  Trash2,
+  FileText,
+  Download,
+  FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +33,14 @@ import {
   getUserApprovalStatus,
   syncAccountApprovalsFromDb,
   updateAccountApprovalStatus,
+  updateAccountApprovalInfo,
+  deleteAccountApproval,
 } from "@/lib/admin-store";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { ProductionAdmin } from "@/components/ProductionAdmin";
+import { downloadAuthorFile } from "@/components/AuthorStudio";
 import { useLocale } from "@/lib/locale";
 
 export function AdminAuthorsPanel() {
@@ -38,6 +50,16 @@ export function AdminAuthorsPanel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [, setTick] = useState(0);
+  const [subTab, setSubTab] = useState<"accounts" | "production" | "plans" | "payouts">("accounts");
+  const [editingAuthor, setEditingAuthor] = useState<{
+    id: string;
+    store_name: string;
+    author_code: string;
+    bio: string;
+    email?: string | null | undefined;
+  } | null>(null);
+  const [authorDocs, setAuthorDocs] = useState<{ name: string; path: string }[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
 
   useEffect(() => {
     const onUpdate = () => setTick((n) => n + 1);
@@ -97,7 +119,7 @@ export function AdminAuthorsPanel() {
     string,
     {
       id: string;
-      email?: string | null;
+      email?: string | null | undefined;
       store_name: string;
       bio?: string | null;
       author_code?: string | null;
@@ -185,6 +207,86 @@ export function AdminAuthorsPanel() {
     qc.invalidateQueries();
   }
 
+  async function openAuthorEditor(author: {
+    id: string;
+    store_name: string;
+    author_code?: string | null;
+    bio?: string | null;
+    email?: string | null | undefined;
+  }) {
+    setEditingAuthor({
+      id: author.id,
+      store_name: author.store_name || "",
+      author_code: author.author_code || "",
+      bio: author.bio || "",
+      email: author.email,
+    });
+    setDocsLoading(true);
+    setAuthorDocs([]);
+    try {
+      const { data } = await supabase.storage.from("author-documents").list(author.id);
+      setAuthorDocs(
+        (data || [])
+          .filter((f) => f.name && f.name !== ".emptyFolderPlaceholder")
+          .map((f) => ({ name: f.name, path: `${author.id}/${f.name}` }))
+      );
+    } catch {
+      setAuthorDocs([]);
+    } finally {
+      setDocsLoading(false);
+    }
+  }
+
+  async function handleSaveAuthorEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingAuthor) return;
+    setBusy(true);
+    try {
+      await supabase
+        .from("publishers")
+        .update({
+          store_name: editingAuthor.store_name.trim(),
+          bio: editingAuthor.bio.trim(),
+          ...(editingAuthor.author_code.trim() ? { author_code: editingAuthor.author_code.trim() } : {}),
+        })
+        .eq("id", editingAuthor.id);
+      await updateAccountApprovalInfo(editingAuthor.id, editingAuthor.store_name.trim(), editingAuthor.bio.trim());
+      toast.success("تم تحديث بيانات المؤلف بنجاح");
+      setEditingAuthor(null);
+      refetchAuthors();
+      qc.invalidateQueries();
+    } catch {
+      toast.error("تعذر تحديث بيانات المؤلف");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteAuthor(authorId: string, authorName: string) {
+    if (!confirm(`هل أنت متأكد من مسح حساب المؤلف (${authorName}) نهائياً؟`)) return;
+    setBusy(true);
+    const ok = await deleteAccountApproval(authorId);
+    setBusy(false);
+    if (ok) {
+      toast.success(`تم مسح حساب المؤلف (${authorName})`);
+      refetchAuthors();
+      qc.invalidateQueries();
+    } else {
+      toast.error("تعذر مسح الحساب");
+    }
+  }
+
+  async function handleDeleteAuthorDoc(path: string) {
+    if (!confirm("هل تريد مسح هذا الملف من التخزين؟")) return;
+    const { error } = await supabase.storage.from("author-documents").remove([path]);
+    if (error) {
+      toast.error("تعذر مسح الملف");
+      return;
+    }
+    setAuthorDocs((prev) => prev.filter((d) => d.path !== path));
+    toast.success("تم مسح الملف");
+  }
+
   // Handle payout review
   async function handleReviewPayout(id: string, status: "paid" | "rejected") {
     const reference = prompt(status === "paid" ? "رقم مرجع التحويل البنكي/المحفظة المنفّذ؟" : "سبب رفض التحويل؟");
@@ -252,6 +354,55 @@ export function AdminAuthorsPanel() {
           </span>
         </div>
       </div>
+
+      {/* Sub-navigation matching Author Dropdown */}
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-muted/30 p-1.5">
+        <button
+          type="button"
+          onClick={() => setSubTab("accounts")}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            subTab === "accounts" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <PenLine className="h-3.5 w-3.5" /> حسابات وبيانات ووثائق المؤلفين ({authors.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab("production")}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            subTab === "production" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FileText className="h-3.5 w-3.5" /> ملفات المؤلفين والإنتاج والكتب
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab("plans")}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            subTab === "plans" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Sparkles className="h-3.5 w-3.5" /> باقات النشر ({pendingPlans.length} معلق)
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab("payouts")}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            subTab === "payouts" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Wallet className="h-3.5 w-3.5" /> سحب الأرباح ({pendingPayouts.length} معلق)
+        </button>
+      </div>
+
+      {subTab === "production" && (
+        <div className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-xs">
+          <h3 className="font-display text-xl font-bold text-foreground mb-4">
+            استعراض ملفات المؤلفين (Word / PDF) ومراحل الإنتاج والنشر
+          </h3>
+          <ProductionAdmin />
+        </div>
+      )}
 
       {/* Section 1: Pending Author Plans */}
       {pendingPlans.length > 0 && (
@@ -486,15 +637,36 @@ export function AdminAuthorsPanel() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-8 rounded-xl text-xs gap-1 cursor-pointer text-destructive hover:bg-destructive/10"
+                                className="h-8 rounded-xl text-xs gap-1 cursor-pointer text-amber-700 hover:bg-amber-500/10"
                                 onClick={() =>
                                   handleSetAuthorStatus(author.id, author.store_name, author.email ?? undefined, "rejected")
                                 }
                               >
                                 <XCircle className="h-3.5 w-3.5" />
-                                <span>تعليق الحساب</span>
+                                <span>تعليق</span>
                               </Button>
                             )}
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 rounded-xl text-xs gap-1 cursor-pointer"
+                              onClick={() => openAuthorEditor(author)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              <span>تعديل ووثائق</span>
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 rounded-xl text-xs gap-1 cursor-pointer text-destructive hover:bg-destructive/10"
+                              disabled={busy}
+                              onClick={() => handleDeleteAuthor(author.id, author.store_name)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>مسح</span>
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -569,6 +741,77 @@ export function AdminAuthorsPanel() {
           </div>
         )}
       </div>
+      <Dialog open={!!editingAuthor} onOpenChange={(o) => !o && setEditingAuthor(null)}>
+        <DialogContent className="max-w-lg" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات المؤلف والوثائق المرفوعة</DialogTitle>
+          </DialogHeader>
+          {editingAuthor && (
+            <form onSubmit={handleSaveAuthorEdit} className="space-y-4">
+              <div>
+                <Label>اسم المؤلف / المتجر</Label>
+                <Input
+                  className="mt-1"
+                  required
+                  value={editingAuthor.store_name}
+                  onChange={(e) => setEditingAuthor({ ...editingAuthor, store_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>كود المؤلف</Label>
+                <Input
+                  className="mt-1 font-mono"
+                  dir="ltr"
+                  value={editingAuthor.author_code}
+                  onChange={(e) => setEditingAuthor({ ...editingAuthor, author_code: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>النبذة / الملاحظات</Label>
+                <Textarea
+                  className="mt-1"
+                  rows={3}
+                  value={editingAuthor.bio}
+                  onChange={(e) => setEditingAuthor({ ...editingAuthor, bio: e.target.value })}
+                />
+              </div>
+
+              <div className="border-t pt-3 space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <FolderOpen className="h-4 w-4 text-primary" />
+                  الوثائق والملفات المرفوعة (الشهادة الجامعية / الهوية / الملفات)
+                </Label>
+                {docsLoading ? (
+                  <p className="text-xs text-muted-foreground">جارٍ تحميل قائمة الملفات...</p>
+                ) : authorDocs.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">لا توجد ملفات مرفوعة في التخزين لهذا المؤلف.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {authorDocs.map((doc) => (
+                      <div key={doc.path} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5 text-xs">
+                        <span className="truncate font-mono" dir="ltr">{doc.name}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => downloadAuthorFile(doc.path)}>
+                            <Download className="h-3 w-3 me-1" /> فتح
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs text-destructive" onClick={() => handleDeleteAuthorDoc(doc.path)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setEditingAuthor(null)}>إلغاء</Button>
+                <Button type="submit" disabled={busy}>حفظ التعديلات</Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

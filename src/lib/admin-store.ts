@@ -559,6 +559,41 @@ export async function updateAccountApprovalStatus(
   }
 }
 
+export async function updateAccountApprovalInfo(
+  userId: string,
+  name: string,
+  notes?: string
+): Promise<boolean> {
+  const current = getAccountApprovals();
+  const idx = current.findIndex((a) => a.userId === userId);
+  const existing = idx >= 0 ? current[idx] : undefined;
+  if (existing) {
+    current[idx] = { ...existing, name, ...(notes !== undefined ? { notes } : {}) };
+    setStorageItem(APPROVALS_KEY, current);
+  }
+  try {
+    await supabase
+      .from("account_approvals")
+      .update({ name, ...(notes !== undefined ? { notes } : {}), updated_at: new Date().toISOString() })
+      .eq("user_id", userId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteAccountApproval(userId: string): Promise<boolean> {
+  const current = getAccountApprovals().filter((a) => a.userId !== userId);
+  setStorageItem(APPROVALS_KEY, current);
+  try {
+    await supabase.from("account_approvals").delete().eq("user_id", userId);
+    await supabase.from("publishers").delete().eq("id", userId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // 4. Site Banners & Content
 export function getAdminBanners(): SiteBanner[] {
   return getStorageItem<SiteBanner[]>(BANNERS_KEY, DEFAULT_BANNERS);

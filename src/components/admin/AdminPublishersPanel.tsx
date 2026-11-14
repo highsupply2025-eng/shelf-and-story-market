@@ -11,6 +11,9 @@ import {
   Check,
   X,
   Store,
+  Pencil,
+  Trash2,
+  Truck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +25,13 @@ import {
   getUserApprovalStatus,
   syncAccountApprovalsFromDb,
   updateAccountApprovalStatus,
+  updateAccountApprovalInfo,
+  deleteAccountApproval,
 } from "@/lib/admin-store";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocale } from "@/lib/locale";
 import type { Book } from "@/components/BookCard";
 
@@ -31,6 +40,18 @@ export function AdminPublishersPanel() {
   const qc = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTab, setFilterTab] = useState<"all" | "pending" | "approved">("all");
+  const [pubSubTab, setPubSubTab] = useState<"publishers" | "catalog" | "orders">("publishers");
+  const [bookStatusFilter, setBookStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [busy, setBusy] = useState(false);
+  const [editingPub, setEditingPub] = useState<{ id: string; store_name: string; bio: string } | null>(null);
+  const [editingBook, setEditingBook] = useState<{
+    id: string;
+    title: string;
+    price_digital: string;
+    price_physical: string;
+    stock: string;
+    status: "pending" | "approved" | "rejected";
+  } | null>(null);
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -78,6 +99,128 @@ export function AdminPublishersPanel() {
       }
     },
   });
+
+  // Fetch all books across catalog for full edit/delete/approve control
+  const { data: allBooks = [], refetch: refetchAllBooks } = useQuery({
+    queryKey: ["admin-all-catalog-books"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from("books")
+          .select("*, publishers(store_name)")
+          .order("created_at", { ascending: false });
+        if (error) return [];
+        return (data || []) as (Book & { publishers: { store_name: string } | null })[];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // Fetch orders for shipping & distribution management
+  const { data: adminOrders = [], refetch: refetchOrders } = useQuery({
+    queryKey: ["admin-shipping-orders"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*, order_items(*, books(title))")
+          .order("created_at", { ascending: false });
+        if (error) return [];
+        return data || [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  async function handleSavePubEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingPub) return;
+    setBusy(true);
+    try {
+      await supabase
+        .from("publishers")
+        .update({ store_name: editingPub.store_name.trim(), bio: editingPub.bio.trim() })
+        .eq("id", editingPub.id);
+      await updateAccountApprovalInfo(editingPub.id, editingPub.store_name.trim(), editingPub.bio.trim());
+      toast.success("تم تحديث بيانات دار النشر بنجاح");
+      setEditingPub(null);
+      refetchPublishers();
+      qc.invalidateQueries();
+    } catch {
+      toast.error("تعذر تحديث بيانات دار النشر");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeletePub(pubId: string, pubName: string) {
+    if (!confirm(`هل أنت متأكد من مسح حساب دار النشر (${pubName}) نهائياً؟`)) return;
+    setBusy(true);
+    const ok = await deleteAccountApproval(pubId);
+    setBusy(false);
+    if (ok) {
+      toast.success(`تم مسح دار النشر (${pubName})`);
+      refetchPublishers();
+      qc.invalidateQueries();
+    } else {
+      toast.error("تعذر مسح دار النشر");
+    }
+  }
+
+  async function handleSaveBookEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingBook) return;
+    setBusy(true);
+    const { error } = await supabase
+      .from("books")
+      .update({
+        title: editingBook.title.trim(),
+        price_digital: editingBook.price_digital ? Number(editingBook.price_digital) : null,
+        price_physical: editingBook.price_physical ? Number(editingBook.price_physical) : null,
+        stock: Number(editingBook.stock || 0),
+        status: editingBook.status,
+      })
+      .eq("id", editingBook.id);
+    setBusy(false);
+    if (error) {
+      toast.error("تعذر تعديل الكتاب");
+      return;
+    }
+    toast.success("تم تحديث بيانات الكتاب");
+    setEditingBook(null);
+    refetchAllBooks();
+    refetchPendingBooks();
+    qc.invalidateQueries();
+  }
+
+  async function handleDeleteBook(bookId: string, bookTitle: string) {
+    if (!confirm(`هل تريد مسح الكتاب (${bookTitle}) نهائياً من المتجر؟`)) return;
+    setBusy(true);
+    const { error } = await supabase.from("books").delete().eq("id", bookId);
+    setBusy(false);
+    if (error) {
+      toast.error("تعذر مسح الكتاب (قد يكون مرتبطاً بطلبات سابقة)");
+      return;
+    }
+    toast.success(`تم مسح الكتاب (${bookTitle})`);
+    refetchAllBooks();
+    refetchPendingBooks();
+    qc.invalidateQueries();
+  }
+
+  async function handleUpdateOrderStatus(orderId: string, status: string) {
+    setBusy(true);
+    const { error } = await supabase.from("orders").update({ status }).eq("id", orderId);
+    setBusy(false);
+    if (error) {
+      toast.error("تعذر تحديث حالة الطلب");
+      return;
+    }
+    toast.success("تم تحديث حالة الطلب والشحن");
+    refetchOrders();
+  }
 
   // Merge remote publishers with locally registered publishers & approval records
   const approvalPublishers = getAccountApprovals().filter((a) => a.role === "publisher");
@@ -207,6 +350,37 @@ export function AdminPublishersPanel() {
       </div>
 
       {/* Section 1: Pending Books Submitted by Publishers */}
+      {/* Sub-navigation matching Publisher Dropdown */}
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-muted/30 p-1.5">
+        <button
+          type="button"
+          onClick={() => setPubSubTab("publishers")}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            pubSubTab === "publishers" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Building2 className="h-3.5 w-3.5" /> حسابات وبيانات دور النشر ({publishers.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setPubSubTab("catalog")}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            pubSubTab === "catalog" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <BookOpen className="h-3.5 w-3.5" /> إدارة الكتالوج والكتب ({allBooks.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setPubSubTab("orders")}
+          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            pubSubTab === "orders" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Truck className="h-3.5 w-3.5" /> طلبات الشحن والتوزيع ({adminOrders.length})
+        </button>
+      </div>
+
       {pendingBooks.length > 0 && (
         <div className="rounded-3xl border-2 border-amber-500/30 bg-amber-500/5 p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
@@ -424,15 +598,36 @@ export function AdminPublishersPanel() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-8 rounded-xl text-xs gap-1 cursor-pointer text-destructive hover:bg-destructive/10"
+                                className="h-8 rounded-xl text-xs gap-1 cursor-pointer text-amber-700 hover:bg-amber-500/10"
                                 onClick={() =>
                                   handleSetPublisherStatus(pub.id, pub.store_name, pub.email ?? undefined, "rejected")
                                 }
                               >
                                 <XCircle className="h-3.5 w-3.5" />
-                                <span>تعليق الحساب</span>
+                                <span>تعليق</span>
                               </Button>
                             )}
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 rounded-xl text-xs gap-1 cursor-pointer"
+                              onClick={() => setEditingPub({ id: pub.id, store_name: pub.store_name || "", bio: pub.bio || "" })}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              <span>تعديل</span>
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 rounded-xl text-xs gap-1 cursor-pointer text-destructive hover:bg-destructive/10"
+                              disabled={busy}
+                              onClick={() => handleDeletePub(pub.id, pub.store_name)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>مسح</span>
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -443,6 +638,210 @@ export function AdminPublishersPanel() {
           </div>
         )}
       </div>
+      {pubSubTab === "catalog" && (
+        <div className="space-y-4 pt-4 border-t border-border/70">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-display text-xl font-bold text-foreground">
+              إدارة جميع كتب الكتالوج (موافقة · تعديل · مسح)
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {(["all", "pending", "approved", "rejected"] as const).map((st) => (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => setBookStatusFilter(st)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer ${
+                    bookStatusFilter === st ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {st === "all" ? "الكل" : st === "pending" ? "قيد المراجعة" : st === "approved" ? "منشور" : "مرفوض"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-border/80 bg-card shadow-xs">
+            <table className="w-full text-start text-xs sm:text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40 text-muted-foreground font-bold text-xs">
+                  <th className="py-3 px-4 text-start">الكتاب</th>
+                  <th className="py-3 px-4 text-start">الناشر / المؤلف</th>
+                  <th className="py-3 px-4 text-start">الأسعار</th>
+                  <th className="py-3 px-4 text-start">الحالة</th>
+                  <th className="py-3 px-4 text-center">إجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {allBooks
+                  .filter((b) => bookStatusFilter === "all" || b.status === bookStatusFilter)
+                  .map((b) => (
+                    <tr key={b.id} className="hover:bg-muted/20">
+                      <td className="py-3 px-4 font-bold">{b.title}</td>
+                      <td className="py-3 px-4 text-xs text-muted-foreground">{b.publishers?.store_name || b.author}</td>
+                      <td className="py-3 px-4 text-xs font-mono">
+                        {b.price_digital ? `رقمي: ${formatMoney(b.price_digital)}` : ""} {b.price_physical ? `ورقي: ${formatMoney(b.price_physical)}` : ""}
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant={b.status === "approved" ? "outline" : b.status === "rejected" ? "destructive" : "secondary"}>
+                          {b.status === "approved" ? "منشور" : b.status === "rejected" ? "مرفوض" : "قيد المراجعة"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {b.status !== "approved" && (
+                            <Button size="sm" className="h-7 rounded-lg text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => decideBook(b.id, true)}>
+                              <Check className="h-3 w-3 me-1" /> نشر
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 rounded-lg text-xs"
+                            onClick={() =>
+                              setEditingBook({
+                                id: b.id,
+                                title: b.title,
+                                price_digital: b.price_digital != null ? String(b.price_digital) : "",
+                                price_physical: b.price_physical != null ? String(b.price_physical) : "",
+                                stock: String(b.stock ?? 0),
+                                status: (b.status as "pending" | "approved" | "rejected") || "pending",
+                              })
+                            }
+                          >
+                            <Pencil className="h-3 w-3 me-1" /> تعديل
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 rounded-lg text-xs text-destructive hover:bg-destructive/10"
+                            disabled={busy}
+                            onClick={() => handleDeleteBook(b.id, b.title)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {pubSubTab === "orders" && (
+        <div className="space-y-4 pt-4 border-t border-border/70">
+          <h3 className="font-display text-xl font-bold text-foreground">
+            إدارة طلبات الشحن والتوزيع
+          </h3>
+          {adminOrders.length === 0 ? (
+            <p className="py-8 text-center text-xs text-muted-foreground border rounded-2xl bg-card">
+              لا توجد طلبات شحن مسجلة حالياً.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {adminOrders.map((ord: Record<string, unknown>) => (
+                <div key={String(ord["id"])} className="rounded-2xl border bg-card p-4 flex flex-wrap items-center justify-between gap-4">
+                  <div className="space-y-1 text-xs">
+                    <div className="flex items-center gap-2 font-bold text-sm">
+                      <span>{String(ord["shipping_name"] || "عميل")}</span>
+                      <span className="font-mono text-xs text-muted-foreground" dir="ltr">{String(ord["shipping_phone"] || "")}</span>
+                      <Badge variant="outline">{String(ord["status"] || "pending")}</Badge>
+                    </div>
+                    <p className="text-muted-foreground">{String(ord["shipping_address"] || "طلب رقمي")}</p>
+                    <p className="font-mono font-bold text-primary">{String(ord["total"])} {String(ord["settlement_currency"] || "SAR")}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select value={String(ord["status"] || "pending")} onValueChange={(val) => handleUpdateOrderStatus(String(ord["id"]), val)}>
+                      <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">قيد الانتظار</SelectItem>
+                        <SelectItem value="paid">مدفوع</SelectItem>
+                        <SelectItem value="shipped">تم الشحن</SelectItem>
+                        <SelectItem value="delivered">تم التسليم</SelectItem>
+                        <SelectItem value="cancelled">ملغي</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit Publisher Dialog */}
+      <Dialog open={!!editingPub} onOpenChange={(o) => !o && setEditingPub(null)}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات دار النشر</DialogTitle>
+          </DialogHeader>
+          {editingPub && (
+            <form onSubmit={handleSavePubEdit} className="space-y-4">
+              <div>
+                <Label>اسم دار النشر / المؤسسة</Label>
+                <Input className="mt-1" required value={editingPub.store_name} onChange={(e) => setEditingPub({ ...editingPub, store_name: e.target.value })} />
+              </div>
+              <div>
+                <Label>النبذة التعريفية</Label>
+                <Textarea className="mt-1" rows={3} value={editingPub.bio} onChange={(e) => setEditingPub({ ...editingPub, bio: e.target.value })} />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditingPub(null)}>إلغاء</Button>
+                <Button type="submit" disabled={busy}>حفظ التعديلات</Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Book Dialog */}
+      <Dialog open={!!editingBook} onOpenChange={(o) => !o && setEditingBook(null)}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات الكتاب</DialogTitle>
+          </DialogHeader>
+          {editingBook && (
+            <form onSubmit={handleSaveBookEdit} className="space-y-3">
+              <div>
+                <Label>عنوان الكتاب</Label>
+                <Input className="mt-1" required value={editingBook.title} onChange={(e) => setEditingBook({ ...editingBook, title: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>السعر الرقمي</Label>
+                  <Input className="mt-1" type="number" step="0.01" value={editingBook.price_digital} onChange={(e) => setEditingBook({ ...editingBook, price_digital: e.target.value })} />
+                </div>
+                <div>
+                  <Label>السعر الورقي</Label>
+                  <Input className="mt-1" type="number" step="0.01" value={editingBook.price_physical} onChange={(e) => setEditingBook({ ...editingBook, price_physical: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>المخزون الورقي</Label>
+                  <Input className="mt-1" type="number" value={editingBook.stock} onChange={(e) => setEditingBook({ ...editingBook, stock: e.target.value })} />
+                </div>
+                <div>
+                  <Label>الحالة</Label>
+                  <Select value={editingBook.status} onValueChange={(v) => setEditingBook({ ...editingBook, status: v as "pending" | "approved" | "rejected" })}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="approved">منشور</SelectItem>
+                      <SelectItem value="pending">قيد المراجعة</SelectItem>
+                      <SelectItem value="rejected">مرفوض</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={() => setEditingBook(null)}>إلغاء</Button>
+                <Button type="submit" disabled={busy}>حفظ التعديلات</Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -23,7 +23,7 @@ export type AuthorPlanRequest = {
 
 const STORAGE_KEY = "unibook_author_plan_requests";
 const ADMIN_WALLET_KEY = "unibook_admin_wallet_number";
-const DEFAULT_ADMIN_WALLET = "01024567890"; // Admin e-wallet (Vodafone Cash / InstaPay / STC Pay)
+const DEFAULT_ADMIN_WALLET = "01128412098"; // Admin Etisalat Cash e-wallet (Egypt)
 
 export function getAdminWalletNumber(): string {
   if (typeof window !== "undefined") {

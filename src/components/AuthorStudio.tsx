@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FileText, Download, PenLine, Wallet, BookOpen, Plus, ArrowUpRight, Clock, AlertCircle, ShieldAlert, RefreshCw } from "lucide-react";
-import { getUserPlanRequest } from "@/lib/author-plans";
+import { FileText, Download, PenLine, Wallet, BookOpen, Plus, ArrowUpRight, Clock, AlertCircle, ShieldAlert, RefreshCw, Copy, CheckCircle2, Smartphone } from "lucide-react";
+import { getUserPlanRequest, getAdminWalletNumber } from "@/lib/author-plans";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useLocale } from "@/lib/locale";
@@ -97,7 +97,7 @@ export function AuthorStudio(){
        </article>
      )}
      {invoices.length===0 && !planRequest && <StudioEmpty text={l.t("لا توجد إيصالات دفع أو فواتير بعد","No payment receipts or invoices yet")}/>}
-     {invoices.map(i=><article key={i.id} className="rounded-lg border bg-card p-6"><div className="flex flex-wrap justify-between gap-4"><div><p className="font-mono text-xs">{i.invoice_number}</p><h2 className="mt-2 text-xl">{i.title}</h2></div><Stage value={i.status}/></div><ul className="mt-5 divide-y">{(Array.isArray(i.items)?i.items:[]).map((item,n)=>{const row=item as {label:string;amount:number};return <li key={n} className="flex justify-between py-3 text-sm"><span>{row.label}</span><span>{Number(row.amount).toFixed(2)} {i.currency}</span></li>;})}</ul><p className="border-t pt-4 text-end text-xl font-bold">{Number(i.amount).toFixed(2)} {i.currency}</p><p className="mt-4 text-sm text-muted-foreground">{l.t("الدفع الإلكتروني غير مفعّل بعد. لن يبدأ الإنتاج قبل تأكيد وصول الدفع.","Online payments are not connected. Production starts only after payment is verified.")}</p></article>)}
+     {invoices.map(i=><article key={i.id} className="rounded-lg border bg-card p-6"><div className="flex flex-wrap justify-between gap-4"><div><p className="font-mono text-xs">{i.invoice_number}</p><h2 className="mt-2 text-xl">{i.title}</h2></div><Stage value={i.status}/></div><ul className="mt-5 divide-y">{(Array.isArray(i.items)?i.items:[]).map((item,n)=>{const row=item as {label:string;amount:number};return <li key={n} className="flex justify-between py-3 text-sm"><span>{row.label}</span><span>{Number(row.amount).toFixed(2)} {i.currency}</span></li>;})}</ul><p className="border-t pt-4 text-end text-xl font-bold">{Number(i.amount).toFixed(2)} {i.currency}</p>{i.status==="unpaid"&&uid?<InvoicePaymentBox uid={uid} invoice={i} onSubmitted={()=>qc.invalidateQueries()}/>:<p className="mt-4 text-xs text-emerald-700 font-semibold">{l.t("تم تأكيد سداد الفاتورة","Invoice payment confirmed")}{i.payment_reference?` · ${i.payment_reference}`:""}</p>}</article>)}
    </div>
  );
 
@@ -296,6 +296,95 @@ export function AuthorStudio(){
  </Tabs></div>;
 }
 function StudioEmpty({text}:{text:string}){return <p className="border-b py-14 text-center text-muted-foreground">{text}</p>;}
+function InvoicePaymentBox({uid,invoice,onSubmitted}:{uid:string;invoice:{id:string;invoice_number:string;amount:number;currency:string;payment_reference?:string|null};onSubmitted:()=>void}){
+ const {t}=useLocale();
+ const wallet=getAdminWalletNumber();
+ const [open,setOpen]=useState(false);
+ const [sender,setSender]=useState("");
+ const [ref,setRef]=useState("");
+ const [receipt,setReceipt]=useState<File|null>(null);
+ const [saving,setSaving]=useState(false);
+ const [sent,setSent]=useState(()=>{
+   if(invoice.payment_reference) return true;
+   try{return Boolean(typeof window!=="undefined"&&window.localStorage.getItem(`unibook_inv_paid_${invoice.id}`));}catch{return false;}
+ });
+
+ async function submitProof(e:React.FormEvent){
+  e.preventDefault();
+  if(!sender.trim()||!ref.trim()){toast.error(t("يرجى إدخال رقم المحفظة المحوّل منها ورقم المرجع","Enter sender wallet and transfer reference"));return;}
+  setSaving(true);
+  try{
+   let receiptPath="";
+   if(receipt){
+    const ext=receipt.name.split(".").pop()?.toLowerCase()||"jpg";
+    const p=`${uid}/invoice-receipt-${invoice.id}.${ext}`;
+    const {error:upErr}=await supabase.storage.from("author-documents").upload(p,receipt,{upsert:true});
+    if(!upErr) receiptPath=p;
+   }
+   const proofText=`اتصالات كاش (مصر) | من: ${sender.trim()} | مرجع: ${ref.trim()}${receiptPath?` | إيصال: ${receiptPath}`:""}`;
+   await supabase.from("production_invoices").update({payment_reference:proofText}).eq("id",invoice.id);
+   if(typeof window!=="undefined") window.localStorage.setItem(`unibook_inv_paid_${invoice.id}`,proofText);
+   setSent(true);
+   setOpen(false);
+   toast.success(t("تم إرسال تأكيد التحويل عبر اتصالات كاش للإدارة بنجاح","Etisalat Cash transfer confirmation sent to admin"));
+   onSubmitted();
+  }catch{
+   toast.error(t("تعذر إرسال تأكيد الدفع، حاول مجدداً","Failed to submit payment confirmation"));
+  }finally{
+   setSaving(false);
+  }
+ }
+
+ return <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+  <div className="flex flex-wrap items-center justify-between gap-3">
+   <div className="space-y-1">
+    <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+     <Smartphone className="h-4 w-4"/>{t("طريقة السداد: محفظة اتصالات كاش — مصر (Etisalat Cash)","Payment Method: Etisalat Cash Wallet (Egypt)")}
+    </p>
+    <p className="text-xs text-muted-foreground">
+     {t("قم بتحويل مبلغ","Transfer")} <strong>{Number(invoice.amount).toFixed(2)} {invoice.currency}</strong> {t("إلى رقم محفظة اتصالات كاش المعتمدة:","to the approved Etisalat Cash wallet:")}{" "}
+     <span dir="ltr" className="font-mono font-bold text-foreground bg-background px-2 py-0.5 rounded border">{wallet}</span>
+    </p>
+   </div>
+   <div className="flex items-center gap-2">
+    <Button type="button" size="sm" variant="outline" className="h-8 text-xs rounded-lg" onClick={()=>{navigator.clipboard?.writeText(wallet);toast.success(t("تم نسخ رقم المحفظة","Wallet number copied"));}}>
+     <Copy className="h-3.5 w-3.5 me-1"/>{t("نسخ الرقم","Copy")}
+    </Button>
+    {!sent&&(
+     <Button type="button" size="sm" className="h-8 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold" onClick={()=>setOpen(!open)}>
+      <Wallet className="h-3.5 w-3.5 me-1"/>{t("تأكيد الدفع عبر اتصالات كاش","Confirm Etisalat Cash Payment")}
+     </Button>
+    )}
+   </div>
+  </div>
+  {sent&&(
+   <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 rounded-lg px-3 py-2 font-semibold">
+    <CheckCircle2 className="h-4 w-4 shrink-0"/>
+    <span>{t("تم إرسال بيانات التحويل للإدارة وبانتظار مراجعة وتأكيد الاستلام لبدء الإنتاج.","Transfer details sent to admin. Production will begin once verified.")}{invoice.payment_reference?` (${invoice.payment_reference})`:""}</span>
+   </div>
+  )}
+  {open&&!sent&&(
+   <form onSubmit={submitProof} className="grid gap-3 sm:grid-cols-2 border-t border-emerald-500/20 pt-3">
+    <div>
+     <Label className="text-xs">{t("رقم محفظة اتصالات المحوّل منها","Sender Etisalat Cash Number")}</Label>
+     <Input dir="ltr" required placeholder="011XXXXXXXX" className="mt-1 h-9 text-xs" value={sender} onChange={e=>setSender(e.target.value)}/>
+    </div>
+    <div>
+     <Label className="text-xs">{t("رقم مرجع التحويل / العملية","Transfer Reference Number")}</Label>
+     <Input dir="ltr" required placeholder="REF-123456" className="mt-1 h-9 text-xs" value={ref} onChange={e=>setRef(e.target.value)}/>
+    </div>
+    <div className="sm:col-span-2">
+     <Label className="text-xs">{t("صورة إيصال التحويل (اختياري)","Transfer Screenshot (Optional)")}</Label>
+     <Input type="file" accept="image/*,.pdf" className="mt-1 h-9 text-xs" onChange={e=>setReceipt(e.target.files?.[0]??null)}/>
+    </div>
+    <div className="sm:col-span-2 flex justify-end gap-2">
+     <Button type="button" size="sm" variant="outline" onClick={()=>setOpen(false)}>{t("إلغاء","Cancel")}</Button>
+     <Button type="submit" size="sm" disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white">{saving?t("جارٍ الإرسال…","Sending…"):t("إرسال تأكيد التحويل","Submit Transfer Proof")}</Button>
+    </div>
+   </form>
+  )}
+ </div>;
+}
 function ManuscriptForm({uid,revision,done}:{uid:string;revision:Tables<"manuscripts">|null;done:()=>void}){
  const {t}=useLocale();const [title,setTitle]=useState("");const [name,setName]=useState("");const [synopsis,setSynopsis]=useState("");const [format,setFormat]=useState<"digital"|"physical"|"both">("both");const [file,setFile]=useState<File|null>(null);const [busy,setBusy]=useState(false);
  async function submit(e:React.FormEvent){e.preventDefault();if(!file||!/\.(docx?|pdf)$/i.test(file.name)){toast.error(t("يرجى اختيار ملف بصيغة Word أو PDF","Please choose a Word or PDF file"));return;}setBusy(true);try{const path=`${uid}/${crypto.randomUUID()}.${file.name.split(".").pop()?.toLowerCase()}`;const {error:up}=await supabase.storage.from("author-documents").upload(path,file,{upsert:true});if(up)throw up;const {error}=await supabase.rpc("submit_manuscript",{_title:revision?.title??title,_author_name:revision?.author_name??name,_synopsis:revision?.synopsis??synopsis,_format:revision?.format??format,_path:path,_filename:file.name,...(revision?{_id:revision.id}:{})});if(error)throw error;toast.success(t("أُرسل الملف للمراجعة","Manuscript sent for review"));done();}catch(err){console.error("Manuscript submit error:",err);const msg=(err as {message?:string})?.message||"";toast.error(t(`تعذر إرسال الملف${msg?`: ${msg}`:"، تحقق منه وحاول مجدداً"}`,`Could not submit manuscript${msg?`: ${msg}`:". Check your file and retry."}`));}finally{setBusy(false);}}

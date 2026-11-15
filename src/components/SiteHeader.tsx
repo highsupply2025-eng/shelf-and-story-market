@@ -44,7 +44,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth, clearLocalSession } from "@/lib/auth";
 import { getUserApprovalStatus, syncMyApprovalFromDb } from "@/lib/admin-store";
@@ -79,6 +79,55 @@ export function SiteHeader() {
       window.removeEventListener("storage", onUpdate);
     };
   }, []);
+
+  const { data: notif } = useQuery({
+    queryKey: ["header-notifications", session?.user.id, accountType],
+    enabled: !!session?.user.id,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const uid = session?.user.id;
+      const empty = { projects: 0, invoices: 0, books: 0, earnings: 0, orders: 0 };
+      if (!uid) return empty;
+      try {
+        if (accountType === "author") {
+          const [{ data: ms }, { data: bks }, { data: erns }] = await Promise.all([
+            supabase.from("manuscripts").select("id, stage, production_invoices(status)").eq("author_id", uid),
+            supabase.from("books").select("id, status").eq("publisher_id", uid),
+            supabase.from("author_earnings").select("id, reversed").eq("author_id", uid),
+          ]);
+          const projects = (ms || []).filter((m) => ["revision", "accepted", "invoiced", "ready"].includes(m.stage)).length;
+          const invoices = (ms || []).filter((m) => {
+            const inv = m.production_invoices as { status?: string } | { status?: string }[] | null;
+            if (Array.isArray(inv)) return inv.some((x) => x.status === "unpaid");
+            return inv?.status === "unpaid";
+          }).length;
+          const books = (bks || []).filter((b) => b.status === "approved").length;
+          const earnings = (erns || []).filter((e) => !e.reversed).length;
+          return { projects, invoices, books, earnings, orders: 0 };
+        }
+        if (accountType === "publisher") {
+          const [{ data: bks }, { data: ords }] = await Promise.all([
+            supabase.from("books").select("id, status").eq("publisher_id", uid),
+            supabase.from("orders").select("id, status").in("status", ["pending", "paid"]),
+          ]);
+          return {
+            projects: 0,
+            invoices: 0,
+            books: (bks || []).filter((b) => b.status === "pending").length,
+            earnings: 0,
+            orders: (ords || []).length,
+          };
+        }
+        if (accountType === "reader") {
+          const { data: ords } = await supabase.from("orders").select("id, status").eq("buyer_id", uid).neq("status", "delivered");
+          return { ...empty, orders: (ords || []).length };
+        }
+      } catch {
+        /* ignore */
+      }
+      return empty;
+    },
+  });
 
   function toggleLanguage() {
     const nextLang = language === "ar" ? "en" : "ar";
@@ -415,6 +464,11 @@ export function SiteHeader() {
                     </span>
                   </div>
 
+                  {((notif?.projects || 0) + (notif?.invoices || 0) + (notif?.orders || 0)) > 0 && (
+                    <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">
+                      {(notif?.projects || 0) + (notif?.invoices || 0) + (notif?.orders || 0)}
+                    </span>
+                  )}
                   <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ms-0.5" />
                 </button>
               </DropdownMenuTrigger>
@@ -486,7 +540,7 @@ export function SiteHeader() {
                       className="p-2 rounded-lg cursor-pointer font-semibold"
                     >
                       <Package className="me-2 h-4 w-4 text-amber-600" />
-                      <span>{t("طلباتي", "My Orders")}</span>
+                      <span>{t("طلباتي", "My Orders")}</span>{(notif?.orders || 0) > 0 && <span className="ms-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{notif?.orders}</span>}
                     </DropdownMenuItem>
                   </>
                 ) : approvalStatus === "approved" && effectiveAccountType === "author" ? (
@@ -496,7 +550,7 @@ export function SiteHeader() {
                       className="p-2.5 rounded-xl font-bold cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary my-0.5"
                     >
                       <LayoutDashboard className="me-2 h-4 w-4 text-primary" />
-                      <span>{t("استوديو المؤلف والإنتاج", "Author Studio & Production")}</span>
+                      <span>{t("استوديو المؤلف والإنتاج", "Author Studio & Production")}</span>{(notif?.projects || 0) > 0 && <span className="ms-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">{notif?.projects}</span>}
                       <span className="ms-auto rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-extrabold text-primary">
                         {t("الرئيسية", "Home")}
                       </span>
@@ -515,7 +569,7 @@ export function SiteHeader() {
                       className="p-2 rounded-lg cursor-pointer font-semibold"
                     >
                       <Receipt className="me-2 h-4 w-4 text-amber-600" />
-                      <span>{t("إيصالات الدفع والفواتير", "Payment Receipts & Invoices")}</span>
+                      <span>{t("إيصالات الدفع والفواتير", "Payment Receipts & Invoices")}</span>{(notif?.invoices || 0) > 0 && <span className="ms-auto rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">{notif?.invoices}</span>}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
@@ -523,7 +577,7 @@ export function SiteHeader() {
                       className="p-2 rounded-lg cursor-pointer font-semibold"
                     >
                       <BookOpen className="me-2 h-4 w-4 text-blue-600" />
-                      <span>{t("كتبي المنشورة", "My Published Books")}</span>
+                      <span>{t("كتبي المنشورة", "My Published Books")}</span>{(notif?.books || 0) > 0 && <span className="ms-auto rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{notif?.books}</span>}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
@@ -531,7 +585,7 @@ export function SiteHeader() {
                       className="p-2 rounded-lg cursor-pointer font-semibold"
                     >
                       <Wallet className="me-2 h-4 w-4 text-emerald-600" />
-                      <span>{t("المبيعات والأرباح", "Sales & Earnings")}</span>
+                      <span>{t("المبيعات والأرباح", "Sales & Earnings")}</span>{(notif?.earnings || 0) > 0 && <span className="ms-auto rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{notif?.earnings}</span>}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
@@ -599,7 +653,7 @@ export function SiteHeader() {
                       className="p-2 rounded-lg cursor-pointer font-semibold"
                     >
                       <Truck className="me-2 h-4 w-4 text-amber-600" />
-                      <span>{t("طلبات الشحن والتوزيع", "Shipping & Orders")}</span>
+                      <span>{t("طلبات الشحن والتوزيع", "Shipping & Orders")}</span>{(notif?.orders || 0) > 0 && <span className="ms-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">{notif?.orders}</span>}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
@@ -788,6 +842,55 @@ export function SiteFooter() {
   const { t, language, set } = useLocale();
   const { session, isAdmin } = useAuth();
   const isUserAccountLogged = Boolean(session) && !isAdmin;
+
+  const { data: notif } = useQuery({
+    queryKey: ["header-notifications", session?.user.id, accountType],
+    enabled: !!session?.user.id,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const uid = session?.user.id;
+      const empty = { projects: 0, invoices: 0, books: 0, earnings: 0, orders: 0 };
+      if (!uid) return empty;
+      try {
+        if (accountType === "author") {
+          const [{ data: ms }, { data: bks }, { data: erns }] = await Promise.all([
+            supabase.from("manuscripts").select("id, stage, production_invoices(status)").eq("author_id", uid),
+            supabase.from("books").select("id, status").eq("publisher_id", uid),
+            supabase.from("author_earnings").select("id, reversed").eq("author_id", uid),
+          ]);
+          const projects = (ms || []).filter((m) => ["revision", "accepted", "invoiced", "ready"].includes(m.stage)).length;
+          const invoices = (ms || []).filter((m) => {
+            const inv = m.production_invoices as { status?: string } | { status?: string }[] | null;
+            if (Array.isArray(inv)) return inv.some((x) => x.status === "unpaid");
+            return inv?.status === "unpaid";
+          }).length;
+          const books = (bks || []).filter((b) => b.status === "approved").length;
+          const earnings = (erns || []).filter((e) => !e.reversed).length;
+          return { projects, invoices, books, earnings, orders: 0 };
+        }
+        if (accountType === "publisher") {
+          const [{ data: bks }, { data: ords }] = await Promise.all([
+            supabase.from("books").select("id, status").eq("publisher_id", uid),
+            supabase.from("orders").select("id, status").in("status", ["pending", "paid"]),
+          ]);
+          return {
+            projects: 0,
+            invoices: 0,
+            books: (bks || []).filter((b) => b.status === "pending").length,
+            earnings: 0,
+            orders: (ords || []).length,
+          };
+        }
+        if (accountType === "reader") {
+          const { data: ords } = await supabase.from("orders").select("id, status").eq("buyer_id", uid).neq("status", "delivered");
+          return { ...empty, orders: (ords || []).length };
+        }
+      } catch {
+        /* ignore */
+      }
+      return empty;
+    },
+  });
 
   function toggleLanguage() {
     const nextLang = language === "ar" ? "en" : "ar";

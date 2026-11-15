@@ -295,15 +295,15 @@ export function PublisherDashboard() {
         <TabsList className="h-auto w-full flex-wrap justify-start rounded-2xl bg-muted/70 p-1.5 border border-border/70 gap-1">
           <TabsTrigger value="books" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
             <BookOpen className="h-4 w-4" />
-            {t("كتالوج إصدارات الدار", "Books Catalog")} ({books.length})
+            {t("كتالوج إصدارات الدار", "Books Catalog")} ({books.length}){books.filter((b) => b.status === "pending").length > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white animate-pulse">{books.filter((b) => b.status === "pending").length}</span>}
           </TabsTrigger>
           <TabsTrigger value="sales" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
             <TrendingUp className="h-4 w-4" />
-            {t("المبيعات والأرباح", "Sales & Royalties")}
+            {t("المبيعات والأرباح", "Sales & Royalties")}{earnings.filter((e) => !e.reversed).length > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold text-white">{earnings.filter((e) => !e.reversed).length}</span>}
           </TabsTrigger>
           <TabsTrigger value="orders" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
             <Truck className="h-4 w-4" />
-            {t("طلبات الشحن والتوزيع", "Shipping & Orders")}
+            {t("طلبات الشحن والتوزيع", "Shipping & Orders")}{orders.filter((o) => o.status === "pending" || o.status === "paid").length > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">{orders.filter((o) => o.status === "pending" || o.status === "paid").length}</span>}
           </TabsTrigger>
           <TabsTrigger value="analytics" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
             <BarChart3 className="h-4 w-4" />

@@ -843,55 +843,6 @@ export function SiteFooter() {
   const { session, isAdmin } = useAuth();
   const isUserAccountLogged = Boolean(session) && !isAdmin;
 
-  const { data: notif } = useQuery({
-    queryKey: ["header-notifications", session?.user.id, accountType],
-    enabled: !!session?.user.id,
-    refetchInterval: 30000,
-    queryFn: async () => {
-      const uid = session?.user.id;
-      const empty = { projects: 0, invoices: 0, books: 0, earnings: 0, orders: 0 };
-      if (!uid) return empty;
-      try {
-        if (accountType === "author") {
-          const [{ data: ms }, { data: bks }, { data: erns }] = await Promise.all([
-            supabase.from("manuscripts").select("id, stage, production_invoices(status)").eq("author_id", uid),
-            supabase.from("books").select("id, status").eq("publisher_id", uid),
-            supabase.from("author_earnings").select("id, reversed").eq("author_id", uid),
-          ]);
-          const projects = (ms || []).filter((m) => ["revision", "accepted", "invoiced", "ready"].includes(m.stage)).length;
-          const invoices = (ms || []).filter((m) => {
-            const inv = m.production_invoices as { status?: string } | { status?: string }[] | null;
-            if (Array.isArray(inv)) return inv.some((x) => x.status === "unpaid");
-            return inv?.status === "unpaid";
-          }).length;
-          const books = (bks || []).filter((b) => b.status === "approved").length;
-          const earnings = (erns || []).filter((e) => !e.reversed).length;
-          return { projects, invoices, books, earnings, orders: 0 };
-        }
-        if (accountType === "publisher") {
-          const [{ data: bks }, { data: ords }] = await Promise.all([
-            supabase.from("books").select("id, status").eq("publisher_id", uid),
-            supabase.from("orders").select("id, status").in("status", ["pending", "paid"]),
-          ]);
-          return {
-            projects: 0,
-            invoices: 0,
-            books: (bks || []).filter((b) => b.status === "pending").length,
-            earnings: 0,
-            orders: (ords || []).length,
-          };
-        }
-        if (accountType === "reader") {
-          const { data: ords } = await supabase.from("orders").select("id, status").eq("buyer_id", uid).neq("status", "delivered");
-          return { ...empty, orders: (ords || []).length };
-        }
-      } catch {
-        /* ignore */
-      }
-      return empty;
-    },
-  });
-
   function toggleLanguage() {
     const nextLang = language === "ar" ? "en" : "ar";
     set({ language: nextLang });

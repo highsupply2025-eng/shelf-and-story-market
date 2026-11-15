@@ -303,7 +303,7 @@ export function PublisherDashboard() {
           </TabsTrigger>
           <TabsTrigger value="orders" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
             <Truck className="h-4 w-4" />
-            {t("طلبات الشحن والتوزيع", "Shipping & Orders")}{orders.filter((o) => o.status === "pending" || o.status === "paid").length > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">{orders.filter((o) => o.status === "pending" || o.status === "paid").length}</span>}
+            {t("طلبات الشحن والتوزيع", "Shipping & Orders")}{earnings.filter((e) => !e.reversed && e.format !== "digital").length > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">{earnings.filter((e) => !e.reversed && e.format !== "digital").length}</span>}
           </TabsTrigger>
           <TabsTrigger value="analytics" className="rounded-xl px-4 py-2 text-sm font-bold gap-2">
             <BarChart3 className="h-4 w-4" />

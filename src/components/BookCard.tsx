@@ -91,9 +91,9 @@ export function BookCard({ book, index = 0 }: { book: Book; index?: number }) {
             )}
 
             {/* Currency conversion reminder if not SAR */}
-            {currency !== "SAR" && (
+            {currency !== "USD" && (
               <span className="text-[10px] text-muted-foreground block font-mono">
-                (ما يعادل {finalPrice ?? rawPrice} ر.س)
+                (ما يعادل ${finalPrice ?? rawPrice} USD)
               </span>
             )}
           </div>

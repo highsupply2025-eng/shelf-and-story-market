@@ -957,7 +957,7 @@ export function AdminSiteControl() {
                 {newFormat !== "physical" && (
                   <div>
                     <Label className="text-xs font-bold text-foreground block mb-1">
-                      سعر النسخة الرقمية (ر.س)
+                      سعر النسخة الرقمية (USD $)
                     </Label>
                     <Input
                       type="number"
@@ -975,7 +975,7 @@ export function AdminSiteControl() {
                   <>
                     <div>
                       <Label className="text-xs font-bold text-foreground block mb-1">
-                        سعر النسخة الورقية (ر.س)
+                        سعر النسخة الورقية (USD $)
                       </Label>
                       <Input
                         type="number"
@@ -1410,7 +1410,7 @@ export function AdminSiteControl() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs font-bold text-muted-foreground">سعر النسخة الرقمية (ر.س):</Label>
+                  <Label className="text-xs font-bold text-muted-foreground">سعر النسخة الرقمية (USD $):</Label>
                   <Input
                     type="number"
                     min="0"
@@ -1423,7 +1423,7 @@ export function AdminSiteControl() {
                 </div>
 
                 <div>
-                  <Label className="text-xs font-bold text-muted-foreground">سعر النسخة الورقية (ر.س):</Label>
+                  <Label className="text-xs font-bold text-muted-foreground">سعر النسخة الورقية (USD $):</Label>
                   <Input
                     type="number"
                     min="0"

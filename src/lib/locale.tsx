@@ -130,12 +130,28 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     const isManual = localStorage.getItem("rafoof-locale-manual") === "true";
     if (isManual) return; // Respect user's explicit manual selection
 
-    async function autoDetectIpCountry() {
+    async function detectCountryCode(): Promise<string> {
+      try {
+        const cfRes = await fetch("/cdn-cgi/trace", { signal: AbortSignal.timeout(2500) });
+        if (cfRes.ok) {
+          const txt = await cfRes.text();
+          const m = txt.match(/(?:^|\n)loc=([A-Z]{2})/);
+          if (m && m[1]) return m[1].toUpperCase();
+        }
+      } catch { /* fallback below */ }
       try {
         const res = await fetch("https://api.country.is/", { signal: AbortSignal.timeout(3000) });
-        if (!res.ok) return;
-        const geo = await res.json();
-        const code = (geo?.country || "").toUpperCase();
+        if (res.ok) {
+          const geo = await res.json();
+          if (geo?.country) return String(geo.country).toUpperCase();
+        }
+      } catch { /* ignore */ }
+      return "";
+    }
+
+    async function autoDetectIpCountry() {
+      try {
+        const code = await detectCountryCode();
         if (!code) return;
 
         const matched = countries.find((c) => c.code === code);
@@ -168,9 +184,14 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     autoDetectIpCountry();
   }, []);
 
-  // 3. User profile sync
+  // 3. User profile sync (respect manual choice or persist IP-detected locale to DB)
   useEffect(() => {
     if (!session) return;
+    const isManual = typeof window !== "undefined" && localStorage.getItem("rafoof-locale-manual") === "true";
+    if (!isManual) {
+      void supabase.from("profiles").update(prefs).eq("id", session.user.id);
+      return;
+    }
     supabase
       .from("profiles")
       .select("language,country,currency")
@@ -186,7 +207,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
           }));
         }
       });
-  }, [session?.user.id]);
+  }, [session?.user.id, prefs.country, prefs.currency, prefs.language]);
 
   // 4. Document DOM lang & dir sync
   useEffect(() => {
@@ -219,9 +240,9 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const detectedRegionName = prefs.language === "ar" ? currentCountry.nameAr : currentCountry.nameEn;
 
   // Real-time multi-currency price formatter
-  const price = (n: number | null | undefined, base = "SAR") => {
+  const price = (n: number | null | undefined, base = "USD") => {
     if (n == null) return "—";
-    const targetCurrency = prefs.currency || "SAR";
+    const targetCurrency = prefs.currency || "USD";
     const rate = data?.rates?.[targetCurrency];
     const baseRate = data?.rates?.[base] || 1;
     const converted = rate && baseRate ? (n * rate) / baseRate : n;

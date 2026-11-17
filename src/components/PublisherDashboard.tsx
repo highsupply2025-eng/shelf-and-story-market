@@ -700,7 +700,7 @@ export function PublisherDashboard() {
             <div className="grid grid-cols-2 gap-3">
               {bookForm.format !== "physical" && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold">{t("سعر النسخة الرقمية (ر.س)", "Digital Price (SAR)")}</Label>
+                  <Label className="text-xs font-bold">{t("سعر النسخة الرقمية (USD $)", "Digital Price (USD $)")}</Label>
                   <Input
                     type="number"
                     value={bookForm.price_digital}
@@ -711,7 +711,7 @@ export function PublisherDashboard() {
               )}
               {bookForm.format !== "digital" && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold">{t("سعر النسخة الورقية (ر.س)", "Physical Price (SAR)")}</Label>
+                  <Label className="text-xs font-bold">{t("سعر النسخة الورقية (USD $)", "Physical Price (USD $)")}</Label>
                   <Input
                     type="number"
                     value={bookForm.price_physical}

@@ -47,6 +47,7 @@ export function AdminPublishersPanel() {
   const [editingBook, setEditingBook] = useState<{
     id: string;
     title: string;
+    category: string;
     price_digital: string;
     price_physical: string;
     stock: string;
@@ -177,6 +178,7 @@ export function AdminPublishersPanel() {
       .from("books")
       .update({
         title: editingBook.title.trim(),
+        category: editingBook.category.trim() || "عام",
         price_digital: editingBook.price_digital ? Number(editingBook.price_digital) : null,
         price_physical: editingBook.price_physical ? Number(editingBook.price_physical) : null,
         stock: Number(editingBook.stock || 0),
@@ -701,6 +703,7 @@ export function AdminPublishersPanel() {
                               setEditingBook({
                                 id: b.id,
                                 title: b.title,
+                                category: b.category || "عام",
                                 price_digital: b.price_digital != null ? String(b.price_digital) : "",
                                 price_physical: b.price_physical != null ? String(b.price_physical) : "",
                                 stock: String(b.stock ?? 0),
@@ -806,6 +809,10 @@ export function AdminPublishersPanel() {
               <div>
                 <Label>عنوان الكتاب</Label>
                 <Input className="mt-1" required value={editingBook.title} onChange={(e) => setEditingBook({ ...editingBook, title: e.target.value })} />
+              </div>
+              <div>
+                <Label>القسم / التخصص</Label>
+                <Input className="mt-1" required value={editingBook.category} onChange={(e) => setEditingBook({ ...editingBook, category: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

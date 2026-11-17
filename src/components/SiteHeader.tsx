@@ -853,7 +853,6 @@ export function SiteFooter() {
   const { session, isAdmin } = useAuth();
   const isUserAccountLogged = Boolean(session) && !isAdmin;
 
-  const unseen = getUnseenCounts(session?.user.id, notif);
 
   function toggleLanguage() {
     const nextLang = language === "ar" ? "en" : "ar";

@@ -56,6 +56,7 @@ import { useLocale, countries } from "@/lib/locale";
 import { AdminAuthModal } from "@/components/AdminAuthModal";
 import { Badge } from "@/components/ui/badge";
 import { useAppMode } from "@/lib/useAppMode";
+import { getUnseenCounts, markNotifSeen, type NotifKey } from "@/lib/notifications";
 
 export function SiteHeader() {
   const { t, language, currency, currentCountry, set } = useLocale();
@@ -74,9 +75,11 @@ export function SiteHeader() {
     const onUpdate = () => setApprovalTick((n) => n + 1);
     window.addEventListener("unibook_admin_update", onUpdate);
     window.addEventListener("storage", onUpdate);
+    window.addEventListener("unibook_notif_seen", onUpdate);
     return () => {
       window.removeEventListener("unibook_admin_update", onUpdate);
       window.removeEventListener("storage", onUpdate);
+      window.removeEventListener("unibook_notif_seen", onUpdate);
     };
   }, []);
 
@@ -129,12 +132,15 @@ export function SiteHeader() {
     },
   });
 
+  const unseen = getUnseenCounts(session?.user.id, notif);
+
   function toggleLanguage() {
     const nextLang = language === "ar" ? "en" : "ar";
     set({ language: nextLang });
   }
 
   function selectReaderTab(tabName: "library" | "settings" | "favorites" | "orders" | "currency") {
+    if (tabName === "orders") markNotifSeen(session?.user.id, "orders", notif?.orders || 0);
     if (typeof window !== "undefined") {
       window.sessionStorage.setItem("unibook_reader_tab", tabName);
       window.dispatchEvent(new CustomEvent("unibook_reader_tab", { detail: tabName }));
@@ -143,6 +149,9 @@ export function SiteHeader() {
   }
 
   function selectAuthorTab(tabName: "projects" | "new" | "invoices" | "books" | "earnings" | "blurb" | "contracts" | "guidelines" | "profile") {
+    if (tabName === "projects" || tabName === "invoices" || tabName === "books" || tabName === "earnings") {
+      markNotifSeen(session?.user.id, tabName as NotifKey, notif?.[tabName as NotifKey] || 0);
+    }
     if (typeof window !== "undefined") {
       window.sessionStorage.setItem("unibook_author_tab", tabName);
       window.dispatchEvent(new CustomEvent("unibook_author_tab", { detail: tabName }));
@@ -151,6 +160,7 @@ export function SiteHeader() {
   }
 
   function selectPublisherTab(tabName: "books" | "new-book" | "sales" | "orders" | "analytics" | "contracts" | "profile") {
+    if (tabName === "books" || tabName === "orders") markNotifSeen(session?.user.id, tabName as NotifKey, notif?.[tabName as NotifKey] || 0);
     if (typeof window !== "undefined") {
       window.sessionStorage.setItem("unibook_publisher_tab", tabName);
       window.dispatchEvent(new CustomEvent("unibook_publisher_tab", { detail: tabName }));
@@ -464,9 +474,9 @@ export function SiteHeader() {
                     </span>
                   </div>
 
-                  {((notif?.projects || 0) + (notif?.invoices || 0) + (notif?.orders || 0)) > 0 && (
+                  {((unseen.projects || 0) + (unseen.invoices || 0) + (unseen.orders || 0)) > 0 && (
                     <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">
-                      {(notif?.projects || 0) + (notif?.invoices || 0) + (notif?.orders || 0)}
+                      {(unseen.projects || 0) + (unseen.invoices || 0) + (unseen.orders || 0)}
                     </span>
                   )}
                   <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ms-0.5" />
@@ -540,7 +550,7 @@ export function SiteHeader() {
                       className="p-2 rounded-lg cursor-pointer font-semibold"
                     >
                       <Package className="me-2 h-4 w-4 text-amber-600" />
-                      <span>{t("طلباتي", "My Orders")}</span>{(notif?.orders || 0) > 0 && <span className="ms-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{notif?.orders}</span>}
+                      <span>{t("طلباتي", "My Orders")}</span>{(unseen.orders || 0) > 0 && <span className="ms-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{unseen.orders}</span>}
                     </DropdownMenuItem>
                   </>
                 ) : approvalStatus === "approved" && effectiveAccountType === "author" ? (
@@ -550,7 +560,7 @@ export function SiteHeader() {
                       className="p-2.5 rounded-xl font-bold cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary my-0.5"
                     >
                       <LayoutDashboard className="me-2 h-4 w-4 text-primary" />
-                      <span>{t("استوديو المؤلف والإنتاج", "Author Studio & Production")}</span>{(notif?.projects || 0) > 0 && <span className="ms-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">{notif?.projects}</span>}
+                      <span>{t("استوديو المؤلف والإنتاج", "Author Studio & Production")}</span>{(unseen.projects || 0) > 0 && <span className="ms-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">{unseen.projects}</span>}
                       <span className="ms-auto rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-extrabold text-primary">
                         {t("الرئيسية", "Home")}
                       </span>
@@ -569,7 +579,7 @@ export function SiteHeader() {
                       className="p-2 rounded-lg cursor-pointer font-semibold"
                     >
                       <Receipt className="me-2 h-4 w-4 text-amber-600" />
-                      <span>{t("إيصالات الدفع والفواتير", "Payment Receipts & Invoices")}</span>{(notif?.invoices || 0) > 0 && <span className="ms-auto rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">{notif?.invoices}</span>}
+                      <span>{t("إيصالات الدفع والفواتير", "Payment Receipts & Invoices")}</span>{(unseen.invoices || 0) > 0 && <span className="ms-auto rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">{unseen.invoices}</span>}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
@@ -577,7 +587,7 @@ export function SiteHeader() {
                       className="p-2 rounded-lg cursor-pointer font-semibold"
                     >
                       <BookOpen className="me-2 h-4 w-4 text-blue-600" />
-                      <span>{t("كتبي المنشورة", "My Published Books")}</span>{(notif?.books || 0) > 0 && <span className="ms-auto rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{notif?.books}</span>}
+                      <span>{t("كتبي المنشورة", "My Published Books")}</span>{(unseen.books || 0) > 0 && <span className="ms-auto rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{unseen.books}</span>}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
@@ -585,7 +595,7 @@ export function SiteHeader() {
                       className="p-2 rounded-lg cursor-pointer font-semibold"
                     >
                       <Wallet className="me-2 h-4 w-4 text-emerald-600" />
-                      <span>{t("المبيعات والأرباح", "Sales & Earnings")}</span>{(notif?.earnings || 0) > 0 && <span className="ms-auto rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{notif?.earnings}</span>}
+                      <span>{t("المبيعات والأرباح", "Sales & Earnings")}</span>{(unseen.earnings || 0) > 0 && <span className="ms-auto rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{unseen.earnings}</span>}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
@@ -653,7 +663,7 @@ export function SiteHeader() {
                       className="p-2 rounded-lg cursor-pointer font-semibold"
                     >
                       <Truck className="me-2 h-4 w-4 text-amber-600" />
-                      <span>{t("طلبات الشحن والتوزيع", "Shipping & Orders")}</span>{(notif?.orders || 0) > 0 && <span className="ms-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">{notif?.orders}</span>}
+                      <span>{t("طلبات الشحن والتوزيع", "Shipping & Orders")}</span>{(unseen.orders || 0) > 0 && <span className="ms-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white animate-pulse">{unseen.orders}</span>}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
@@ -842,6 +852,8 @@ export function SiteFooter() {
   const { t, language, set } = useLocale();
   const { session, isAdmin } = useAuth();
   const isUserAccountLogged = Boolean(session) && !isAdmin;
+
+  const unseen = getUnseenCounts(session?.user.id, notif);
 
   function toggleLanguage() {
     const nextLang = language === "ar" ? "en" : "ar";

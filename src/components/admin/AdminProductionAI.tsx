@@ -63,6 +63,10 @@ export function AdminProductionAI() {
   const [coverStyleId, setCoverStyleId] = useState("philosophical");
   const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const coverPreviewRef = useRef<HTMLDivElement>(null);
+  const [coverSide, setCoverSide] = useState<"front" | "back" | "both">("both");
+  const [backBlurb, setBackBlurb] = useState("يقدم هذا الكتاب رؤية علمية وعملية شاملة تساعد القارئ والباحث على فهم المفاهيم الأساسية وتطبيقها بخطوات واضحة وممنهجة.");
+  const [backIsbn, setBackIsbn] = useState("978-977-8540-01-2");
+  const [backPrice, setBackPrice] = useState("15 USD");
 
   // Proofreading State
   const [inputText, setInputText] = useState(
@@ -105,6 +109,145 @@ export function AdminProductionAI() {
 
   const selectedCoverStyle = COVER_STYLES.find((s) => s.id === coverStyleId) ?? COVER_STYLES[0]!;
 
+  function handleGenerateBackBlurb() {
+    const titleTxt = coverTitle.trim() || "هذا الكتاب";
+    const subTxt = coverSubtitle.trim() ? ` (${coverSubtitle.trim()})` : "";
+    const authTxt = coverAuthor.trim() || "المؤلف";
+    setBackBlurb(
+      `يأخذك كتاب «${titleTxt}»${subTxt} بقلم ${authTxt} في رحلة معرفية متكاملة تجمع بين التأصيل العلمي والتطبيق العملي بأسلوب سلس وموثق، ليكون مرجعاً معتمداً للقارئ والباحث في هذا المجال.\n\nإصدار حصري ومعتمد من ${coverPublisher || "دار عبيد للنشر"} — متاح رقمياً وورقياً عبر منصة unibook.`
+    );
+    toast.success("تم توليد نبذة الغلاف الخلفي بالذكاء الاصطناعي!");
+  }
+
+  function downloadCoverPng(mode: "front" | "back" | "spread") {
+    const styleBgColors: Record<string, [string, string]> = {
+      islamic: ["#1b3b2b", "#0f241a"],
+      philosophical: ["#222326", "#16171a"],
+      novel: ["#4a1c1d", "#2c0e0f"],
+      scientific: ["#0d2a4a", "#07182c"],
+      minimal: ["#faf7f2", "#e8dfcf"],
+    };
+    const [c1, c2] = styleBgColors[coverStyleId] || ["#222326", "#16171a"];
+    const textColor = selectedCoverStyle.darkText ? "#2c1d11" : "#ffffff";
+    const accent = selectedCoverStyle.accent;
+
+    const w = mode === "spread" ? 1720 : 800;
+    const h = 1200;
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const grad = ctx.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, c1);
+    grad.addColorStop(1, c2);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    const drawFront = (xOffset: number, cw: number) => {
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 4;
+      ctx.strokeRect(xOffset + 40, 40, cw - 80, h - 80);
+
+      ctx.fillStyle = textColor;
+      ctx.textAlign = "center";
+      ctx.font = "bold 26px sans-serif";
+      ctx.fillText(coverPublisher || "unibook", xOffset + cw / 2, 110);
+
+      ctx.font = "bold 54px sans-serif";
+      const words = (coverTitle || "عنوان الكتاب").split(" ");
+      let line = "";
+      let y = 460;
+      for (const word of words) {
+        const test = line ? `${line} ${word}` : word;
+        if (ctx.measureText(test).width > cw - 140) {
+          ctx.fillText(line, xOffset + cw / 2, y);
+          line = word;
+          y += 72;
+        } else {
+          line = test;
+        }
+      }
+      if (line) ctx.fillText(line, xOffset + cw / 2, y);
+
+      if (coverSubtitle) {
+        ctx.font = "28px sans-serif";
+        ctx.fillStyle = accent;
+        ctx.fillText(coverSubtitle.slice(0, 65), xOffset + cw / 2, y + 70);
+      }
+
+      ctx.fillStyle = textColor;
+      ctx.font = "bold 32px sans-serif";
+      ctx.fillText(coverAuthor || "المؤلف", xOffset + cw / 2, h - 130);
+      ctx.font = "20px sans-serif";
+      ctx.fillText("unibook Publishing", xOffset + cw / 2, h - 85);
+    };
+
+    const drawBack = (xOffset: number, cw: number) => {
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(xOffset + 40, 40, cw - 80, h - 80);
+
+      ctx.fillStyle = accent;
+      ctx.textAlign = "center";
+      ctx.font = "bold 28px sans-serif";
+      ctx.fillText("نبذة عن الكتاب", xOffset + cw / 2, 130);
+
+      ctx.fillStyle = textColor;
+      ctx.font = "26px sans-serif";
+      const words = (backBlurb || "").replace(/\n+/g, " ").split(" ");
+      let line = "";
+      let y = 210;
+      for (const word of words) {
+        const test = line ? `${line} ${word}` : word;
+        if (ctx.measureText(test).width > cw - 150) {
+          ctx.fillText(line, xOffset + cw / 2, y);
+          line = word;
+          y += 42;
+          if (y > 860) break;
+        } else {
+          line = test;
+        }
+      }
+      if (line && y <= 860) ctx.fillText(line, xOffset + cw / 2, y);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(xOffset + cw / 2 - 150, h - 220, 300, 110);
+      ctx.fillStyle = "#111111";
+      for (let bx = 0; bx < 240; bx += 7) {
+        ctx.fillRect(xOffset + cw / 2 - 120 + bx, h - 205, (bx % 3) + 2, 60);
+      }
+      ctx.font = "bold 18px monospace";
+      ctx.fillText(`ISBN: ${backIsbn}  ·  ${backPrice}`, xOffset + cw / 2, h - 125);
+    };
+
+    if (mode === "front") {
+      drawFront(0, 800);
+    } else if (mode === "back") {
+      drawBack(0, 800);
+    } else {
+      drawBack(0, 800);
+      ctx.fillStyle = accent;
+      ctx.fillRect(800, 0, 120, h);
+      ctx.save();
+      ctx.translate(860, h / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = "#111111";
+      ctx.textAlign = "center";
+      ctx.font = "bold 28px sans-serif";
+      ctx.fillText(`${coverTitle} — ${coverAuthor}`, 0, 10);
+      ctx.restore();
+      drawFront(920, 800);
+    }
+
+    const link = document.createElement("a");
+    link.download = `unibook-cover-${mode}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+    toast.success("تم تحميل الغلاف بجودة عالية للطباعة والنشر!");
+  }
+
   // 1. AI Cover Generation Logic
   function handleGenerateAICover() {
     setIsGeneratingCover(true);
@@ -139,6 +282,18 @@ export function AdminProductionAI() {
         { regex: /\bلاكن\b/g, fix: "لكن", rule: "حذف الألف المنطوقة غير المكتوبة في (لكن)" },
         { regex: /\bكثيره\b/g, fix: "كثيرة", rule: "تصحيح الهاء إلى تاء مربوطة" },
         { regex: /\bيستمرو\b/g, fix: "يستمروا", rule: "إضافة ألف التفريق بعد واو الجماعة" },
+        { regex: /\bالقديمه\b/g, fix: "القديمة", rule: "تصحيح الهاء إلى تاء مربوطة" },
+        { regex: /\bايضا\b/g, fix: "أيضاً", rule: "إثبات الهمزة والتنوين بالفتح" },
+        { regex: /\bجدا\b/g, fix: "جداً", rule: "إضافة تنوين الفتح" },
+        { regex: /\bانشاء الله\b/g, fix: "إن شاء الله", rule: "فصل (إن) عن (شاء) وإثبات الهمزة" },
+        { regex: /\bمساءا\b/g, fix: "مساءً", rule: "حذف الألف بعد الهمزة المتطرفة المسبوقة بألف" },
+        { regex: /\bالى\b/g, fix: "إلى", rule: "إثبات همزة القطع المكسورة" },
+        { regex: /\bاللى\b/g, fix: "الذي", rule: "استخدام الاسم الموصول الفصيح" },
+        { regex: /\bالذى\b/g, fix: "الذي", rule: "نقط الياء في (الذي)" },
+        { regex: /\bفى\b/g, fix: "في", rule: "نقط الياء في حرف الجر (في)" },
+        { regex: /\bعلى\s+ان\b/g, fix: "على أن", rule: "إثبات همزة القطع في (أن)" },
+        { regex: /\bteh\b/gi, fix: "the", rule: "تصحيح خطأ مطبعي شائع بالإنجليزية" },
+        { regex: /\brecieve\b/gi, fix: "receive", rule: "تصحيح قاعدة i before e" },
       ];
 
       commonRules.forEach(({ regex, fix, rule }) => {
@@ -149,7 +304,18 @@ export function AdminProductionAI() {
         }
       });
 
-      corrected = corrected.replace(/([،.؛:؟!])([^\s])/g, "$1 $2");
+      const multiSpaceCount = (corrected.match(/[ \t]{2,}/g) || []).length;
+      if (multiSpaceCount > 0) {
+        detections.push({ wrong: "مسافات مكررة", right: "مسافة واحدة", rule: `تنظيف ${multiSpaceCount} موضع من الفراغات الزائدة` });
+        corrected = corrected.replace(/[ \t]{2,}/g, " ");
+      }
+      corrected = corrected
+        .replace(/\s+([،.؛:؟!])/g, "$1")
+        .replace(/([،.؛:؟!])([^\s\n»")])/g, "$1 $2")
+        .replace(/\n{3,}/g, "\n\n")
+        .split("\n")
+        .map((line) => line.trim())
+        .join("\n");
 
       setCorrectionsList(detections);
       setProofreadResult(corrected);
@@ -369,6 +535,33 @@ export function AdminProductionAI() {
                 </div>
               </div>
 
+              {/* Back Cover Settings */}
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label className="text-xs font-extrabold text-primary">إعدادات الغلاف الخلفي (Back Cover & ISBN)</Label>
+                  <Button type="button" size="sm" variant="outline" onClick={handleGenerateBackBlurb} className="h-7 rounded-lg text-[11px] font-bold gap-1">
+                    <Sparkles className="h-3 w-3" /> توليد نبذة الخلفية بالذكاء الاصطناعي
+                  </Button>
+                </div>
+                <Textarea
+                  rows={3}
+                  value={backBlurb}
+                  onChange={(e) => setBackBlurb(e.target.value)}
+                  placeholder="نبذة تعريفية تظهر على ظهر الغلاف الخلفي..."
+                  className="rounded-xl text-xs bg-card"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[11px] font-bold">رقم ISBN / الباركود</Label>
+                    <Input dir="ltr" value={backIsbn} onChange={(e) => setBackIsbn(e.target.value)} className="mt-1 h-9 text-xs font-mono bg-card" />
+                  </div>
+                  <div>
+                    <Label className="text-[11px] font-bold">السعر المطبوع على الغلاف</Label>
+                    <Input dir="ltr" value={backPrice} onChange={(e) => setBackPrice(e.target.value)} className="mt-1 h-9 text-xs font-mono bg-card" />
+                  </div>
+                </div>
+              </div>
+
               {/* Style Selector */}
               <div className="space-y-2 pt-2">
                 <Label className="text-xs font-bold">النمط البصري والأسلوب الفني للغلاف</Label>
@@ -411,14 +604,16 @@ export function AdminProductionAI() {
           {/* 3D Live Cover Preview (5 cols) */}
           <div className="lg:col-span-5 space-y-4">
             <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm flex flex-col items-center">
-              <div className="w-full flex items-center justify-between mb-4">
+              <div className="w-full flex flex-wrap items-center justify-between gap-2 mb-3">
                 <span className="text-xs font-extrabold text-muted-foreground flex items-center gap-1.5">
                   <Eye className="h-4 w-4 text-primary" />
-                  معاينة ثلاثية الأبعاد (3D Live Preview)
+                  معاينة الغلاف الأمامي والخلفي
                 </span>
-                <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10 text-[10px] font-bold">
-                  جاهز للطباعة والنشر
-                </Badge>
+                <div className="flex gap-1 rounded-xl bg-muted p-1">
+                  {([["front", "أمامي"], ["back", "خلفي"], ["both", "معاً"]] as const).map(([m, lbl]) => (
+                    <button key={m} type="button" onClick={() => setCoverSide(m)} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer ${coverSide === m ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{lbl}</button>
+                  ))}
+                </div>
               </div>
 
               {/* 3D Book Container */}
@@ -458,6 +653,39 @@ export function AdminProductionAI() {
                   </div>
                 </div>
               </div>
+
+              {(coverSide === "back" || coverSide === "both") && (
+                <div
+                  className={`relative w-52 sm:w-60 aspect-[2/3] rounded-l-xl rounded-r-sm shadow-2xl border border-black/10 overflow-hidden flex flex-col justify-between p-5 bg-gradient-to-br mt-4 ${selectedCoverStyle.bg}`}
+                  style={{ color: selectedCoverStyle.darkText ? "#2c1d11" : "#ffffff" }}
+                >
+                  <div className="text-[10px] font-bold opacity-80 border-b border-current/20 pb-2 text-center">
+                    الغلاف الخلفي · نبذة عن الكتاب
+                  </div>
+                  <p className="my-auto text-[11px] leading-relaxed text-center opacity-90 line-clamp-6">
+                    {backBlurb}
+                  </p>
+                  <div className="rounded-lg bg-white text-black p-2 text-center space-y-1">
+                    <div className="h-6 w-full bg-[repeating-linear-gradient(90deg,#111_0,#111_2px,#fff_2px,#fff_5px)]" />
+                    <div className="flex items-center justify-between text-[9px] font-mono font-bold px-1" dir="ltr">
+                      <span>{backIsbn}</span>
+                      <span>{backPrice}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4 pt-3 border-t border-border/60">
+                <Button type="button" size="sm" variant="outline" className="text-[11px] font-bold h-8 rounded-xl" onClick={() => downloadCoverPng("front")}>
+                  <Download className="h-3.5 w-3.5 me-1" /> الأمامي PNG
+                </Button>
+                <Button type="button" size="sm" variant="outline" className="text-[11px] font-bold h-8 rounded-xl" onClick={() => downloadCoverPng("back")}>
+                  <Download className="h-3.5 w-3.5 me-1" /> الخلفي PNG
+                </Button>
+                <Button type="button" size="sm" className="text-[11px] font-bold h-8 rounded-xl" onClick={() => downloadCoverPng("spread")}>
+                  <Download className="h-3.5 w-3.5 me-1" /> الغلاف الكامل
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -481,7 +709,19 @@ export function AdminProductionAI() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold text-foreground">النص الأصلي (المخطوط):</Label>
-                <span className="text-[10px] text-muted-foreground font-mono">{inputText.length} حرف</span>
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-bold hover:bg-muted">
+                    <FileUp className="h-3 w-3" /> رفع ملف نصي (.txt)
+                    <input type="file" accept=".txt,.md" className="hidden" onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      const txt = await f.text();
+                      setInputText(txt);
+                      toast.success(`تم استيراد النص من (${f.name})`);
+                    }} />
+                  </label>
+                  <span className="text-[10px] text-muted-foreground font-mono">{inputText.length} حرف</span>
+                </div>
               </div>
               <Textarea
                 rows={10}
@@ -528,6 +768,50 @@ export function AdminProductionAI() {
               </div>
             </div>
           </div>
+
+          {proofreadResult && (
+            <div className="border-t pt-5 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  الأخطاء الكتابية المستخرجة ({correctionsList.length})
+                </h4>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 rounded-xl text-xs font-bold gap-1.5"
+                  onClick={() => {
+                    const blob = new Blob([proofreadResult], { type: "text/plain;charset=utf-8" });
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(blob);
+                    a.download = "unibook-formatted-manuscript.txt";
+                    a.click();
+                  }}
+                >
+                  <Download className="h-3.5 w-3.5" /> تحميل النص المنسق والمدقق (.txt)
+                </Button>
+              </div>
+              {correctionsList.length === 0 ? (
+                <p className="text-xs text-emerald-700 bg-emerald-500/10 rounded-xl px-4 py-3 font-semibold">
+                  النص سليم إملائياً ومنسق بنجاح!
+                </p>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {correctionsList.map((item, idx) => (
+                    <div key={idx} className="rounded-xl border bg-muted/30 p-3 text-xs space-y-1">
+                      <div className="flex items-center gap-2 font-bold">
+                        <span className="text-rose-600 line-through">{item.wrong}</span>
+                        <span>←</span>
+                        <span className="text-emerald-600">{item.right}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{item.rule}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

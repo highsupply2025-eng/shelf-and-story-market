@@ -24,7 +24,12 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 interface ProtectedBookReaderProps {
   book: {
@@ -58,7 +63,8 @@ export function ProtectedBookReader({
   const [currentPage, setCurrentPage] = useState(1);
   const fullTotalPages = book.pages && book.pages > 0 ? book.pages : 124;
   // If free sample, max available pages is 10 (with page 11 being the paywall lock)
-  const allowedSamplePages = isFreeSample ? Math.min(maxFreePages, fullTotalPages) : fullTotalPages;
+  const effectiveTotal = pdfDoc ? pdfDoc.numPages : fullTotalPages;
+  const allowedSamplePages = isFreeSample ? Math.min(maxFreePages, effectiveTotal) : effectiveTotal;
   const totalPages = isFreeSample ? allowedSamplePages : fullTotalPages;
   const isLocked = isFreeSample && currentPage > allowedSamplePages;
 
@@ -70,10 +76,61 @@ export function ProtectedBookReader({
   const isForeignDefault = /^[a-zA-Z]/.test((book.title || "").trim());
   const [readingDirection, setReadingDirection] = useState<"rtl" | "ltr">(isForeignDefault ? "ltr" : "rtl");
   const readerContainerRef = useRef<HTMLDivElement>(null);
+  const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const readerEmail = session?.user?.email || (isFreeSample ? "قارئ عينة unibook المجانية" : "قارئ unibook المعتمد");
   const readerId = session?.user?.id ? session.user.id.slice(0, 8) : "SAMPLE-PREVIEW";
   const watermarkText = `unibook DRM Protected · ${readerEmail} · ${readerId} · عينة مجانية للاطلاع فقط`;
+
+  // 0. Load real PDF document bytes into memory for protected canvas rendering
+  useEffect(() => {
+    if (!open || !book.file_path) {
+      setPdfDoc(null);
+      return;
+    }
+    let cancelled = false;
+    setPdfLoading(true);
+    (async () => {
+      try {
+        const { data, error } = await supabase.storage.from("book-files").download(book.file_path!);
+        if (error || !data) throw new Error(error?.message || "PDF unavailable");
+        const buf = await data.arrayBuffer();
+        const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+        if (!cancelled) setPdfDoc(doc);
+      } catch {
+        if (!cancelled) setPdfDoc(null);
+      } finally {
+        if (!cancelled) setPdfLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, book.file_path]);
+
+  // Render current PDF page onto protected canvas
+  useEffect(() => {
+    if (!open || !pdfDoc || isLocked || !pdfCanvasRef.current) return;
+    let cancelled = false;
+    let renderTask: pdfjsLib.RenderTask | null = null;
+    (async () => {
+      try {
+        const pageNum = Math.min(Math.max(1, currentPage), pdfDoc.numPages);
+        const page = await pdfDoc.getPage(pageNum);
+        if (cancelled || !pdfCanvasRef.current) return;
+        const scale = Math.max(1.2, (zoomLevel / 100) * 1.5);
+        const viewport = page.getViewport({ scale });
+        const canvas = pdfCanvasRef.current;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        renderTask = page.render({ canvasContext: ctx, viewport, canvas });
+        await renderTask.promise;
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; renderTask?.cancel(); };
+  }, [open, pdfDoc, currentPage, zoomLevel, isLocked]);
 
   // 1. Strict Anti-Screenshot & Screen Capture Protection
   useEffect(() => {
@@ -136,13 +193,18 @@ export function ProtectedBookReader({
       triggerScreenshotShield();
     };
 
-    window.addEventListener("keydown", handleKeyDown);
+    const handleVisibility = () => { if (document.hidden) setIsWindowBlurred(true); };
+    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("keyup", handleKeyDown, true);
+    document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("blur", handleBlur);
     window.addEventListener("focus", handleFocus);
     window.addEventListener("beforeprint", handleBeforePrint);
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("keyup", handleKeyDown, true);
+      document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("beforeprint", handleBeforePrint);
@@ -341,6 +403,17 @@ export function ProtectedBookReader({
             <div className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 font-mono text-xs text-rose-300">
               {readerEmail}
             </div>
+            <Button
+              onClick={() => {
+                setScreenshotAttempted(false);
+                setIsWindowBlurred(false);
+              }}
+              className="mt-5 rounded-full bg-rose-600 hover:bg-rose-700 text-white px-6 font-bold text-xs"
+            >
+              العودة للقراءة الآمنة
+            </Button>
+            <div className="hidden">
+            </div>
           </div>
         )}
 
@@ -417,6 +490,21 @@ export function ProtectedBookReader({
                     <span>مراجعة الفهرس مجدداً (صفحة 3)</span>
                   </Button>
                 </div>
+              </div>
+            ) : pdfLoading ? (
+              <div className="flex h-full min-h-[300px] flex-col items-center justify-center gap-3 text-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <p className="text-xs text-muted-foreground">جارٍ فك تشفير وتحميل الصفحات المحمية...</p>
+              </div>
+            ) : pdfDoc ? (
+              <div className="relative flex flex-col items-center justify-center min-h-full select-none">
+                <canvas
+                  ref={pdfCanvasRef}
+                  className={`max-w-full h-auto rounded shadow-sm pointer-events-none transition-opacity ${
+                    isWindowBlurred || screenshotAttempted ? "opacity-0" : "opacity-100"
+                  }`}
+                />
+                <div className="absolute inset-0 z-10 pointer-events-auto" onContextMenu={(e) => e.preventDefault()} />
               </div>
             ) : currentPage === 1 ? (
               /* PAGE 1: Book Cover & Main Title & Sample Note */

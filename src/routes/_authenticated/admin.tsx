@@ -18,6 +18,10 @@ import {
   Store,
   BookOpen,
   ShoppingBag,
+  RefreshCw,
+  FileText,
+  UserCheck,
+  ArrowUpLeft,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -56,6 +60,43 @@ function AdminPage() {
   const qc = useQueryClient();
 
   const [walletNumberInput, setWalletNumberInput] = useState(() => getAdminWalletNumber());
+  const [activeTab, setActiveTab] = useState<string>("authors");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const { data: overviewStats } = useQuery({
+    queryKey: ["admin-executive-overview", session?.user.id],
+    enabled: !!isAdmin,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      try {
+        const [{ data: bks }, { data: ords }, { data: ms }, { data: appr }, { data: pay }] = await Promise.all([
+          supabase.from("books").select("id, status"),
+          supabase.from("orders").select("id, status, total"),
+          supabase.from("manuscripts").select("id, stage"),
+          supabase.from("account_approvals").select("user_id, status").eq("status", "pending"),
+          supabase.from("author_payouts").select("id, status").eq("status", "requested"),
+        ]);
+        return {
+          approvedBooks: (bks || []).filter((b) => b.status === "approved").length,
+          pendingBooks: (bks || []).filter((b) => b.status === "pending").length,
+          totalOrders: (ords || []).length,
+          pendingOrders: (ords || []).filter((o) => o.status === "pending" || o.status === "paid").length,
+          activeManuscripts: (ms || []).filter((m) => m.stage !== "published").length,
+          pendingApprovals: (appr || []).length,
+          pendingPayouts: (pay || []).length,
+        };
+      } catch {
+        return { approvedBooks: 0, pendingBooks: 0, totalOrders: 0, pendingOrders: 0, activeManuscripts: 0, pendingApprovals: 0, pendingPayouts: 0 };
+      }
+    },
+  });
+
+  async function handleRefreshAll() {
+    setRefreshing(true);
+    await qc.invalidateQueries();
+    setTimeout(() => setRefreshing(false), 400);
+    toast.success("تم تحديث بيانات لوحة الإدارة بنجاح");
+  }
 
   // Check admin identity specifically
   // Decided only by the database role check (user_roles / has_role).
@@ -148,17 +189,120 @@ function AdminPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-end md:self-auto">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
-              جلسة إدارة نشطة ومؤمنة
+          <div className="flex flex-wrap items-center gap-2 self-end md:self-auto">
+            <button
+              type="button"
+              onClick={() => setActiveTab("wallet")}
+              className="inline-flex items-center gap-1.5 rounded-full bg-muted/70 hover:bg-muted border border-border/70 px-3 py-1.5 text-xs font-bold text-foreground cursor-pointer transition-colors"
+            >
+              <Wallet className="h-3.5 w-3.5 text-primary" />
+              <span>اتصالات كاش:</span>
+              <span dir="ltr" className="font-mono text-primary">{getAdminWalletNumber()}</span>
+            </button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleRefreshAll}
+              disabled={refreshing}
+              className="h-8 rounded-full text-xs font-bold gap-1.5 cursor-pointer"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              <span>تحديث</span>
+            </Button>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              جلسة إدارة نشطة
             </span>
           </div>
         </div>
       </div>
 
+      {/* Executive KPI Command Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+        <button
+          type="button"
+          onClick={() => setActiveTab("publishers")}
+          className="text-start rounded-2xl border border-border/80 bg-card hover:border-primary/40 p-4 shadow-xs transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[11px] font-bold">الكتب المنشورة</span>
+            <BookOpen className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold font-mono text-foreground">{overviewStats?.approvedBooks ?? 0}</p>
+          <p className="mt-0.5 text-[10px] text-amber-600 font-semibold flex items-center gap-1">
+            <span>{overviewStats?.pendingBooks ?? 0} بانتظار المراجعة</span>
+            <ArrowUpLeft className="h-3 w-3" />
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("publishers")}
+          className="text-start rounded-2xl border border-border/80 bg-card hover:border-primary/40 p-4 shadow-xs transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[11px] font-bold">الطلبات والشحن</span>
+            <ShoppingBag className="h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold font-mono text-foreground">{overviewStats?.totalOrders ?? 0}</p>
+          <p className="mt-0.5 text-[10px] text-blue-600 font-semibold flex items-center gap-1">
+            <span>{overviewStats?.pendingOrders ?? 0} قيد التنفيذ</span>
+            <ArrowUpLeft className="h-3 w-3" />
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("authors")}
+          className="text-start rounded-2xl border border-border/80 bg-card hover:border-primary/40 p-4 shadow-xs transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[11px] font-bold">ملفات ومخطوطات</span>
+            <FileText className="h-4 w-4 text-amber-600 group-hover:scale-110 transition-transform" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold font-mono text-foreground">{overviewStats?.activeManuscripts ?? 0}</p>
+          <p className="mt-0.5 text-[10px] text-amber-700 font-semibold flex items-center gap-1">
+            <span>تحت المراجعة / الإنتاج</span>
+            <ArrowUpLeft className="h-3 w-3" />
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("authors")}
+          className="text-start rounded-2xl border border-border/80 bg-card hover:border-primary/40 p-4 shadow-xs transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[11px] font-bold">حسابات معلّقة</span>
+            <UserCheck className="h-4 w-4 text-rose-600 group-hover:scale-110 transition-transform" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold font-mono text-foreground">{overviewStats?.pendingApprovals ?? 0}</p>
+          <p className="mt-0.5 text-[10px] text-rose-600 font-semibold flex items-center gap-1">
+            <span>تنتظر اعتماد الإدارة</span>
+            <ArrowUpLeft className="h-3 w-3" />
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("authors")}
+          className="col-span-2 sm:col-span-1 text-start rounded-2xl border border-border/80 bg-card hover:border-primary/40 p-4 shadow-xs transition-all cursor-pointer group"
+        >
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[11px] font-bold">سحوبات معلّقة</span>
+            <Wallet className="h-4 w-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold font-mono text-foreground">{overviewStats?.pendingPayouts ?? 0}</p>
+          <p className="mt-0.5 text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+            <span>مستحقات المؤلفين</span>
+            <ArrowUpLeft className="h-3 w-3" />
+          </p>
+        </button>
+      </div>
+
       {/* Main Multi-Panel Tabs */}
-      <Tabs defaultValue="production-ai" onValueChange={(v) => { const key = session?.user.id ? `admin_${session.user.id}` : undefined; if (v === "authors") markNotifSeen(key, "projects", adminCounts?.projects || 0); if (v === "publishers") markNotifSeen(key, "books", adminCounts?.books || 0); }} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); const key = session?.user.id ? `admin_${session.user.id}` : undefined; if (v === "authors") markNotifSeen(key, "projects", adminCounts?.projects || 0); if (v === "publishers") markNotifSeen(key, "books", adminCounts?.books || 0); }} className="space-y-6">
         <TabsList className="h-auto flex-wrap p-1.5 rounded-2xl bg-card border border-border/80 shadow-xs gap-1.5 w-full justify-start">
           {/* 1. مركز الإنتاج بالذكاء الاصطناعي */}
           <TabsTrigger
@@ -252,7 +396,7 @@ function AdminPage() {
                   </h2>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  هذا الرقم يظهر تلقائياً للمؤلفين عند طلب الاشتراك في باقات النشر لسداد الرسوم (Vodafone Cash / InstaPay / STC Pay / المحافظ البنكية).
+                  هذا الرقم يظهر تلقائياً للمؤلفين في فواتير الإنتاج وباقات النشر للسداد عبر محفظة اتصالات كاش في مصر (Etisalat Cash).
                 </p>
               </div>
 

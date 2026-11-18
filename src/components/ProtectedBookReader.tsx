@@ -61,6 +61,8 @@ export function ProtectedBookReader({
 }: ProtectedBookReaderProps) {
   const { session } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
+  const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const fullTotalPages = book.pages && book.pages > 0 ? book.pages : 124;
   // If free sample, max available pages is 10 (with page 11 being the paywall lock)
   const effectiveTotal = pdfDoc ? pdfDoc.numPages : fullTotalPages;
@@ -77,8 +79,7 @@ export function ProtectedBookReader({
   const [readingDirection, setReadingDirection] = useState<"rtl" | "ltr">(isForeignDefault ? "ltr" : "rtl");
   const readerContainerRef = useRef<HTMLDivElement>(null);
   const pdfCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
-  const [pdfLoading, setPdfLoading] = useState(false);
+
 
   const readerEmail = session?.user?.email || (isFreeSample ? "قارئ عينة unibook المجانية" : "قارئ unibook المعتمد");
   const readerId = session?.user?.id ? session.user.id.slice(0, 8) : "SAMPLE-PREVIEW";

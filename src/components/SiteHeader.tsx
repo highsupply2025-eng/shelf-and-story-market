@@ -121,6 +121,22 @@ export function SiteHeader() {
             orders: (ords || []).length,
           };
         }
+        if (accountType === "admin") {
+          const [{ data: ms }, { data: appr }, { data: bks }, { data: pay }, { data: ords }] = await Promise.all([
+            supabase.from("manuscripts").select("id, stage").in("stage", ["review", "invoiced", "ready"]),
+            supabase.from("account_approvals").select("user_id").eq("status", "pending"),
+            supabase.from("books").select("id").eq("status", "pending"),
+            supabase.from("author_payouts").select("id").eq("status", "requested"),
+            supabase.from("orders").select("id").in("status", ["pending", "paid"]),
+          ]);
+          return {
+            projects: (ms || []).length + (appr || []).length,
+            invoices: (pay || []).length,
+            books: (bks || []).length,
+            earnings: 0,
+            orders: (ords || []).length,
+          };
+        }
         if (accountType === "reader") {
           const { data: ords } = await supabase.from("orders").select("id, status").eq("buyer_id", uid).neq("status", "delivered");
           return { ...empty, orders: (ords || []).length };
@@ -474,9 +490,9 @@ export function SiteHeader() {
                     </span>
                   </div>
 
-                  {((unseen.projects || 0) + (unseen.invoices || 0) + (unseen.orders || 0)) > 0 && (
+                  {((unseen.projects || 0) + (unseen.invoices || 0) + (unseen.books || 0) + (unseen.orders || 0)) > 0 && (
                     <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">
-                      {(unseen.projects || 0) + (unseen.invoices || 0) + (unseen.orders || 0)}
+                      {(unseen.projects || 0) + (unseen.invoices || 0) + (unseen.books || 0) + (unseen.orders || 0)}
                     </span>
                   )}
                   <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ms-0.5" />

@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { getUnseenCounts, markNotifSeen } from "@/lib/notifications";
 import { toast } from "sonner";
 import {
   Users,
@@ -58,6 +60,43 @@ function AdminPage() {
   // Check admin identity specifically
   // Decided only by the database role check (user_roles / has_role).
   const isSuperAdmin = isAdmin;
+
+  const [, setNotifTick] = useState(0);
+  useEffect(() => {
+    const onSeen = () => setNotifTick((n) => n + 1);
+    window.addEventListener("unibook_notif_seen", onSeen);
+    return () => window.removeEventListener("unibook_notif_seen", onSeen);
+  }, []);
+
+  const { data: adminCounts } = useQuery({
+    queryKey: ["admin-tab-notifications", session?.user.id],
+    enabled: !!isAdmin,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      try {
+        const [{ data: ms }, { data: appr }, { data: pay }, { data: bks }, { data: ords }] = await Promise.all([
+          supabase.from("manuscripts").select("id").in("stage", ["review", "invoiced", "ready"]),
+          supabase.from("account_approvals").select("user_id, role").eq("status", "pending"),
+          supabase.from("author_payouts").select("id").eq("status", "requested"),
+          supabase.from("books").select("id").eq("status", "pending"),
+          supabase.from("orders").select("id").in("status", ["pending", "paid"]),
+        ]);
+        const authAppr = (appr || []).filter((a) => a.role === "author").length;
+        const pubAppr = (appr || []).filter((a) => a.role === "publisher").length;
+        return {
+          projects: (ms || []).length + authAppr + (pay || []).length,
+          invoices: 0,
+          books: (bks || []).length + pubAppr + (ords || []).length,
+          earnings: 0,
+          orders: 0,
+        };
+      } catch {
+        return { projects: 0, invoices: 0, books: 0, earnings: 0, orders: 0 };
+      }
+    },
+  });
+
+  const adminUnseen = getUnseenCounts(session?.user.id ? `admin_${session.user.id}` : undefined, adminCounts);
 
   function handleSaveWallet() {
     setAdminWalletNumber(walletNumberInput);
@@ -119,7 +158,7 @@ function AdminPage() {
       </div>
 
       {/* Main Multi-Panel Tabs */}
-      <Tabs defaultValue="production-ai" className="space-y-6">
+      <Tabs defaultValue="production-ai" onValueChange={(v) => { const key = session?.user.id ? `admin_${session.user.id}` : undefined; if (v === "authors") markNotifSeen(key, "projects", adminCounts?.projects || 0); if (v === "publishers") markNotifSeen(key, "books", adminCounts?.books || 0); }} className="space-y-6">
         <TabsList className="h-auto flex-wrap p-1.5 rounded-2xl bg-card border border-border/80 shadow-xs gap-1.5 w-full justify-start">
           {/* 1. مركز الإنتاج بالذكاء الاصطناعي */}
           <TabsTrigger
@@ -154,7 +193,7 @@ function AdminPage() {
             className="rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground shadow-xs cursor-pointer transition-all"
           >
             <PenLine className="h-4 w-4" />
-            <span>لوحة المؤلف (مراجعة واعتماد)</span>
+            <span>لوحة المؤلف (مراجعة واعتماد)</span>{adminUnseen.projects > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">{adminUnseen.projects}</span>}
           </TabsTrigger>
 
           {/* 5. لوحة دور النشر */}
@@ -163,7 +202,7 @@ function AdminPage() {
             className="rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground shadow-xs cursor-pointer transition-all"
           >
             <Building2 className="h-4 w-4" />
-            <span>لوحة دور النشر (مراجعة واعتماد)</span>
+            <span>لوحة دور النشر (مراجعة واعتماد)</span>{adminUnseen.books > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">{adminUnseen.books}</span>}
           </TabsTrigger>
 
           {/* 6. محفظة الإدارة */}

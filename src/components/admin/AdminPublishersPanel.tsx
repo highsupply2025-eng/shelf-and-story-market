@@ -361,7 +361,7 @@ export function AdminPublishersPanel() {
             pubSubTab === "publishers" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Building2 className="h-3.5 w-3.5" /> حسابات وبيانات دور النشر ({publishers.length})
+          <Building2 className="h-3.5 w-3.5" /> حسابات وبيانات دور النشر ({publishers.length}){pendingPublishersCount > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">{pendingPublishersCount}</span>}
         </button>
         <button
           type="button"
@@ -370,7 +370,7 @@ export function AdminPublishersPanel() {
             pubSubTab === "catalog" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <BookOpen className="h-3.5 w-3.5" /> إدارة الكتالوج والكتب ({allBooks.length})
+          <BookOpen className="h-3.5 w-3.5" /> إدارة الكتالوج والكتب ({allBooks.length}){pendingBooks.length > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white animate-pulse">{pendingBooks.length}</span>}
         </button>
         <button
           type="button"
@@ -379,7 +379,7 @@ export function AdminPublishersPanel() {
             pubSubTab === "orders" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Truck className="h-3.5 w-3.5" /> طلبات الشحن والتوزيع ({adminOrders.length})
+          <Truck className="h-3.5 w-3.5" /> طلبات الشحن والتوزيع ({adminOrders.length}){adminOrders.filter((o: Record<string, unknown>) => o["status"] === "pending" || o["status"] === "paid").length > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">{adminOrders.filter((o: Record<string, unknown>) => o["status"] === "pending" || o["status"] === "paid").length}</span>}
         </button>
       </div>
 

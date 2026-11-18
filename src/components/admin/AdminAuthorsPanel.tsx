@@ -309,6 +309,7 @@ export function AdminAuthorsPanel() {
   // Pending items count
   const pendingPlans = planRequests.filter((p) => p.status === "pending");
   const pendingPayouts = payouts.filter((p) => p.status === "requested");
+  const pendingManuscriptsCount = authors.reduce((sum, a) => sum + (a.manuscripts || []).filter((m) => ["review", "invoiced", "ready"].includes(String(m["stage"] || ""))).length, 0);
   const pendingAuthorsCount = authors.filter(
     (a) => getUserApprovalStatus(a.id, a.email) === "pending"
   ).length;
@@ -364,7 +365,7 @@ export function AdminAuthorsPanel() {
             subTab === "accounts" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <PenLine className="h-3.5 w-3.5" /> حسابات وبيانات ووثائق المؤلفين ({authors.length})
+          <PenLine className="h-3.5 w-3.5" /> حسابات وبيانات ووثائق المؤلفين ({authors.length}){pendingAuthorsCount > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">{pendingAuthorsCount}</span>}
         </button>
         <button
           type="button"
@@ -373,7 +374,7 @@ export function AdminAuthorsPanel() {
             subTab === "production" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <FileText className="h-3.5 w-3.5" /> ملفات المؤلفين والإنتاج والكتب
+          <FileText className="h-3.5 w-3.5" /> ملفات المؤلفين والإنتاج والكتب{pendingManuscriptsCount > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white animate-pulse">{pendingManuscriptsCount}</span>}
         </button>
         <button
           type="button"
@@ -382,7 +383,7 @@ export function AdminAuthorsPanel() {
             subTab === "plans" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Sparkles className="h-3.5 w-3.5" /> باقات النشر ({pendingPlans.length} معلق)
+          <Sparkles className="h-3.5 w-3.5" /> باقات النشر ({pendingPlans.length} معلق){pendingPlans.length > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">{pendingPlans.length}</span>}
         </button>
         <button
           type="button"
@@ -391,7 +392,7 @@ export function AdminAuthorsPanel() {
             subTab === "payouts" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Wallet className="h-3.5 w-3.5" /> سحب الأرباح ({pendingPayouts.length} معلق)
+          <Wallet className="h-3.5 w-3.5" /> سحب الأرباح ({pendingPayouts.length} معلق){pendingPayouts.length > 0 && <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white animate-pulse">{pendingPayouts.length}</span>}
         </button>
       </div>
 

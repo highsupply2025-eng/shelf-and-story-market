@@ -595,24 +595,31 @@ export function PublisherDashboard() {
                 {t("حساب دار نشر معتمد", "Verified Publisher")}
               </Badge>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3 text-sm">
+            <div className="grid gap-4 sm:grid-cols-4 text-sm">
               <div className="rounded-xl border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground">{t("كود الدار المرجعي", "Publisher Code")}</p>
-                <p className="mt-1 font-mono font-bold text-primary">{publisher?.author_code || "PUB-UNIBOOK"}</p>
+                <p className="text-xs text-muted-foreground">{t("مدة عقد الكتاب", "Contract Duration")}</p>
+                <p className="mt-1 text-xl font-bold text-emerald-600">{t("5 سنوات", "5 Years")}</p>
               </div>
               <div className="rounded-xl border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground">{t("تغطية النشر الرقمي", "Digital Distribution")}</p>
-                <p className="mt-1 font-bold text-emerald-600">{t("تفعيل عالمي فوري", "Global Instant Access")}</p>
+                <p className="text-xs text-muted-foreground">{t("نسبة الدار (رقمي)", "Publisher Digital Share")}</p>
+                <p className="mt-1 text-xl font-bold text-primary">30%</p>
+                <p className="text-[11px] text-muted-foreground">{t("70% للمؤلف", "70% Author")}</p>
               </div>
               <div className="rounded-xl border bg-muted/30 p-4">
-                <p className="text-xs text-muted-foreground">{t("دعم الشحن واللوجستيات", "Shipping & Fulfillment")}</p>
-                <p className="mt-1 font-bold text-foreground">{t("متابعة مركزية عبر المنصة", "Managed via unibook")}</p>
+                <p className="text-xs text-muted-foreground">{t("نسبة الدار (ورقي)", "Publisher Print Share")}</p>
+                <p className="mt-1 text-xl font-bold text-primary">70%</p>
+                <p className="text-[11px] text-muted-foreground">{t("30% للمؤلف", "30% Author")}</p>
+              </div>
+              <div className="rounded-xl border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">{t("موعد التحاسب", "Settlement Cycle")}</p>
+                <p className="mt-1 text-lg font-bold text-foreground">{t("نهاية كل شهر", "End of Month")}</p>
               </div>
             </div>
             <ul className="space-y-2 text-sm text-muted-foreground list-disc ps-5">
-              <li>{t("تلتزم دار النشر بملكية حقوق النشر والتوزيع لجميع الكتب المضافة في الكتالوج.", "The publisher certifies ownership of publishing and distribution rights for all listed titles.")}</li>
-              <li>{t("تُراجع الكتب الجديدة علمياً وفنياً قبل ظهورها العام في متجر unibook.", "New titles undergo editorial and technical review before store publication.")}</li>
-              <li>{t("يمكن للدار تحديث ملفها التعريفي وإضافة إصدارات غير محدودة في أي وقت.", "Publishers can update their profile and add titles anytime.")}</li>
+              <li>{t("مدة عقد الكتاب 5 سنوات ميلادية تبدأ من تاريخ التوقيع الإلكتروني والاعتماد.", "Each book contract lasts 5 years from electronic signature.")}</li>
+              <li>{t("تحصل دار النشر على 30% من النسخة الرقمية (و70% للمؤلف) و70% من النسخة الورقية (و30% للمؤلف).", "Publisher receives 30% digital / 70% print; Author receives 70% digital / 30% print.")}</li>
+              <li>{t("يتم التحاسب المالي وتسوية المستحقات في نهاية كل شهر (يوم 30 وآخر يوم في فبراير بتوقيت القاهرة).", "Financial settlement is processed at the end of every month.")}</li>
+              <li>{t("مضمون الكتاب مسؤولية المؤلف وحده، ولا يجوز بعد انتهاء مدة العقد استخدام شعار الدار لدى ناشر آخر.", "Book content liability rests with the author, and publisher branding cannot be reused post-term.")}</li>
             </ul>
           </div>
         </TabsContent>

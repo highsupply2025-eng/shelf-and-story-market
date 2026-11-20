@@ -368,6 +368,24 @@ export function SiteHeader() {
               <MessageSquare className="h-4 w-4 opacity-75" />
               <span>{t("تواصل معنا", "Contact")}</span>
             </Link>
+            <a
+              href="https://unicourse.site"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={linkCls}
+            >
+              <ArrowUpRight className="h-4 w-4 opacity-75" />
+              <span>unicourse</span>
+            </a>
+            <a
+              href="https://unigates.online"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={linkCls}
+            >
+              <ArrowUpRight className="h-4 w-4 opacity-75" />
+              <span>unigates</span>
+            </a>
           </nav>
         )}
 

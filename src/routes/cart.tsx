@@ -16,6 +16,9 @@ import {
   CreditCard,
   CheckCircle2,
   Loader2,
+  Store,
+  Copy,
+  Smartphone,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/lib/cart";
@@ -24,6 +27,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getAdminWalletNumber } from "@/lib/author-plans";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
@@ -45,7 +50,14 @@ function CartPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [ship, setShip] = useState({ name: "", phone: "", address: "" });
+  const [deliveryMethod, setDeliveryMethod] = useState<"shipping" | "branch">("shipping");
+  const [shippingCompany, setShippingCompany] = useState("أرامكس (Aramex)");
+  const [pickupBranch, setPickupBranch] = useState("فرع طنطا — 21 شارع مصنع الكاوتش أمام مسجد المولد");
+  const [paymentMethod, setPaymentMethod] = useState<"etisalat" | "cod">("etisalat");
+  const [paySender, setPaySender] = useState("");
+  const [payRef, setPayRef] = useState("");
   const [busy, setBusy] = useState(false);
+  const walletNumber = getAdminWalletNumber();
 
   const BackIcon = language === "ar" ? ArrowRight : ArrowLeft;
 
@@ -77,17 +89,31 @@ function CartPage() {
       return;
     }
 
-    if (hasPhysical && (!ship.name.trim() || !ship.phone.trim() || !ship.address.trim())) {
-      toast.error(t("يرجى تعبئة كافة بيانات الشحن (الاسم، الجوال، العنوان)", "Please fill all shipping details"));
+    if (hasPhysical && (!ship.name.trim() || !ship.phone.trim() || (deliveryMethod === "shipping" && !ship.address.trim()))) {
+      toast.error(t("يرجى تعبئة بيانات المستلم والعنوان", "Please fill recipient and delivery details"));
       return;
     }
+    if (paymentMethod === "etisalat" && (!paySender.trim() || !payRef.trim())) {
+      toast.error(t("يرجى إدخال رقم محفظة اتصالات كاش المحوّل منها ورقم المرجع", "Please enter Etisalat Cash sender number and reference"));
+      return;
+    }
+
+    const deliverySummary = hasPhysical
+      ? deliveryMethod === "branch"
+        ? `استلام من الفرع: ${pickupBranch}`
+        : `شركة الشحن: ${shippingCompany} | العنوان: ${ship.address.trim()}`
+      : "تسليم رقمي فوري داخل المكتبة";
+    const paymentSummary =
+      paymentMethod === "etisalat"
+        ? `الدفع: اتصالات كاش (${paySender.trim()} / مرجع: ${payRef.trim()})`
+        : "الدفع: عند الاستلام (COD)";
 
     setBusy(true);
     const { error } = await supabase.rpc("place_order", {
       _items: cart.items.map((i) => ({ book_id: i.book_id, format: i.format, quantity: i.quantity })),
-      _name: ship.name,
-      _phone: ship.phone,
-      _address: ship.address,
+      _name: ship.name.trim() || session.user.email?.split("@")[0] || "عميل unibook",
+      _phone: ship.phone.trim() || paySender.trim() || "-",
+      _address: `${deliverySummary} | ${paymentSummary}`,
     });
     setBusy(false);
 
@@ -308,17 +334,67 @@ function CartPage() {
 
         {/* Sidebar Summary & Checkout */}
         <aside className="space-y-5">
-          {/* Shipping Details for physical books */}
+          {/* Delivery & Shipping Company OR Branch Pickup (for physical books) */}
           {hasPhysical && (
             <div className="rounded-3xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm space-y-4">
               <div className="flex items-center gap-2">
                 <Truck className="h-4.5 w-4.5 text-primary" />
                 <h2 className="font-display text-base sm:text-lg font-bold text-foreground">
-                  {t("بيانات الشحن والتوصيل", "Shipping Information")}
+                  {t("طريقة الاستلام وشركة الشحن", "Delivery & Shipping Method")}
                 </h2>
               </div>
 
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMethod("shipping")}
+                  className={`rounded-xl border p-3 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                    deliveryMethod === "shipping" ? "border-primary bg-primary/10 text-primary" : "border-border/70 text-muted-foreground"
+                  }`}
+                >
+                  <Truck className="h-4 w-4" />
+                  <span>{t("شركة شحن", "Shipping Company")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMethod("branch")}
+                  className={`rounded-xl border p-3 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                    deliveryMethod === "branch" ? "border-primary bg-primary/10 text-primary" : "border-border/70 text-muted-foreground"
+                  }`}
+                >
+                  <Store className="h-4 w-4" />
+                  <span>{t("الاستلام من الفرع", "Branch Pickup")}</span>
+                </button>
+              </div>
+
               <div className="space-y-3">
+                {deliveryMethod === "shipping" ? (
+                  <div>
+                    <Label className="text-xs font-bold text-muted-foreground">{t("اختر شركة الشحن", "Select Shipping Company")}</Label>
+                    <Select value={shippingCompany} onValueChange={setShippingCompany}>
+                      <SelectTrigger className="mt-1 h-10 rounded-xl text-xs bg-background/50"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="أرامكس (Aramex)">أرامكس (Aramex)</SelectItem>
+                        <SelectItem value="بوسطة (Bosta)">بوسطة (Bosta)</SelectItem>
+                        <SelectItem value="سمسا (SMSA)">سمسا (SMSA)</SelectItem>
+                        <SelectItem value="DHL Express">DHL Express</SelectItem>
+                        <SelectItem value="البريد المصري / سبل">البريد المصري / سبل</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-xs font-bold text-muted-foreground">{t("اختر فرع الاستلام (مجاناً)", "Select Pickup Branch (Free)")}</Label>
+                    <Select value={pickupBranch} onValueChange={setPickupBranch}>
+                      <SelectTrigger className="mt-1 h-10 rounded-xl text-xs bg-background/50"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="فرع طنطا — 21 شارع مصنع الكاوتش أمام مسجد المولد">فرع طنطا — 21 شارع مصنع الكاوتش أمام مسجد المولد</SelectItem>
+                        <SelectItem value="فرع القاهرة — مدينة نصر">فرع القاهرة — مدينة نصر</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div>
                   <Label className="text-xs font-bold text-muted-foreground">{t("اسم المستلم الكامل", "Recipient Name")}</Label>
                   <Input
@@ -334,24 +410,88 @@ function CartPage() {
                   <Input
                     value={ship.phone}
                     onChange={(e) => setShip({ ...ship, phone: e.target.value })}
-                    placeholder="05XXXXXXXX / +966..."
+                    placeholder="011XXXXXXXX / +20..."
                     className="h-10 rounded-xl mt-1 text-xs sm:text-sm bg-background/50"
                     dir="ltr"
                   />
                 </div>
 
-                <div>
-                  <Label className="text-xs font-bold text-muted-foreground">{t("العنوان بالتفصيل (المدينة، الحي، الشارع)", "Detailed Address")}</Label>
-                  <Textarea
-                    value={ship.address}
-                    onChange={(e) => setShip({ ...ship, address: e.target.value })}
-                    placeholder={t("اكتب المدينة والحي والشارع ورقم المبنى", "City, District, Street...")}
-                    className="rounded-xl mt-1 text-xs sm:text-sm min-h-20 bg-background/50"
-                  />
-                </div>
+                {deliveryMethod === "shipping" && (
+                  <div>
+                    <Label className="text-xs font-bold text-muted-foreground">{t("العنوان بالتفصيل (المدينة، الحي، الشارع)", "Detailed Address")}</Label>
+                    <Textarea
+                      value={ship.address}
+                      onChange={(e) => setShip({ ...ship, address: e.target.value })}
+                      placeholder={t("اكتب المدينة والحي والشارع ورقم المبنى", "City, District, Street...")}
+                      className="rounded-xl mt-1 text-xs sm:text-sm min-h-20 bg-background/50"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
+
+          {/* Payment Method Card (Digital & Physical) */}
+          <div className="rounded-3xl border border-emerald-500/30 bg-card p-5 sm:p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Smartphone className="h-4.5 w-4.5 text-emerald-600" />
+              <h2 className="font-display text-base sm:text-lg font-bold text-foreground">
+                {t("طريقة الدفع الإلكتروني", "Payment Method")}
+              </h2>
+            </div>
+
+            <div className={`grid gap-2 ${hasPhysical ? "grid-cols-2" : "grid-cols-1"}`}>
+              <button
+                type="button"
+                onClick={() => setPaymentMethod("etisalat")}
+                className={`rounded-xl border p-3 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                  paymentMethod === "etisalat" ? "border-emerald-600 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border/70 text-muted-foreground"
+                }`}
+              >
+                <Smartphone className="h-4 w-4" />
+                <span>{t("اتصالات كاش (مصر)", "Etisalat Cash")}</span>
+              </button>
+              {hasPhysical && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("cod")}
+                  className={`rounded-xl border p-3 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                    paymentMethod === "cod" ? "border-primary bg-primary/10 text-primary" : "border-border/70 text-muted-foreground"
+                  }`}
+                >
+                  <CreditCard className="h-4 w-4" />
+                  <span>{t("الدفع عند الاستلام", "Cash on Delivery")}</span>
+                </button>
+              )}
+            </div>
+
+            {paymentMethod === "etisalat" && (
+              <div className="space-y-3 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 p-3.5 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span>{t("حوّل الإجمالي إلى رقم اتصالات كاش:", "Transfer total to Etisalat Cash:")}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span dir="ltr" className="font-mono font-bold text-foreground bg-background px-2 py-0.5 rounded border">{walletNumber}</span>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard?.writeText(walletNumber); toast.success(t("تم نسخ الرقم", "Copied")); }}
+                      className="p-1 rounded hover:bg-muted cursor-pointer"
+                      aria-label="Copy wallet"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-[11px] font-bold">{t("رقم محفظة اتصالات المحوّل منها", "Sender Etisalat Cash Number")}</Label>
+                  <Input dir="ltr" value={paySender} onChange={(e) => setPaySender(e.target.value)} placeholder="011XXXXXXXX" className="mt-1 h-9 text-xs bg-background" />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-bold">{t("رقم مرجع التحويل / العملية", "Transfer Reference Number")}</Label>
+                  <Input dir="ltr" value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="REF-123456" className="mt-1 h-9 text-xs bg-background" />
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Order Summary Card */}
           <div className="rounded-3xl border border-border/80 bg-card p-5 sm:p-6 shadow-md space-y-4">

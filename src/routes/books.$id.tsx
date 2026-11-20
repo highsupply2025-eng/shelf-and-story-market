@@ -1,7 +1,7 @@
 import { useLocale } from "@/lib/locale";
 import { useAuth } from "@/lib/auth";
 import { Heart, BookOpen, Package, FileText, ArrowRight, ArrowLeft, ShieldCheck, Truck, Sparkles, Tag } from "lucide-react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ export const Route = createFileRoute("/books/$id")({
 
 function BookPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const cart = useCart();
   const { t, price: money, language, currency } = useLocale();
   const { session } = useAuth();
@@ -230,9 +231,9 @@ function BookPage() {
                           {money(o.price)}
                         </span>
                       </div>
-                      {currency !== "SAR" && (
+                      {currency !== "USD" && (
                         <span className="text-[11px] text-muted-foreground font-medium block mt-0.5">
-                          ({o.price} ر.س)
+                          (${o.price} USD)
                         </span>
                       )}
                     </div>
@@ -271,11 +272,11 @@ function BookPage() {
                   cover_url: book.cover_url,
                   price: opt.price,
                 });
-                toast.success(t("أُضيف الكتاب إلى سلة مشترياتك بنجاح", "Added to cart successfully"));
+                navigate({ to: "/cart" });
               }}
             >
               <BookOpen className="h-4.5 w-4.5" />
-              <span>{outOfStock ? t("نفدت الكمية", "Out of stock") : t("أضف إلى السلة", "Add to Cart")}</span>
+              <span>{outOfStock ? t("نفدت الكمية", "Out of stock") : t("شراء الآن (الانتقال للدفع)", "Buy Now (Checkout)")}</span>
             </Button>
 
             <Button
@@ -319,7 +320,7 @@ function BookPage() {
                 cover_url: book.cover_url,
                 price: opt.price,
               });
-              toast.success(t("أُضيف الكتاب إلى سلة مشترياتك بنجاح", "Added to cart successfully"));
+              navigate({ to: "/cart" });
             }
           }}
         />

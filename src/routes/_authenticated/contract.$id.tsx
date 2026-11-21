@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { buildStrictContractClauses } from "@/lib/contract-clauses";
 import { openPrintableContract } from "@/components/AuthorStudio";
+import { compressImageIfNeeded } from "@/lib/image-compress";
 
 export const Route = createFileRoute("/_authenticated/contract/$id")({
   head: () => ({
@@ -267,9 +268,10 @@ function AuthorContractPage() {
     setBusy(true);
     try {
       const uploadFile = async (prefix: string, f: File) => {
-        const ext = (f.name.split(".").pop()?.toLowerCase() || "jpg").replace(/[^a-z0-9]/g, "") || "jpg";
+        const optimized = await compressImageIfNeeded(f, 1600, 0.85);
+        const ext = (optimized.name.split(".").pop()?.toLowerCase() || "jpg").replace(/[^a-z0-9]/g, "") || "jpg";
         const path = `${uid}/${prefix}-${project.id}.${ext}`;
-        const { error } = await supabase.storage.from("author-documents").upload(path, f, { upsert: true });
+        const { error } = await supabase.storage.from("author-documents").upload(path, optimized, { upsert: true });
         if (error) throw error;
         return path;
       };

@@ -416,6 +416,14 @@ function InvoicePaymentBox({uid,invoice,onSubmitted}:{uid:string;invoice:{id:str
   )}
  </div>;
 }
+export function openPrintableContract(opts:{title:string;authorName:string;authorCode:string;signedBy?:string;idNumber?:string;signedAt?:string}){
+ const win=window.open("","_blank","width=900,height=1000");
+ if(!win){toast.error("يرجى السماح بفتح النوافذ المنبثقة لطباعة/حفظ العقد");return;}
+ const dateStr=opts.signedAt?new Date(opts.signedAt).toLocaleString("ar-EG"):new Date().toLocaleDateString("ar-EG");
+ const html=`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>عقد نشر إلكتروني - ${opts.title}</title><style>body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;padding:40px;line-height:1.8;color:#111;max-width:820px;margin:auto}h1{text-align:center;font-size:22px;border-bottom:2px solid #222;padding-bottom:12px}h2{font-size:15px;margin-top:20px;color:#333}.meta{background:#f7f7f7;border:1px solid #ddd;padding:14px;border-radius:8px;margin:16px 0;font-size:13px}.clauses li{margin-bottom:10px;font-size:13px}.sig{display:flex;justify-content:space-between;margin-top:40px;border-top:1px dashed #999;padding-top:20px;font-size:13px}@media print{button{display:none}}</style></head><body><button onclick="window.print()" style="padding:8px 16px;margin-bottom:16px;cursor:pointer">طباعة / حفظ كـ PDF</button><h1>عقد نشر وتوزيع كتاب إلكترونياً — دار عبيد / منصة unibook</h1><div class="meta"><div><strong>الطرف الأول (المؤلف):</strong> ${opts.signedBy||opts.authorName} (كود: ${opts.authorCode})</div>${opts.idNumber?`<div><strong>رقم البطاقة / جواز السفر:</strong> ${opts.idNumber}</div>`:""}<div><strong>الطرف الثاني (الناشر):</strong> محمد السيد محمود عبيد — مالك ومدير دار عبيد للنشر والتوزيع والطباعة (عضو اتحاد الناشرين المصريين) / منصة unibook.store</div><div><strong>عنوان الكتاب محل العقد:</strong> ${opts.title}</div><div><strong>تاريخ التوقيع:</strong> ${dateStr}</div><div><strong>حالة التوقيع:</strong> ${opts.signedAt?"موقّع إلكترونياً ومعتمد":"مسودة عقد"}</div></div><h2>بنود العقد الملزم بين الطرفين:</h2><ol class="clauses"><li><strong>أولاً (التكليف والنشر):</strong> يعهد الطرف الأول (المؤلف) للطرف الثاني (دار عبيد للنشر والتوزيع / منصة unibook) بنشر وتوزيع كتابه المذكور أعلاه رقمياً وورقياً عبر المنصة وشبكة التوزيع.</li><li><strong>ثانياً (نسب الأرباح):</strong> يحصل المؤلف على <strong>70%</strong> من صافي مبيعات النسخة الرقمية (و<strong>30%</strong> للدار)، وعلى <strong>30%</strong> من مبيعات النسخة الورقية (و<strong>70%</strong> للدار لتغطية تكاليف الطباعة والتوزيع والشحن).</li><li><strong>ثالثاً (مدة العقد):</strong> مدة هذا العقد <strong>5 سنوات</strong> ميلادية تبدأ من تاريخ التوقيع الإلكتروني والاعتماد.</li><li><strong>رابعاً (التحاسب المالي):</strong> يتم التحاسب وصرف المستحقات في <strong>نهاية كل شهر</strong> (يوم 30 من كل شهر وآخر يوم في فبراير بتوقيت القاهرة) بعد استقطاع أي ضرائب أو رسوم قانونية إن وجدت.</li><li><strong>خامساً (حماية الشعار):</strong> عند انتهاء مدة العقد ورغبة الطرف الأول في نشر الكتاب بمعرفته أو لدى ناشر آخر لا يجوز له استخدام شعار أو هوية الطرف الثاني.</li><li><strong>سادساً (المسؤولية القانونية والملكية الفكرية):</strong> مضمون الكتاب مسؤولية الطرف الأول وحده، ويقر بأنه لا يخالف القانون أو النظام العام دون أدنى مسؤولية على الطرف الثاني، ولا يجوز للغير النقل أو الاقتباس إلا بإذن مكتوب من المؤلف.</li><li><strong>سابعاً (حجية التوقيع الإلكتروني):</strong> توقيع هذا العقد إلكترونياً ملزم للطرفين بعد استلام ملف الكتاب وقبل بدء الإنتاج والنشر، وله نفس قوة النفاذ القانونية.</li></ol><div class="sig"><div><strong>توقيع الطرف الأول (المؤلف)</strong><br/>${opts.signedBy||opts.authorName}</div><div><strong>توقيع الطرف الثاني (الناشر)</strong><br/>دار عبيد للنشر والتوزيع / unibook.store</div></div></body></html>`;
+ win.document.open();win.document.write(html);win.document.close();
+}
+
 function ContractSigningSection({uid,projects,authorName,authorCode,isContractSigned,onSigned}:{uid:string;projects:{id:string;title:string;stage:string}[];authorName:string;authorCode:string;isContractSigned:(id:string)=>boolean;onSigned:()=>void}){
  const {t}=useLocale();
  const [signer,setSigner]=useState(authorName);
@@ -472,15 +480,26 @@ function ContractSigningSection({uid,projects,authorName,authorCode,isContractSi
         <span className="font-bold text-sm text-foreground">{p.title}</span>
         <span className="ms-2"><Stage value={p.stage}/></span>
        </div>
-       {signed?(
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-3 py-1 font-bold">
-         <CheckCircle2 className="h-3.5 w-3.5"/>{t("تم توقيع العقد","Contract Signed")}
-        </span>
-       ):(
-        <Button size="sm" disabled={signingId===p.id} onClick={()=>signContract(p)} className="h-8 rounded-lg font-bold">
-         {signingId===p.id?t("جارٍ التوقيع…","Signing…"):t("توقيع العقد الآن","Sign Contract Now")}
-        </Button>
-       )}
+       <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" size="sm" variant="outline" className="h-8 rounded-lg" onClick={async()=>{
+         let meta:{signedBy?:string;idNumber?:string;signedAt?:string}={};
+         try{
+          const cached=typeof window!=="undefined"?window.localStorage.getItem(`unibook_contract_signed_${p.id}`):null;
+          if(cached)meta=JSON.parse(cached);
+          else if(signed){const {data}=await supabase.storage.from("author-documents").download(`${uid}/contract-${p.id}.json`);if(data)meta=JSON.parse(await data.text());}
+         }catch{}
+         openPrintableContract({title:p.title,authorName,authorCode,...meta});
+        }}><Download className="me-1.5 h-3.5 w-3.5"/>{t("استخراج ملف العقد (PDF)","Export Contract (PDF)")}</Button>
+        {signed?(
+         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-3 py-1 font-bold">
+          <CheckCircle2 className="h-3.5 w-3.5"/>{t("تم توقيع العقد","Contract Signed")}
+         </span>
+        ):(
+         <Button size="sm" disabled={signingId===p.id} onClick={()=>signContract(p)} className="h-8 rounded-lg font-bold">
+          {signingId===p.id?t("جارٍ التوقيع…","Signing…"):t("توقيع العقد الآن","Sign Contract Now")}
+         </Button>
+        )}
+       </div>
       </div>;
      })}
     </div>

@@ -34,6 +34,17 @@ export function AuthorStudio(){
  const {data:books=[]}=useQuery({queryKey:["author-books",uid],enabled:!!uid&&isPublisher,queryFn:async()=>{if(!uid)return [];try{const {data,error}=await supabase.from("books").select("*").eq("publisher_id",uid);if(error)return [];return data??[];}catch{return [];}}});
  const {data:earnings=[]}=useQuery({queryKey:["earnings",uid],enabled:!!uid&&isPublisher,queryFn:async()=>{if(!uid)return [];try{const {data,error}=await supabase.from("author_earnings").select("*").eq("author_id",uid).order("created_at",{ascending:false});if(error)return [];return data??[];}catch{return [];}}});
  const {data:payouts=[]}=useQuery({queryKey:["payouts",uid],enabled:!!uid&&isPublisher,queryFn:async()=>{if(!uid)return [];try{const {data,error}=await supabase.from("author_payouts").select("*").eq("author_id",uid).order("created_at",{ascending:false});if(error)return [];return data??[];}catch{return [];}}});
+ const {data:authorStorageFiles=[],refetch:refetchContracts}=useQuery({
+   queryKey:["author-signed-contracts",uid],
+   enabled:!!uid&&isPublisher,
+   queryFn:async()=>{
+     if(!uid)return [] as string[];
+     try{
+       const {data}=await supabase.storage.from("author-documents").list(uid);
+       return (data||[]).map(f=>f.name);
+     }catch{return [] as string[];}
+   }
+ });
  const [tab,setTab]=useState<string>(() => {
    if (typeof window !== "undefined") {
      const saved = window.sessionStorage.getItem("unibook_author_tab");
@@ -278,17 +289,6 @@ export function AuthorStudio(){
  const usedBooksCount = projects.length;
  const remainingBooksCount = Math.max(0, maxBooksAllowed - usedBooksCount);
  const bookLimitReached = usedBooksCount >= maxBooksAllowed;
- const {data:authorStorageFiles=[],refetch:refetchContracts}=useQuery({
-   queryKey:["author-signed-contracts",uid],
-   enabled:!!uid&&isPublisher,
-   queryFn:async()=>{
-     if(!uid)return [] as string[];
-     try{
-       const {data}=await supabase.storage.from("author-documents").list(uid);
-       return (data||[]).map(f=>f.name);
-     }catch{return [] as string[];}
-   }
- });
  const signedContractFiles=authorStorageFiles.filter(name=>name.startsWith("contract-"));
  const getProjectCoverPath=(manuscriptId:string)=>{
    const match=authorStorageFiles.find(name=>name.startsWith(`cover-${manuscriptId}.`));

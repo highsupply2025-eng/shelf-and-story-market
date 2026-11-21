@@ -22,6 +22,7 @@ import { Route as AuthenticatedAuthorRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedPublisherRouteImport } from './routes/_authenticated/publisher'
 import { Route as BooksIndexRouteImport } from './routes/books.index'
 import { Route as BooksIdRouteImport } from './routes/books.$id'
+import { Route as AuthenticatedContractIdRouteImport } from './routes/_authenticated/contract.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -87,6 +88,11 @@ const BooksIdRoute = BooksIdRouteImport.update({
   path: '/books/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedContractIdRoute = AuthenticatedContractIdRouteImport.update({
+  id: '/contract/$id',
+  path: '/contract/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/publisher': typeof AuthenticatedPublisherRoute
   '/books/$id': typeof BooksIdRoute
   '/books/': typeof BooksIndexRoute
+  '/contract/$id': typeof AuthenticatedContractIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/publisher': typeof AuthenticatedPublisherRoute
   '/books/$id': typeof BooksIdRoute
   '/books': typeof BooksIndexRoute
+  '/contract/$id': typeof AuthenticatedContractIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/_authenticated/publisher': typeof AuthenticatedPublisherRoute
   '/books/$id': typeof BooksIdRoute
   '/books/': typeof BooksIndexRoute
+  '/_authenticated/contract/$id': typeof AuthenticatedContractIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/publisher'
     | '/books/$id'
     | '/books/'
+    | '/contract/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/publisher'
     | '/books/$id'
     | '/books'
+    | '/contract/$id'
   id:
     | '__root__'
     | '/'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/_authenticated/publisher'
     | '/books/$id'
     | '/books/'
+    | '/_authenticated/contract/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -283,6 +295,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BooksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/contract/$id': {
+      id: '/_authenticated/contract/$id'
+      path: '/contract/$id'
+      fullPath: '/contract/$id'
+      preLoaderRoute: typeof AuthenticatedContractIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -291,6 +310,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedAuthorRoute: typeof AuthenticatedAuthorRoute
   AuthenticatedPublisherRoute: typeof AuthenticatedPublisherRoute
+  AuthenticatedContractIdRoute: typeof AuthenticatedContractIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -298,6 +318,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedAuthorRoute: AuthenticatedAuthorRoute,
   AuthenticatedPublisherRoute: AuthenticatedPublisherRoute,
+  AuthenticatedContractIdRoute: AuthenticatedContractIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

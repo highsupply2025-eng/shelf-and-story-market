@@ -45,37 +45,61 @@ function NotFoundComponent() {
   );
 }
 
+function isChunkLoadError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  return /dynamically imported module|Importing a module script|ChunkLoadError|Loading chunk|Failed to fetch/i.test(msg);
+}
+
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
+  const isChunkErr = isChunkLoadError(error);
+
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
+    if (isChunkErr && typeof window !== "undefined") {
+      try {
+        const lastReload = Number(window.sessionStorage.getItem("unibook_chunk_reload") || "0");
+        if (Date.now() - lastReload > 15000) {
+          window.sessionStorage.setItem("unibook_chunk_reload", String(Date.now()));
+          window.location.reload();
+        }
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [error, isChunkErr]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4" dir="rtl">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          تعذر تحميل الصفحة مؤقتاً
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {isChunkErr
+            ? "تم تحديث نسخة الموقع على الخادم. يرجى تحديث الصفحة للمتابعة."
+            : "حدث خطأ غير متوقع أثناء تحميل الصفحة. يمكنك المحاولة مجدداً أو العودة للرئيسية."}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
+              if (isChunkErr && typeof window !== "undefined") {
+                window.location.reload();
+                return;
+              }
               router.invalidate();
               reset();
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            إعادة المحاولة
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            العودة للرئيسية
           </a>
         </div>
       </div>
@@ -199,6 +223,23 @@ function RootComponent() {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/contact");
+
+  useEffect(() => {
+    const onPreloadError = (event: Event) => {
+      event.preventDefault();
+      try {
+        const lastReload = Number(window.sessionStorage.getItem("unibook_chunk_reload") || "0");
+        if (Date.now() - lastReload > 15000) {
+          window.sessionStorage.setItem("unibook_chunk_reload", String(Date.now()));
+          window.location.reload();
+        }
+      } catch {
+        window.location.reload();
+      }
+    };
+    window.addEventListener("vite:preloadError", onPreloadError);
+    return () => window.removeEventListener("vite:preloadError", onPreloadError);
+  }, []);
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event) => {

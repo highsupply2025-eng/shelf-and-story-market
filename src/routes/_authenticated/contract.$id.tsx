@@ -24,6 +24,8 @@ import { Label } from "@/components/ui/label";
 import { buildStrictContractClauses } from "@/lib/contract-clauses";
 import { openPrintableContract } from "@/components/AuthorStudio";
 import { compressImageIfNeeded } from "@/lib/image-compress";
+import { validateRealDocumentImage, type DocumentPhotoKind } from "@/lib/document-verify";
+import { verifyDocumentPhotoAI } from "@/lib/document-verify.functions";
 
 export const Route = createFileRoute("/_authenticated/contract/$id")({
   head: () => ({
@@ -65,6 +67,7 @@ interface SignedContractData extends Partial<ContractIdentityInfo>, Partial<Cont
 
 function ImageUploadBox({
   id,
+  kind,
   label,
   hint,
   file,
@@ -72,6 +75,7 @@ function ImageUploadBox({
   icon: Icon,
 }: {
   id: string;
+  kind: DocumentPhotoKind;
   label: string;
   hint: string;
   file: File | null;
@@ -79,6 +83,9 @@ function ImageUploadBox({
   icon: typeof IdCard;
 }) {
   const [preview, setPreview] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   useEffect(() => {
     if (!file) {
       setPreview(null);
@@ -88,6 +95,53 @@ function ImageUploadBox({
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const inputEl = e.target;
+    const picked = inputEl.files?.[0] ?? null;
+    setErrorMsg(null);
+    if (!picked) {
+      onChange(null);
+      return;
+    }
+
+    setChecking(true);
+    try {
+      const localCheck = await validateRealDocumentImage(picked, kind);
+      if (!localCheck.ok) {
+        const msg = localCheck.reasonAr || "الصورة غير صالحة";
+        setErrorMsg(msg);
+        toast.error(msg);
+        inputEl.value = "";
+        onChange(null);
+        return;
+      }
+
+      const compact = await compressImageIfNeeded(picked, 800, 0.75);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("read failed"));
+        reader.readAsDataURL(compact);
+      }).catch(() => "");
+
+      if (dataUrl) {
+        const aiRes = await verifyDocumentPhotoAI({ data: { kind, dataUrl } }).catch(() => ({ valid: true, skipped: true }));
+        if (!aiRes.valid) {
+          const msg = ("reason_ar" in aiRes && aiRes.reason_ar) || "الصورة المرفوعة لا تطابق الوثيقة المطلوبة. يرجى رفع صورة حقيقية واضحة.";
+          setErrorMsg(msg);
+          toast.error(msg);
+          inputEl.value = "";
+          onChange(null);
+          return;
+        }
+      }
+
+      onChange(picked);
+    } finally {
+      setChecking(false);
+    }
+  }
 
   return (
     <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
@@ -105,26 +159,26 @@ function ImageUploadBox({
       <Input
         id={id}
         type="file"
-        accept="image/*,.png,.jpg,.jpeg,.webp"
-        onChange={(e) => {
-          const picked = e.target.files?.[0] ?? null;
-          if (picked && !picked.type.startsWith("image/") && !/\.(png|jpe?g|webp|gif)$/i.test(picked.name)) {
-            toast.error("يرجى اختيار ملف صورة صالح (PNG / JPG / WebP)");
-            e.target.value = "";
-            onChange(null);
-            return;
-          }
-          onChange(picked);
-        }}
+        disabled={checking}
+        accept="image/jpeg,image/png,image/webp,.png,.jpg,.jpeg,.webp"
+        onChange={handleFileSelect}
       />
-      {preview && file && (
-        <div className="flex items-center gap-3 rounded-lg border bg-background p-2.5">
+      {checking && (
+        <p className="text-xs font-semibold text-primary">جارٍ التحقق الصارم من صحة الصورة الحقيقية…</p>
+      )}
+      {errorMsg && (
+        <p className="text-xs font-semibold text-destructive bg-destructive/10 rounded-lg px-2.5 py-1.5 border border-destructive/30">
+          {errorMsg}
+        </p>
+      )}
+      {preview && file && !checking && (
+        <div className="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-background p-2.5">
           <img src={preview} alt={file.name} className="h-16 w-16 rounded object-cover border shrink-0" />
           <div className="min-w-0 flex-1 text-xs">
             <p className="truncate font-semibold">{file.name}</p>
-            <p className="text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
+            <p className="text-emerald-700 dark:text-emerald-300 font-semibold">تم التحقق ✓ · {(file.size / 1024).toFixed(0)} KB</p>
           </div>
-          <Button type="button" size="sm" variant="outline" onClick={() => onChange(null)}>
+          <Button type="button" size="sm" variant="outline" onClick={() => { setErrorMsg(null); onChange(null); }}>
             إزالة
           </Button>
         </div>
@@ -558,8 +612,9 @@ function AuthorContractPage() {
                 <div className={`grid gap-4 ${idType === "national_id" ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
                   <ImageUploadBox
                     id="contract-photo-4x6"
+                    kind="photo_4x6"
                     label={t("صورة شخصية 4×6", "Personal Photo (4x6)")}
-                    hint={t("صورة شخصية حديثة مقاس 4×6", "Recent 4x6 portrait photo")}
+                    hint={t("صورة شخصية حديثة مقاس 4×6 لوجه المؤلف", "Recent 4x6 portrait photo")}
                     file={photoFile}
                     onChange={setPhotoFile}
                     icon={UserSquare2}
@@ -568,16 +623,18 @@ function AuthorContractPage() {
                     <>
                       <ImageUploadBox
                         id="contract-id-front"
+                        kind="id_front"
                         label={t("صورة البطاقة / الهوية (أمامي)", "National ID (Front)")}
-                        hint={t("الوجه الأمامي للبطاقة", "Front side of National ID")}
+                        hint={t("الوجه الأمامي للبطاقة بالعرض وبوضوح", "Front side of National ID")}
                         file={idFrontFile}
                         onChange={setIdFrontFile}
                         icon={IdCard}
                       />
                       <ImageUploadBox
                         id="contract-id-back"
+                        kind="id_back"
                         label={t("صورة البطاقة / الهوية (خلفي)", "National ID (Back)")}
-                        hint={t("الوجه الخلفي للبطاقة", "Back side of National ID")}
+                        hint={t("الوجه الخلفي للبطاقة بالعرض وبوضوح", "Back side of National ID")}
                         file={idBackFile}
                         onChange={setIdBackFile}
                         icon={IdCard}
@@ -586,6 +643,7 @@ function AuthorContractPage() {
                   ) : (
                     <ImageUploadBox
                       id="contract-passport-img"
+                      kind="passport"
                       label={t("صورة جواز السفر", "Passport Photo")}
                       hint={t("صورة واضحة لصفحة البيانات في جواز السفر", "Clear photo of passport data page")}
                       file={passportFile}

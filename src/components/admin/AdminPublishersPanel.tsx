@@ -200,7 +200,21 @@ export function AdminPublishersPanel() {
   async function handleDeleteBook(bookId: string, bookTitle: string) {
     if (!confirm(`هل تريد مسح الكتاب (${bookTitle}) نهائياً من المتجر؟`)) return;
     setBusy(true);
+    await supabase.from("manuscripts").update({ book_id: null }).eq("book_id", bookId);
     const { error } = await supabase.from("books").delete().eq("id", bookId);
+    if (error && /foreign key/i.test(error.message)) {
+      const { error: hideErr } = await supabase.from("books").update({ status: "rejected" }).eq("id", bookId);
+      setBusy(false);
+      if (hideErr) {
+        toast.error("تعذر مسح أو إخفاء الكتاب");
+        return;
+      }
+      toast.success(`تم إخفاء الكتاب (${bookTitle}) من المتجر لارتباطه بطلبات سابقة`);
+      refetchAllBooks();
+      refetchPendingBooks();
+      qc.invalidateQueries();
+      return;
+    }
     setBusy(false);
     if (error) {
       toast.error("تعذر مسح الكتاب (قد يكون مرتبطاً بطلبات سابقة)");

@@ -395,9 +395,26 @@ export function AdminSiteControl() {
     if (!confirmDelete) return;
 
     setBusy(true);
+    // Unlink any manuscripts referencing this book first to avoid manuscripts_book_id_fkey error
+    await supabase.from("manuscripts").update({ book_id: null }).eq("book_id", book.id);
     const { error } = await supabase.from("books").delete().eq("id", book.id);
-    setBusy(false);
 
+    if (error && /foreign key/i.test(error.message)) {
+      // Book has past order_items; hide it from the store safely instead
+      const { error: hideErr } = await supabase.from("books").update({ status: "rejected" }).eq("id", book.id);
+      setBusy(false);
+      if (hideErr) {
+        toast.error(hideErr.message || "تعذر حذف أو إخفاء الكتاب");
+        return;
+      }
+      toast.success(`تم إخفاء كتاب (${book.title}) من المتجر (مرتبط بطلبات شراء سابقة)`);
+      removeBookDiscount(book.id);
+      refetchBooks();
+      qc.invalidateQueries();
+      return;
+    }
+
+    setBusy(false);
     if (error) {
       toast.error(error.message || "تعذر حذف الكتاب");
     } else {

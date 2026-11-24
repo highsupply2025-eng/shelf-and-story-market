@@ -29,6 +29,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAdminWalletNumber } from "@/lib/author-plans";
+import { StoreClosedNotice } from "@/components/StoreClosedNotice";
+import { STORE_AND_READER_CLOSED } from "@/lib/site-config";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
@@ -41,8 +43,13 @@ export const Route = createFileRoute("/cart")({
       { property: "og:description", content: "راجع الكتب في سلتك وأكمل طلبك بسهولة وأمان." },
     ],
   }),
-  component: CartPage,
+  component: CartPageGuard,
 });
+
+function CartPageGuard() {
+  if (STORE_AND_READER_CLOSED) return <StoreClosedNotice mode="store" />;
+  return <CartPage />;
+}
 
 function CartPage() {
   const cart = useCart();

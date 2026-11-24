@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 import { useAuth, isNetworkOrFetchError, metadataAccountType } from "@/lib/auth";
+import { STORE_AND_READER_CLOSED } from "@/lib/site-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +45,9 @@ export const Route = createFileRoute("/register")({
 
 function RegisterPage() {
   const { t, language, country } = useLocale();
-  const [accountType, setAccountType] = useState<"reader" | "author" | "publisher">("reader");
+  const [accountType, setAccountType] = useState<"reader" | "author" | "publisher">(
+    STORE_AND_READER_CLOSED ? "author" : "reader"
+  );
   const [form, setForm] = useState({ name: "", publisherName: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -68,6 +71,10 @@ function RegisterPage() {
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
+    if (STORE_AND_READER_CLOSED && accountType === "reader") {
+      toast.error(t("تسجيل حسابات القراء متوقف مؤقتاً لحين تجهيز المتجر.", "Reader registration is temporarily paused while the store is being prepared."));
+      return;
+    }
     setBusy(true);
 
     const displayName =
@@ -110,7 +117,10 @@ function RegisterPage() {
           unavailable();
         } else if (msg.includes("already registered") || msg.includes("already been registered")) {
           toast.error(
-            t("هذا البريد مسجّل مسبقاً، سجّل الدخول بدلاً من ذلك.", "This email is already registered — please sign in.")
+            t(
+              "هذا البريد مسجّل مسبقاً. يجب استخدام بريد إلكتروني خاص ومستقل لكل دور (مؤلف / دار نشر / قارئ) وعدم الخلط بينهم.",
+              "This email is already registered. Each role (Author / Publisher / Reader) must use its own separate email."
+            )
           );
         } else if (msg.includes("password")) {
           toast.error(t("كلمة المرور يجب أن تتكون من 6 خانات على الأقل.", "Password must be at least 6 characters."));
@@ -266,44 +276,48 @@ function RegisterPage() {
           </p>
         </div>
 
-        {/* Google OAuth Button */}
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="relative w-full h-12 rounded-2xl border-border/80 font-bold text-xs sm:text-sm shadow-xs hover:bg-muted/50 hover:border-primary/40 transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99]"
-          onClick={handleGoogle}
-          disabled={busy}
-        >
-          <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              fill="#4285F4"
-            />
-            <path
-              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              fill="#34A853"
-            />
-            <path
-              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              fill="#FBBC05"
-            />
-            <path
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              fill="#EA4335"
-            />
-          </svg>
-          <span>{t("التسجيل السريع باستخدام Google", "Continue with Google")}</span>
-        </Button>
+        {/* Google OAuth Button (disabled while reader registration is paused to prevent unseparated reader accounts) */}
+        {!STORE_AND_READER_CLOSED && (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="relative w-full h-12 rounded-2xl border-border/80 font-bold text-xs sm:text-sm shadow-xs hover:bg-muted/50 hover:border-primary/40 transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99]"
+              onClick={handleGoogle}
+              disabled={busy}
+            >
+              <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  fill="#34A853"
+                />
+                <path
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  fill="#FBBC05"
+                />
+                <path
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  fill="#EA4335"
+                />
+              </svg>
+              <span>{t("التسجيل السريع باستخدام Google", "Continue with Google")}</span>
+            </Button>
 
-        {/* Divider */}
-        <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-          <div className="h-px flex-1 bg-border/80" />
-          <span className="font-bold text-[11px] px-1 text-muted-foreground/80">
-            {t("أو التسجيل بالبريد الإلكتروني", "Or register with email")}
-          </span>
-          <div className="h-px flex-1 bg-border/80" />
-        </div>
+            {/* Divider */}
+            <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="h-px flex-1 bg-border/80" />
+              <span className="font-bold text-[11px] px-1 text-muted-foreground/80">
+                {t("أو التسجيل بالبريد الإلكتروني", "Or register with email")}
+              </span>
+              <div className="h-px flex-1 bg-border/80" />
+            </div>
+          </>
+        )}
 
         {/* Form */}
         <form onSubmit={handleRegister} className="space-y-4">
@@ -323,35 +337,51 @@ function RegisterPage() {
                 const r = roleConfigs[roleKey];
                 const Icon = r.icon;
                 const isSelected = accountType === roleKey;
+                const isDisabled = STORE_AND_READER_CLOSED && roleKey === "reader";
 
                 return (
                   <button
                     key={roleKey}
                     type="button"
-                    onClick={() => setAccountType(roleKey)}
-                    className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer text-center select-none ${
-                      isSelected
-                        ? "border-primary bg-primary/10 text-primary font-bold shadow-md ring-2 ring-primary/20 scale-[1.03]"
-                        : "border-border/70 bg-card hover:bg-muted/40 text-muted-foreground"
+                    disabled={isDisabled}
+                    onClick={() => {
+                      if (isDisabled) {
+                        toast.info(t("تسجيل القراء متوقف مؤقتاً لحين تجهيز المتجر.", "Reader registration is temporarily paused."));
+                        return;
+                      }
+                      setAccountType(roleKey);
+                    }}
+                    className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all text-center select-none ${
+                      isDisabled
+                        ? "border-border/40 bg-muted/40 text-muted-foreground/60 opacity-65 cursor-not-allowed"
+                        : isSelected
+                          ? "border-primary bg-primary/10 text-primary font-bold shadow-md ring-2 ring-primary/20 scale-[1.03] cursor-pointer"
+                          : "border-border/70 bg-card hover:bg-muted/40 text-muted-foreground cursor-pointer"
                     }`}
                   >
-                    {isSelected && (
+                    {isSelected && !isDisabled && (
                       <span className="absolute top-1.5 end-1.5 grid h-4 w-4 place-items-center rounded-full bg-primary text-primary-foreground shadow-xs animate-in zoom-in-75">
                         <Check className="h-2.5 w-2.5 stroke-[3]" />
                       </span>
                     )}
 
-                    <span className={`grid h-8 w-8 place-items-center rounded-xl mb-1.5 transition-colors ${isSelected ? "bg-primary text-primary-foreground shadow-xs" : "bg-muted text-muted-foreground"}`}>
+                    <span className={`grid h-8 w-8 place-items-center rounded-xl mb-1.5 transition-colors ${isSelected && !isDisabled ? "bg-primary text-primary-foreground shadow-xs" : "bg-muted text-muted-foreground"}`}>
                       <Icon className="h-4.5 w-4.5" />
                     </span>
                     <span className="text-xs font-extrabold leading-tight">{r.title}</span>
                     <span className="text-[10px] opacity-75 mt-0.5 leading-tight line-clamp-1">
-                      {roleKey === "reader" ? "شراء وقراءة" : roleKey === "author" ? "نشر وباقات" : "كتالوج الدار"}
+                      {isDisabled ? t("متوقف مؤقتاً", "Paused") : roleKey === "reader" ? "شراء وقراءة" : roleKey === "author" ? "نشر وباقات" : "كتالوج الدار"}
                     </span>
                   </button>
                 );
               })}
             </div>
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed">
+              {t(
+                "تسجيل القراء متوقف مؤقتاً لحين تجهيز المتجر. يجب أن يكون لكل دور (مؤلف / دار نشر / قارئ) بريد إلكتروني مستقل خاص به دون خلط بين الحسابات.",
+                "Reader registration is temporarily paused while preparing the store. Each role (Author / Publisher / Reader) must use its own separate email."
+              )}
+            </p>
 
             {/* Role Perks */}
             <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5 space-y-2 text-start transition-all">

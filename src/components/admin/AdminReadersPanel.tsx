@@ -41,8 +41,9 @@ export function AdminReadersPanel() {
   const qc = useQueryClient();
   const { t, price: formatMoney } = useLocale();
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterTab, setFilterTab] = useState<"all" | "pending" | "approved">("all");
+  const [filterTab, setFilterTab] = useState<"all" | "pure_readers" | "authors_mixed" | "pending" | "approved">("all");
   const [selectedReader, setSelectedReader] = useState<ReaderProfile | null>(null);
+  const [sortingBusy, setSortingBusy] = useState(false);
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -87,8 +88,27 @@ export function AdminReadersPanel() {
     },
   });
 
+  // Fetch publishers/authors so we can separate author/publisher accounts from pure reader accounts
+  const { data: publishersList = [] } = useQuery<{ id: string; store_name: string | null; account_type?: string | null; email?: string | null }[]>({
+    queryKey: ["admin-publishers-role-map"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase.from("publishers").select("id, store_name, account_type, email");
+        if (error) return [];
+        return (data || []) as { id: string; store_name: string | null; account_type?: string | null; email?: string | null }[];
+      } catch {
+        return [];
+      }
+    },
+  });
+
   // Merge remote profiles with locally registered readers & approval records
-  const approvalReaders = getAccountApprovals().filter((a) => a.role === "reader");
+  const allApprovals = getAccountApprovals();
+  const approvalReaders = allApprovals.filter((a) => a.role === "reader");
+  const publisherMap = new Map(publishersList.map((p) => [p.id, p]));
+  const nonReaderApprovalMap = new Map(
+    allApprovals.filter((a) => a.role === "author" || a.role === "publisher").map((a) => [a.userId, a])
+  );
 
   const mergedMap = new Map<string, ReaderProfile>();
   for (const r of remoteReaders) {
@@ -140,9 +160,47 @@ export function AdminReadersPanel() {
     qc.invalidateQueries();
   }
 
+  // Identify accounts that are registered as Author or Publisher yet have a Reader profile
+  const isMixedAuthorAccount = (r: ReaderProfile) =>
+    publisherMap.has(r.id) || nonReaderApprovalMap.has(r.id);
+
+  const getMixedRoleLabel = (r: ReaderProfile) => {
+    const pub = publisherMap.get(r.id);
+    const app = nonReaderApprovalMap.get(r.id);
+    const roleType = pub?.account_type || app?.role;
+    return roleType === "publisher" ? "دار نشر" : "مؤلف";
+  };
+
+  const mixedAuthorAccounts = readers.filter(isMixedAuthorAccount);
+  const pureReaders = readers.filter((r) => !isMixedAuthorAccount(r));
+
+  async function handleSuspendAllMixedAuthors() {
+    if (mixedAuthorAccounts.length === 0) return;
+    setSortingBusy(true);
+    try {
+      await Promise.all(
+        mixedAuthorAccounts.map((r) => {
+          const rName = r.display_name || r.shipping_name || publisherMap.get(r.id)?.store_name || "مؤلف";
+          const rEmail = r.email || publisherMap.get(r.id)?.email || "";
+          return updateAccountApprovalStatus(r.id, "rejected", "تم فرز وفصل حساب القارئ عن حساب المؤلف/الناشر", {
+            role: "reader",
+            name: rName,
+            email: rEmail,
+          });
+        })
+      );
+      setTick((n) => n + 1);
+      toast.success(`تم فرز وتعليق صلاحية القارئ عن (${mixedAuthorAccounts.length}) حساب مسجل كمؤلف/دار نشر بنجاح.`);
+      refetchReaders();
+      qc.invalidateQueries();
+    } finally {
+      setSortingBusy(false);
+    }
+  }
+
   // Calculate stats
-  const totalReadersCount = readers.length;
-  const pendingReadersCount = readers.filter(
+  const totalReadersCount = pureReaders.length;
+  const pendingReadersCount = pureReaders.filter(
     (r) => getUserApprovalStatus(r.id, r.email, "reader") === "pending"
   ).length;
   const totalOrdersCount = orders.length;
@@ -156,8 +214,11 @@ export function AdminReadersPanel() {
 
   const filteredReaders = readers.filter((r) => {
     const status = getUserApprovalStatus(r.id, r.email, "reader");
+    const mixed = isMixedAuthorAccount(r);
+    if (filterTab === "pure_readers" && mixed) return false;
+    if (filterTab === "authors_mixed" && !mixed) return false;
     if (filterTab === "pending" && status !== "pending") return false;
-    if (filterTab === "approved" && status !== "approved") return false;
+    if (filterTab === "approved" && (status !== "approved" || mixed)) return false;
 
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
@@ -213,6 +274,40 @@ export function AdminReadersPanel() {
         </div>
       </div>
 
+      {/* Mixed Author/Reader Separation Banner */}
+      {mixedAuthorAccounts.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-sm font-bold text-amber-900 dark:text-amber-100">
+              تنبيه فرز الحسابات: تم رصد ({mixedAuthorAccounts.length}) حساب مسجّل كمؤلف أو دار نشر وتفعّل له ملف قارئ
+            </p>
+            <p className="text-xs text-amber-800/90 dark:text-amber-200/90">
+              يمكنك فرزهم وتعليق صلاحية القارئ عنهم بنقرة واحدة مع إبقاء حساباتهم كمؤلفين/ناشرين نشطة دون تأثر.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setFilterTab("authors_mixed")}
+              className="rounded-xl border-amber-500/40"
+            >
+              عرض الحسابات المختلطة ({mixedAuthorAccounts.length})
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={sortingBusy}
+              onClick={handleSuspendAllMixedAuthors}
+              className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold"
+            >
+              {sortingBusy ? "جارٍ الفرز…" : "فرز وتعليق القارئ عن كل المؤلفين"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Control Bar: Search + Filter Tabs */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-border/80 shadow-xs">
         <div className="relative flex-1 max-w-md">
@@ -239,6 +334,28 @@ export function AdminReadersPanel() {
           </button>
           <button
             type="button"
+            onClick={() => setFilterTab("pure_readers")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              filterTab === "pure_readers"
+                ? "bg-blue-600 text-white"
+                : "bg-blue-500/10 text-blue-700 hover:bg-blue-500/20"
+            }`}
+          >
+            قراء مستقلون ({pureReaders.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterTab("authors_mixed")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              filterTab === "authors_mixed"
+                ? "bg-rose-600 text-white"
+                : "bg-rose-500/10 text-rose-700 hover:bg-rose-500/20"
+            }`}
+          >
+            مسجل كمؤلف/ناشر ({mixedAuthorAccounts.length})
+          </button>
+          <button
+            type="button"
             onClick={() => setFilterTab("pending")}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               filterTab === "pending"
@@ -257,7 +374,7 @@ export function AdminReadersPanel() {
                 : "bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20"
             }`}
           >
-            المعتمدون ({readers.filter((r) => getUserApprovalStatus(r.id, r.email) === "approved").length})
+            المعتمدون ({pureReaders.filter((r) => getUserApprovalStatus(r.id, r.email) === "approved").length})
           </button>
         </div>
       </div>
@@ -300,8 +417,13 @@ export function AdminReadersPanel() {
                           {(r.display_name || r.shipping_name || "ق")[0]}
                         </span>
                         <div>
-                          <div className="font-bold text-foreground">
-                            {r.display_name || r.shipping_name || "قارئ unibook"}
+                          <div className="font-bold text-foreground flex flex-wrap items-center gap-1.5">
+                            <span>{r.display_name || r.shipping_name || "قارئ unibook"}</span>
+                            {isMixedAuthorAccount(r) && (
+                              <Badge variant="outline" className="border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 text-[10px]">
+                                مسجل كـ {getMixedRoleLabel(r)}
+                              </Badge>
+                            )}
                           </div>
                           <div className="text-[11px] text-muted-foreground font-mono truncate max-w-44" dir="ltr">
                             {r.email || `${r.id.slice(0, 12)}...`}

@@ -11,6 +11,8 @@ import { BookCover, formatLabel, type Book } from "@/components/BookCard";
 import { useCart } from "@/lib/cart";
 import { ProtectedBookReader } from "@/components/ProtectedBookReader";
 import { getBookDiscount, getLocalBooks } from "@/lib/book-helpers";
+import { StoreClosedNotice } from "@/components/StoreClosedNotice";
+import { STORE_AND_READER_CLOSED } from "@/lib/site-config";
 
 export const Route = createFileRoute("/books/$id")({
   head: () => ({
@@ -23,8 +25,13 @@ export const Route = createFileRoute("/books/$id")({
       { property: "og:description", content: "تفاصيل الكتاب وأسعار النسخ الرقمية والورقية." },
     ],
   }),
-  component: BookPage,
+  component: BookPageGuard,
 });
+
+function BookPageGuard() {
+  if (STORE_AND_READER_CLOSED) return <StoreClosedNotice mode="store" />;
+  return <BookPage />;
+}
 
 function BookPage() {
   const { id } = Route.useParams();

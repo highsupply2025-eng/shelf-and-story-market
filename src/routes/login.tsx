@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 import { useAuth, isNetworkOrFetchError, metadataAccountType } from "@/lib/auth";
+import { STORE_AND_READER_CLOSED } from "@/lib/site-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,11 +72,19 @@ function LoginPage() {
         navigate({ to: "/publisher" });
       } else if (resolved === "author") {
         navigate({ to: "/author" });
+      } else if (STORE_AND_READER_CLOSED) {
+        void supabase.auth.signOut();
+        toast.error(
+          t(
+            "دخول حسابات القراء متوقف مؤقتاً لحين تجهيز المتجر. يمكن للمؤلفين ودور النشر الدخول بحساباتهم المستقلة.",
+            "Reader sign-in is temporarily paused while preparing the store. Authors and Publishers can sign in with their dedicated accounts."
+          )
+        );
       } else {
         navigate({ to: "/account" });
       }
     }
-  }, [session, isAdmin, accountType, otpStep, navigate]);
+  }, [session, isAdmin, accountType, otpStep, navigate, t]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

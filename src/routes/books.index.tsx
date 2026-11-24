@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { BookCard, type Book } from "@/components/BookCard";
 import { mergeLocalBooks } from "@/lib/book-helpers";
+import { StoreClosedNotice } from "@/components/StoreClosedNotice";
+import { STORE_AND_READER_CLOSED } from "@/lib/site-config";
 
 export const Route = createFileRoute("/books/")({
   head: () => ({
@@ -19,8 +21,13 @@ export const Route = createFileRoute("/books/")({
       { property: "og:description", content: "تصفّح الكتب الرقمية والورقية حسب التصنيف والصيغة في متجر unibook العالمي." },
     ],
   }),
-  component: BooksPage,
+  component: BooksPageGuard,
 });
+
+function BooksPageGuard() {
+  if (STORE_AND_READER_CLOSED) return <StoreClosedNotice mode="store" />;
+  return <BooksPage />;
+}
 
 function BooksPage() {
   const { t } = useLocale();

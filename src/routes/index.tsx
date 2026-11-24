@@ -12,13 +12,15 @@ import { mergeLocalBooks } from "@/lib/book-helpers";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "unibook — متجر الكتب الرقمية والورقية" },
-      { name: "description", content: "اكتشف آلاف الكتب الرقمية والورقية، أو انشر كتابك ووصل إلى قرّاء جدد على unibook." },
-      { property: "og:title", content: "unibook — متجر الكتب الرقمية والورقية" },
-      { property: "og:description", content: "اشترِ الكتب الرقمية والورقية أو انشر كتابك على unibook." },
+      { title: "unibook | unibook.store — متجر الكتب الرقمية والورقية ومنصة النشر" },
+      { name: "description", content: "الموقع الرسمي لمنصة unibook (unibook.store) — اكتشف آلاف الكتب الرقمية والورقية، أو انشر كتابك ووصل إلى قرّاء جدد مع دار عبيد للنشر." },
+      { property: "og:title", content: "unibook | unibook.store — متجر الكتب الرقمية والورقية" },
+      { property: "og:description", content: "الموقع الرسمي لمنصة unibook (unibook.store) — اشترِ الكتب الرقمية والورقية أو انشر كتابك." },
+      { property: "og:url", content: "https://unibook.store/" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://unibook.store/" }],
   }),
   component: Index,
 });

@@ -5,3 +5,9 @@
  * Author, Publisher, and Admin portals remain fully active.
  */
 export const STORE_AND_READER_CLOSED = true;
+
+/**
+ * Set to true only after enabling the Google OAuth provider in Supabase Dashboard
+ * (Authentication -> Providers -> Google) with valid Client ID & Secret.
+ */
+export const GOOGLE_OAUTH_ENABLED = false;

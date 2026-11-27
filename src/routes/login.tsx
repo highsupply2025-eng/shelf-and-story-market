@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 import { useAuth, isNetworkOrFetchError, metadataAccountType } from "@/lib/auth";
-import { STORE_AND_READER_CLOSED } from "@/lib/site-config";
+import { STORE_AND_READER_CLOSED, GOOGLE_OAUTH_ENABLED } from "@/lib/site-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -333,7 +333,16 @@ function LoginPage() {
           )}
         </div>
 
-        {!resetMode && !otpStep && (
+        {STORE_AND_READER_CLOSED && !resetMode && !otpStep && (
+          <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3.5 py-2.5 text-xs text-amber-800 dark:text-amber-200 leading-relaxed text-center">
+            {t(
+              "دخول حسابات القراء متوقف مؤقتاً لحين تجهيز المتجر. الدخول متاح للمؤلفين ودور النشر والإدارة عبر البريد الإلكتروني.",
+              "Reader sign-in is temporarily paused while preparing the store. Authors, Publishers, and Admin can sign in with email."
+            )}
+          </div>
+        )}
+
+        {GOOGLE_OAUTH_ENABLED && !resetMode && !otpStep && (
           <>
             {/* Google OAuth Button */}
             <Button

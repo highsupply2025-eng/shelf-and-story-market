@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 import { useAuth, isNetworkOrFetchError, metadataAccountType } from "@/lib/auth";
-import { STORE_AND_READER_CLOSED } from "@/lib/site-config";
+import { STORE_AND_READER_CLOSED, GOOGLE_OAUTH_ENABLED } from "@/lib/site-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -277,7 +277,7 @@ function RegisterPage() {
         </div>
 
         {/* Google OAuth Button (disabled while reader registration is paused to prevent unseparated reader accounts) */}
-        {!STORE_AND_READER_CLOSED && (
+        {GOOGLE_OAUTH_ENABLED && !STORE_AND_READER_CLOSED && (
           <>
             <Button
               type="button"
